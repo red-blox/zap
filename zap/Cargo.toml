@@ -1,5 +1,7 @@
 [package]
 name = "zap"
+authors = ["Redblox Organization"]
+description = "A blazingly fast networking solution for Roblox."
 version = "0.1.0"
 edition = "2021"
 
