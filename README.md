@@ -60,13 +60,84 @@ At this time Zap has not been benchmarked, as it progresses through development 
 While buffers may only support a small number of types, zap has complex type support. Below is a list of all supported types:
 
 - Booleans
+
+```
+type t = bool
+```
+
 - Numbers (all sizes)
+
+```
+type t = f32
+type t = f64
+
+type t = u8
+type t = u16
+type t = u32
+type t = u64
+
+type t = i8
+type t = i16
+type t = i32
+type t = i64
+```
+
+Numbers can also have range contraints:
+
+```
+type Health = u8 (0..=100)
+```
+
 - Strings
+
+```
+type t = String
+```
+
+Strings can have a length range constraint:
+
+```
+type Username = String (3..20)
+```
+
 - Arrays
+
+```
+type t = u8[]
+```
+
+Arrays can have a length range constraint:
+
+```
+type t = u8[10..20]
+```
+
 - Maps
+
+```
+type t = { [string]: u8 }
+```
+
 - Structs
-- Enums (string literal unions)
+
+```
+type Item = {
+	Name: string,
+	Price: u16,
+}
+```
+
+- Enums
+
+```
+type t = { One, Two, Three }
+```
+
 - Optionals
+
+```
+type t = u8?
+```
 
 ## Documentation
 
@@ -75,3 +146,7 @@ As Zap is still in early development, documentation is not yet available. Once Z
 ## Contributing
 
 Contributions are welcome! Please open an issue before you start working on a feature or bug fix so we can discuss it.
+
+```
+
+```
