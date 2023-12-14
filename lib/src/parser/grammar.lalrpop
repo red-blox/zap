@@ -1,0 +1,144 @@
+use std::str::FromStr;
+use crate::util::Range;
+use crate::parser::*;
+use crate::parser::working_ast::*;
+
+grammar;
+
+pub File: File = <opts:Opt*> <decls:Decl*> => {
+	let mut ty_decls = Vec::new();
+	let mut ev_decls = Vec::new();
+
+	for decl in decls {
+		match decl {
+			Decl::Ty(decl) => ty_decls.push(decl),
+			Decl::Ev(decl) => ev_decls.push(decl),
+		}
+	}
+
+	let mut lang = Lang::Luau;
+	let mut casing = Casing::Pascal;
+	let mut write_checks = false;
+
+	for opt in opts {
+		match opt {
+			Opt::Lang(v) => lang = v,
+			Opt::Casing(v) => casing = v,
+			Opt::WriteChecks(v) => write_checks = v,
+		}
+	}
+
+	File { ty_decls, ev_decls, lang, casing, write_checks }
+};
+
+Opt: Opt = {
+	"opt" "casing" "=" "camel" => Opt::Casing(Casing::Camel),
+	"opt" "casing" "=" "snake" => Opt::Casing(Casing::Snake),
+	"opt" "casing" "=" "pascal" => Opt::Casing(Casing::Pascal),
+
+	"opt" "lang" "=" "luau" => Opt::Lang(Lang::Luau),
+	"opt" "lang" "=" "typescript" => Opt::Lang(Lang::Typescript),
+
+	"opt" "writechecks" "=" "true" => Opt::WriteChecks(true),
+	"opt" "writechecks" "=" "false" => Opt::WriteChecks(false),
+}
+
+Decl: Decl = {
+	<decl:TyDecl> => Decl::Ty(decl),
+	<decl:EvDecl> => Decl::Ev(decl),
+}
+
+EvDecl: EvDecl = "event" <name:Word> "=" "{" <fields:Comma<EvField>> "}" => {
+	let mut from = EvSource::Server;
+	let mut evty = EvType::Reliable;
+	let mut call = EvCall::SingleSync;
+	let mut data = Ty::Bool;
+
+	for field in fields {
+		match field {
+			EvField::From(v) => from = v,
+			EvField::Type(v) => evty = v,
+			EvField::Call(v) => call = v,
+			EvField::Data(v) => data = v,
+		}
+	}
+
+	EvDecl {
+		name,
+		from,
+		evty,
+		call,
+		data,
+	}
+};
+
+EvField: EvField = {
+	"from" ":" "Server" => EvField::From(EvSource::Server),
+	"from" ":" "Client" => EvField::From(EvSource::Client),
+
+	"type" ":" "Reliable" => EvField::Type(EvType::Reliable),
+	"type" ":" "Unreliable" => EvField::Type(EvType::Unreliable),
+
+	"data" ":" <ty:Ty> => EvField::Data(ty),
+
+	"call" ":" "SingleSync" => EvField::Call(EvCall::SingleSync),
+	"call" ":" "SingleAsync" => EvField::Call(EvCall::SingleAsync),
+	"call" ":" "ManySync" => EvField::Call(EvCall::ManySync),
+	"call" ":" "ManyAsync" => EvField::Call(EvCall::ManyAsync),
+}
+
+TyDecl: TyDecl = "type" <name:Word> "=" <ty:Ty> => TyDecl { name, ty };
+
+Ty: Ty = {
+	"bool" => Ty::Bool,
+
+	"f32" <r:("(" <Range> ")")?> => Ty::F32(r.unwrap_or_default().into()),
+	"f64" <r:("(" <Range> ")")?> => Ty::F64(r.unwrap_or_default().into()),
+
+	"i8" <r:("(" <Range> ")")?> => Ty::I8(r.unwrap_or_default().into()),
+	"i16" <r:("(" <Range> ")")?> => Ty::I16(r.unwrap_or_default().into()),
+	"i32" <r:("(" <Range> ")")?> => Ty::I32(r.unwrap_or_default().into()),
+
+	"u8" <r:("(" <Range> ")")?> => Ty::U8(r.unwrap_or_default().into()),
+	"u16" <r:("(" <Range> ")")?> => Ty::U16(r.unwrap_or_default().into()),
+	"u32" <r:("(" <Range> ")")?> => Ty::U32(r.unwrap_or_default().into()),
+
+	"String" <r:("(" <Range> ")")?> => Ty::Str { len: r.unwrap_or_default().into() },
+	<ty:Ty> "[" <r:Range?> "]" => Ty::Arr { ty: Box::new(ty), len: r.unwrap_or_default().into() },
+	"{" "[" <key:Ty> "]:" <val:Ty> "}" => Ty::Map { key: Box::new(key), val: Box::new(val) },
+	
+	"{" <fields:Comma<(<Word> ":" <Ty>)>> "}" => Ty::Struct { fields },
+	"{" <variants:Comma<(<Word>)>> "}" => Ty::Enum { variants },
+
+	<name:Word> => Ty::Ref(name),
+
+	<ty:Ty> "?" => Ty::Optional(Box::new(ty)),
+}
+
+Range: Range<f64> = {
+	".." => Range::default(),
+
+	".." <max:Number> => Range::with_max(max, false),
+	"..=" <max:Number> => Range::with_max(max, true),
+
+	<min:Number> ".." => Range::with_min(min),
+
+	<min:Number> ".." <max:Number> => Range::new(Some(min), Some(max), false),
+	<min:Number> "..=" <max:Number> => Range::new(Some(min), Some(max), true),
+
+	<num:Number> => Range::new(Some(num), Some(num), true),
+}
+
+Comma<T>: Vec<T> = {
+	<e:T> => vec![e],
+	<mut v:(<T> ",")+> <e:T?> => match e {
+		None => v,
+		Some(e) => {
+			v.push(e);
+			v
+		}
+	}
+}
+
+Number: f64 = r"[-+]?[0-9]*\.?[0-9]+" => f64::from_str(<>).unwrap();
+Word: String = r"[a-zA-Z_][a-zA-Z0-9_]*" => <>.to_string();

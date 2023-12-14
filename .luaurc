@@ -1,0 +1,6 @@
+{
+	"languageMode": "nocheck",
+	"lint": {
+		"*": false
+	}
+}
