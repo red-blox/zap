@@ -2,7 +2,10 @@ use std::collections::HashSet;
 
 use lalrpop_util::lalrpop_mod;
 
-use crate::util::{NumTy, Range};
+use crate::{
+	util::{NumTy, Range},
+	Error,
+};
 
 mod working_ast;
 
@@ -157,20 +160,19 @@ impl Ty {
 	}
 }
 
-pub fn parse(code: &str) -> Result<File, String> {
+pub fn parse(code: &str) -> Result<File, Error> {
 	let mut ref_decl = HashSet::new();
 	let mut ref_used = HashSet::new();
 
-	let file = match grammar::FileParser::new().parse(&mut ref_decl, &mut ref_used, &mut HashSet::new(), code) {
-		Ok(file) => file,
-		Err(e) => return Err(e.to_string()),
-	};
+	let file = grammar::FileParser::new()
+		.parse(&mut ref_decl, &mut ref_used, &mut HashSet::new(), code)
+		.map_err(|e| Error::ParseError(e.to_string()))?;
 
 	let unknown_refs = ref_used.difference(&ref_decl).collect::<Vec<_>>();
 
 	// TODO: Better error reporting with error location
-	if unknown_refs.len() > 0 {
-		return Err(format!("Unknown type referenced: `{}`", unknown_refs[0]));
+	if !unknown_refs.is_empty() {
+		return Err(Error::UnknownTypeReference(unknown_refs[0].to_owned()));
 	}
 
 	Ok(file)

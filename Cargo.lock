@@ -800,4 +800,5 @@ dependencies = [
  "lalrpop",
  "lalrpop-util",
  "num-traits",
+ "thiserror",
 ]

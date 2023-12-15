@@ -14,3 +14,4 @@ lalrpop = "0.20.0"
 clap = { version = "4.4.11", features = ["derive"] }
 lalrpop-util = { version = "0.20.0", features = ["lexer", "unicode"] }
 num-traits = "0.2.17"
+thiserror = "1.0"

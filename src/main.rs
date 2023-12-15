@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use zap::run;
+use zap::{run, Error};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -13,28 +13,19 @@ struct Args {
 	output: Option<PathBuf>,
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
 	let args = Args::parse();
 
 	let config_path = args.config.unwrap();
 	let output_dir_path = args.output.unwrap();
 
-	let config = match std::fs::read_to_string(&config_path) {
-		Ok(config) => config,
-		Err(err) => {
-			eprintln!("Failed to read config file: {}", err);
-			return;
-		}
-	};
+	let config = std::fs::read_to_string(config_path)?;
 
-	match run(config.as_str()) {
-		Ok(code) => {
-			std::fs::create_dir_all(&output_dir_path).expect("Failed to create output directory!");
+	let code = run(config.as_str())?;
 
-			std::fs::write(output_dir_path.join("server.luau"), code.server).expect("Failed to write server code!");
-			std::fs::write(output_dir_path.join("client.luau"), code.client).expect("Failed to write client code!");
-		}
+	std::fs::create_dir_all(&output_dir_path)?;
+	std::fs::write(output_dir_path.join("server.luau"), code.server)?;
+	std::fs::write(output_dir_path.join("client.luau"), code.client)?;
 
-		Err(err) => eprintln!("{}", err),
-	}
+	Ok(())
 }
