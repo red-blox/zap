@@ -23,9 +23,12 @@ pub enum Stmt {
 	WriteNum { expr: Expr, ty: NumTy, at: Option<Expr> },
 	WriteStr { expr: Expr, len: Expr },
 	WriteRef { expr: Expr, ref_name: String },
+	WriteInst { expr: Expr },
+
 	ReadNum { into: Var, ty: NumTy },
 	ReadStr { into: Var, len: Expr },
 	ReadRef { into: Var, ref_name: String },
+	ReadInst { into: Var },
 }
 
 #[derive(Debug, Clone)]
@@ -65,18 +68,27 @@ pub enum Expr {
 	EmptyArr,
 	EmptyObj,
 
+	Vector3(Box<Expr>, Box<Expr>, Box<Expr>),
+
+	InstanceIsA(Box<Expr>, Box<Expr>),
+
 	Len(Box<Expr>),
 
 	Lt(Box<Expr>, Box<Expr>),
-	#[allow(dead_code)]
 	Gt(Box<Expr>, Box<Expr>),
 	Le(Box<Expr>, Box<Expr>),
 	Ge(Box<Expr>, Box<Expr>),
 	Eq(Box<Expr>, Box<Expr>),
+	Or(Box<Expr>, Box<Expr>),
+
 	Add(Box<Expr>, Box<Expr>),
 }
 
 impl Expr {
+	pub fn is_a(self, ty: Expr) -> Expr {
+		Expr::InstanceIsA(Box::new(self), Box::new(ty))
+	}
+
 	pub fn len(self) -> Expr {
 		Expr::Len(Box::new(self))
 	}
@@ -100,6 +112,10 @@ impl Expr {
 
 	pub fn eq(self, other: Expr) -> Expr {
 		Expr::Eq(Box::new(self), Box::new(other))
+	}
+
+	pub fn or(self, other: Expr) -> Expr {
+		Expr::Or(Box::new(self), Box::new(other))
 	}
 
 	pub fn add(self, other: Expr) -> Expr {

@@ -128,6 +128,9 @@ Ty: Ty = {
 	"{" <fields:Comma<(<Word> ":" <Ty>)>> "}" => Ty::Struct { fields },
 	"{" <variants:Comma<(<Word>)>> "}" => Ty::Enum { variants },
 
+	"Instance" <class:("(" <Word> ")")?> => Ty::Instance(class),
+	"Vector3" => Ty::Vector3,
+
 	<name:Word> => {
 		ref_used.insert(name.clone());
 		Ty::Ref(name)

@@ -54,6 +54,10 @@ impl Gen {
 		self.emit(Stmt::WriteRef { expr, ref_name });
 	}
 
+	fn write_inst(&mut self, expr: Expr) {
+		self.emit(Stmt::WriteInst { expr });
+	}
+
 	fn read_num(&mut self, into: Var, ty: NumTy) {
 		self.emit(Stmt::ReadNum { into, ty });
 	}
@@ -64,6 +68,10 @@ impl Gen {
 
 	fn read_ref(&mut self, into: Var, ref_name: String) {
 		self.emit(Stmt::ReadRef { into, ref_name });
+	}
+
+	fn read_inst(&mut self, into: Var) {
+		self.emit(Stmt::ReadInst { into });
 	}
 
 	fn block_start(&mut self) {
@@ -225,6 +233,14 @@ impl Gen {
 				self.block_end();
 			}
 
+			Ty::Instance(_) => self.write_inst(from_expr),
+
+			Ty::Vector3 => {
+				self.write_num(from.clone().name_index("X".into()).into(), NumTy::F32);
+				self.write_num(from.clone().name_index("Y".into()).into(), NumTy::F32);
+				self.write_num(from.clone().name_index("Z".into()).into(), NumTy::F32);
+			}
+
 			Ty::Ref(name) => self.write_ref(from_expr, name.clone()),
 
 			Ty::Optional(ty) => {
@@ -369,26 +385,50 @@ impl Gen {
 				self.block_end();
 			}
 
+			Ty::Instance(_) => {
+				self.read_inst(into.clone());
+				self.assert(Expr::from(into.clone()), "Instance could not be found!".into());
+			}
+
+			Ty::Vector3 => {
+				self.local("x");
+				self.local("y");
+				self.local("z");
+
+				self.read_num("x".into(), NumTy::F32);
+				self.read_num("y".into(), NumTy::F32);
+				self.read_num("z".into(), NumTy::F32);
+
+				self.assign(
+					into.clone(),
+					Expr::Vector3(Box::new("x".into()), Box::new("y".into()), Box::new("z".into())),
+				);
+			}
+
 			Ty::Ref(name) => self.read_ref(into.clone(), name.clone()),
 
-			Ty::Optional(ty) => {
-				self.block_start();
+			Ty::Optional(ty) => match **ty {
+				Ty::Instance(_) => self.read_inst(into.clone()),
 
-				self.local("val".into());
-				self.read_num("val".into(), NumTy::U8);
+				_ => {
+					self.block_start();
 
-				self.if_(Expr::from("val").eq(0.into()));
+					self.local("val".into());
+					self.read_num("val".into(), NumTy::U8);
 
-				self.assign(into.clone(), Expr::Nil);
+					self.if_(Expr::from("val").eq(0.into()));
 
-				self.else_();
+					self.assign(into.clone(), Expr::Nil);
 
-				self.des(ty, into);
+					self.else_();
 
-				self.block_end();
+					self.des(ty, into);
 
-				self.block_end();
-			}
+					self.block_end();
+
+					self.block_end();
+				}
+			},
 		}
 
 		if self.des_checks {
@@ -491,6 +531,30 @@ impl Gen {
 					}
 				}
 			}
+
+			Ty::Instance(class) => match class {
+				Some(class) => self.assert(
+					Expr::from(var.clone()).is_a(class.clone().into()),
+					format!("Instance is not of class {}!", class),
+				),
+
+				None => {}
+			},
+
+			Ty::Optional(ty) => match *ty.clone() {
+				Ty::Instance(class) => match class {
+					Some(class) => self.assert(
+						Expr::from(var.clone())
+							.eq(Expr::Nil)
+							.or(Expr::from(var.clone()).is_a(class.clone().into())),
+						format!("Instance is not of class {}!", class),
+					),
+
+					None => {}
+				},
+
+				_ => {}
+			},
 
 			_ => {}
 		}

@@ -6,8 +6,8 @@ use crate::{
 	util::NumTy,
 };
 
-mod client;
-mod server;
+pub mod client;
+pub mod server;
 
 impl Display for TyDecl {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -78,6 +78,9 @@ impl Display for Ty {
 					.join(" | ")
 			),
 
+			Ty::Instance(name) => write!(f, "{}", if let Some(name) = name { name } else { "Instance" }),
+			Ty::Vector3 => write!(f, "Vector3"),
+
 			Ty::Ref(name) => write!(f, "{name}"),
 
 			Ty::Optional(ty) => write!(f, "{ty}?"),
@@ -115,9 +118,12 @@ impl Display for Stmt {
 
 			Stmt::WriteRef { expr, ref_name } => write!(f, "buffer.write_{ref_name}({expr})"),
 
+			Stmt::WriteInst { expr } => write!(f, "buffer.writeu16(outgoing_buff, alloc(2), alloc_inst({expr}))"),
+
 			Stmt::ReadNum { into, ty } => write!(f, "{into} = buffer.read{ty}(incoming_buff, read({}))", ty.size()),
 			Stmt::ReadStr { into, len } => write!(f, "{into} = buffer.readstring(incoming_buff, read({len}), {len})"),
 			Stmt::ReadRef { into, ref_name } => write!(f, "{into} = buffer.read_{ref_name}()"),
+			Stmt::ReadInst { into } => write!(f, "{into} = incoming_inst[buffer.readu16(incoming_buff, read(2))]"),
 		}
 	}
 }
@@ -164,6 +170,10 @@ impl Display for Expr {
 			Expr::EmptyArr => write!(f, "{{}}"),
 			Expr::EmptyObj => write!(f, "{{}}"),
 
+			Expr::Vector3(x, y, z) => write!(f, "Vector3.new({x}, {y}, {z})"),
+
+			Expr::InstanceIsA(expr, class) => write!(f, "{expr}:IsA(\"{class}\")"),
+
 			Expr::Len(expr) => write!(f, "#{expr}"),
 
 			Expr::Lt(left, right) => write!(f, "{left} < {right}"),
@@ -171,6 +181,8 @@ impl Display for Expr {
 			Expr::Le(left, right) => write!(f, "{left} <= {right}"),
 			Expr::Ge(left, right) => write!(f, "{left} >= {right}"),
 			Expr::Eq(left, right) => write!(f, "{left} == {right}"),
+			Expr::Or(left, right) => write!(f, "{left} or {right}"),
+
 			Expr::Add(left, right) => write!(f, "{left} + {right}"),
 		}
 	}

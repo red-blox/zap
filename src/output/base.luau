@@ -1,3 +1,5 @@
+--!native
+--!optimize 2
 local outgoing_buff: buffer
 local outgoing_used: number
 local outgoing_size: number
@@ -23,6 +25,12 @@ local function alloc(len: number)
 	outgoing_used = outgoing_used + len
 
 	return pos
+end
+
+local function alloc_inst(inst: Instance)
+	table.insert(outgoing_inst, inst)
+
+	return #outgoing_inst
 end
 
 local function read(len: number)
