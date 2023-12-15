@@ -146,7 +146,3 @@ As Zap is still in early development, documentation is not yet available. Once Z
 ## Contributing
 
 Contributions are welcome! Please open an issue before you start working on a feature or bug fix so we can discuss it.
-
-```
-
-```
