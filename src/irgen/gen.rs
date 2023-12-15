@@ -7,10 +7,10 @@ use crate::{
 	util::{NumTy, Range},
 };
 
-use super::{Expr, Op, Var};
+use super::{Expr, Stmt, Var};
 
 pub struct Gen {
-	ops: Vec<Op>,
+	stmts: Vec<Stmt>,
 
 	ser_checks: bool,
 	des_checks: bool,
@@ -19,100 +19,95 @@ pub struct Gen {
 impl Gen {
 	pub fn new(ser_checks: bool, des_checks: bool) -> Self {
 		Self {
-			ops: Vec::new(),
+			stmts: Vec::new(),
 
 			ser_checks,
 			des_checks,
 		}
 	}
 
-	pub fn output(self) -> Vec<Op> {
-		self.ops
+	pub fn output(self) -> Vec<Stmt> {
+		self.stmts
 	}
 
-	fn emit(&mut self, op: Op) {
-		self.ops.push(op);
+	fn emit(&mut self, stmt: Stmt) {
+		self.stmts.push(stmt);
 	}
 
 	fn alloc(&mut self, into: Var, len: Expr) {
-		self.emit(Op::Alloc { into, len });
+		self.emit(Stmt::Alloc { into, len });
 	}
 
 	fn write_num(&mut self, expr: Expr, ty: NumTy) {
-		self.emit(Op::WriteNum { expr, ty, at: None });
+		self.emit(Stmt::WriteNum { expr, ty, at: None });
 	}
 
 	fn write_num_at(&mut self, expr: Expr, ty: NumTy, at: Expr) {
-		self.emit(Op::WriteNum { expr, ty, at: Some(at) });
+		self.emit(Stmt::WriteNum { expr, ty, at: Some(at) });
 	}
 
 	fn write_str(&mut self, expr: Expr, len: Expr) {
-		self.emit(Op::WriteStr { expr, len });
+		self.emit(Stmt::WriteStr { expr, len });
 	}
 
 	fn write_ref(&mut self, expr: Expr, ref_name: String) {
-		self.emit(Op::WriteRef { expr, ref_name });
+		self.emit(Stmt::WriteRef { expr, ref_name });
 	}
 
 	fn read_num(&mut self, into: Var, ty: NumTy) {
-		self.emit(Op::ReadNum { into, ty, at: None });
-	}
-
-	#[allow(dead_code)]
-	fn read_num_at(&mut self, into: Var, ty: NumTy, at: Expr) {
-		self.emit(Op::ReadNum { into, ty, at: Some(at) });
+		self.emit(Stmt::ReadNum { into, ty });
 	}
 
 	fn read_str(&mut self, into: Var, len: Expr) {
-		self.emit(Op::ReadStr { into, len });
+		self.emit(Stmt::ReadStr { into, len });
 	}
 
 	fn read_ref(&mut self, into: Var, ref_name: String) {
-		self.emit(Op::ReadRef { into, ref_name });
+		self.emit(Stmt::ReadRef { into, ref_name });
 	}
 
 	fn block_start(&mut self) {
-		self.emit(Op::BlockStart);
+		self.emit(Stmt::BlockStart);
 	}
 
 	fn num_for(&mut self, var: String, start: Expr, end: Expr) {
-		self.emit(Op::NumFor { var, start, end });
+		self.emit(Stmt::NumFor { var, start, end });
 	}
 
 	fn gen_for(&mut self, key: String, val: String, expr: Expr) {
-		self.emit(Op::GenFor { key, val, expr });
+		self.emit(Stmt::GenFor { key, val, expr });
 	}
 
 	fn if_(&mut self, cond: Expr) {
-		self.emit(Op::If { cond });
+		self.emit(Stmt::If { cond });
 	}
 
 	fn else_if(&mut self, cond: Expr) {
-		self.emit(Op::ElseIf { cond });
+		self.emit(Stmt::ElseIf { cond });
 	}
 
 	fn else_(&mut self) {
-		self.emit(Op::Else);
+		self.emit(Stmt::Else);
 	}
 
 	fn block_end(&mut self) {
-		self.emit(Op::BlockEnd);
+		self.emit(Stmt::BlockEnd);
 	}
 
 	fn local(&mut self, name: &'static str) {
-		self.emit(Op::Local { name });
+		self.emit(Stmt::Local { name });
 	}
 
 	fn assign(&mut self, var: Var, val: Expr) {
-		self.emit(Op::Assign { var, val });
+		self.emit(Stmt::Assign { var, val });
 	}
 
 	fn throw(&mut self, msg: String) {
-		self.emit(Op::Throw { msg });
+		self.emit(Stmt::Throw { msg });
 	}
 
 	fn assert(&mut self, cond: Expr, msg: String) {
-		self.emit(Op::Assert { cond, msg });
+		self.emit(Stmt::Assert { cond, msg });
 	}
 
 	pub fn ser(&mut self, ty: &Ty, from: &Var) {

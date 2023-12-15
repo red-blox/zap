@@ -11,8 +11,12 @@ pub struct Code {
 pub fn run(config: &str) -> Result<Code, String> {
 	let file = parser::parse(config)?;
 
+	/*
 	Ok(Code {
 		server: output::luau::server(&file),
 		client: output::luau::client(&file),
 	})
+	*/
+
+	todo!()
 }

@@ -16,28 +16,23 @@ pub File: File = <opts:Opt*> <decls:Decl*> => {
 		}
 	}
 
-	let mut lang = Lang::Luau;
 	let mut casing = Casing::Pascal;
 	let mut write_checks = false;
 
 	for opt in opts {
 		match opt {
-			Opt::Lang(v) => lang = v,
 			Opt::Casing(v) => casing = v,
 			Opt::WriteChecks(v) => write_checks = v,
 		}
 	}
 
-	File { ty_decls, ev_decls, lang, casing, write_checks }
+	File { ty_decls, ev_decls, casing, write_checks }
 };
 
 Opt: Opt = {
 	"opt" "casing" "=" "camel" => Opt::Casing(Casing::Camel),
 	"opt" "casing" "=" "snake" => Opt::Casing(Casing::Snake),
 	"opt" "casing" "=" "pascal" => Opt::Casing(Casing::Pascal),
-
-	"opt" "lang" "=" "luau" => Opt::Lang(Lang::Luau),
-	"opt" "lang" "=" "typescript" => Opt::Lang(Lang::Typescript),
 
 	"opt" "writechecks" "=" "true" => Opt::WriteChecks(true),
 	"opt" "writechecks" "=" "false" => Opt::WriteChecks(false),

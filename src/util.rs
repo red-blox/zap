@@ -2,6 +2,8 @@ use std::fmt::Display;
 
 use num_traits::*;
 
+use crate::parser::Casing;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Range<T: Num + NumCast + Copy + Display> {
 	min: Option<T>,
@@ -146,5 +148,13 @@ impl NumTy {
 			NumTy::I16 => 2,
 			NumTy::I32 => 4,
 		}
+	}
+}
+
+pub fn casing(casing: Casing, pascal: &'static str, camel: &'static str, snake: &'static str) -> &'static str {
+	match casing {
+		Casing::Pascal => pascal,
+		Casing::Camel => camel,
+		Casing::Snake => snake,
 	}
 }

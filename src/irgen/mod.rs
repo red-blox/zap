@@ -4,7 +4,7 @@ use crate::{parser::Ty, util::NumTy};
 use gen::Gen;
 
 #[derive(Debug, Clone)]
-pub enum Op {
+pub enum Stmt {
 	Local { name: &'static str },
 	Assign { var: Var, val: Expr },
 	Throw { msg: String },
@@ -23,7 +23,7 @@ pub enum Op {
 	WriteNum { expr: Expr, ty: NumTy, at: Option<Expr> },
 	WriteStr { expr: Expr, len: Expr },
 	WriteRef { expr: Expr, ref_name: String },
-	ReadNum { into: Var, ty: NumTy, at: Option<Expr> },
+	ReadNum { into: Var, ty: NumTy },
 	ReadStr { into: Var, len: Expr },
 	ReadRef { into: Var, ref_name: String },
 }
@@ -189,13 +189,13 @@ impl From<usize> for Expr {
 	}
 }
 
-pub fn gen_ser(ty: &Ty, from: &str, checks: bool) -> Vec<Op> {
+pub fn gen_ser(ty: &Ty, from: &str, checks: bool) -> Vec<Stmt> {
 	let mut gen = Gen::new(checks, false);
 	gen.ser(ty, &from.into());
 	gen.output()
 }
 
-pub fn gen_des(ty: &Ty, into: &str, checks: bool) -> Vec<Op> {
+pub fn gen_des(ty: &Ty, into: &str, checks: bool) -> Vec<Stmt> {
 	let mut gen = Gen::new(checks, false);
 	gen.des(ty, &into.into());
 	gen.output()

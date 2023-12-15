@@ -1,4 +1,4 @@
-use super::{Casing, EvCall, EvDecl, EvSource, EvType, Lang, Ty, TyDecl};
+use super::{Casing, EvCall, EvDecl, EvSource, EvType, Ty, TyDecl};
 
 #[derive(Debug, Clone)]
 pub enum EvField {
@@ -16,7 +16,6 @@ pub enum Decl {
 
 #[derive(Debug, Clone)]
 pub enum Opt {
-	Lang(Lang),
 	Casing(Casing),
 	WriteChecks(bool),
 }

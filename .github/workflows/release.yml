@@ -77,7 +77,7 @@ jobs:
           profile: minimal
 
       - name: Build Release
-        run: cargo build --package zap --release --locked --verbose --target ${{ matrix.target }}
+        run: cargo build --release --locked --verbose --target ${{ matrix.target }}
         env:
           # Build into a known directory so we can find our build artifact more
           # easily.

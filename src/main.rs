@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use lib::run;
+use zap::run;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
