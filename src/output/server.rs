@@ -22,110 +22,126 @@ impl<'a> Display for ServerFile<'a> {
 		}
 
 		// Output Reliable Callbacks
-		writeln!(f, "reliable.OnServerEvent:Connect(function(player, buff, inst)")?;
-		writeln!(f, "\tincoming_buff = buff")?;
-		writeln!(f, "\tincoming_read = 0")?;
-		writeln!(f, "\tincoming_inst = inst")?;
-
-		writeln!(f, "\tlocal len = buffer.len(buff)")?;
-		writeln!(f, "\twhile incoming_read < len do")?;
-
-		writeln!(
-			f,
-			"\t\tlocal id = buffer.read{}(buff, read({}))",
-			file.event_id_ty(),
-			file.event_id_ty().size()
-		)?;
-
-		for (i, ev_decl) in file
+		if file
 			.ev_decls
 			.iter()
-			.enumerate()
-			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client && ev_decl.evty == EvType::Reliable)
+			.any(|ev_decl| ev_decl.from == EvSource::Client && ev_decl.evty == EvType::Reliable)
 		{
-			let id = i + 1;
+			writeln!(f, "reliable.OnServerEvent:Connect(function(player, buff, inst)")?;
+			writeln!(f, "\tincoming_buff = buff")?;
+			writeln!(f, "\tincoming_read = 0")?;
+			writeln!(f, "\tincoming_inst = inst")?;
 
-			if i == 0 {
-				writeln!(f, "\t\tif id == {id} then")?;
-			} else {
-				writeln!(f, "\t\telseif id == {id} then")?;
+			writeln!(f, "\tlocal len = buffer.len(buff)")?;
+			writeln!(f, "\twhile incoming_read < len do")?;
+
+			writeln!(
+				f,
+				"\t\tlocal id = buffer.read{}(buff, read({}))",
+				file.event_id_ty(),
+				file.event_id_ty().size()
+			)?;
+
+			for (i, ev_decl) in file
+				.ev_decls
+				.iter()
+				.enumerate()
+				.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client && ev_decl.evty == EvType::Reliable)
+			{
+				let id = i + 1;
+
+				if i == 0 {
+					writeln!(f, "\t\tif id == {id} then")?;
+				} else {
+					writeln!(f, "\t\telseif id == {id} then")?;
+				}
+
+				writeln!(f, "\t\t\tlocal value;")?;
+
+				for stmt in gen_des(&ev_decl.data, "value", false) {
+					writeln!(f, "\t\t\t{stmt}")?;
+				}
+
+				match ev_decl.call {
+					EvCall::SingleSync => writeln!(f, "\t\tif events[{id}] then events[{id}](player, value) end")?,
+					EvCall::SingleAsync => writeln!(
+						f,
+						"\t\tif events[{id}] then task.spawn(events[{id}], player, value) end"
+					)?,
+
+					EvCall::ManySync => writeln!(f, "\t\tfor _, cb in events[{id}] do cb(player, value) end")?,
+					EvCall::ManyAsync => {
+						writeln!(f, "\t\tfor _, cb in events[{id}] do task.spawn(cb, player, value) end")?
+					}
+				}
+
+				writeln!(f, "\t\tend")?;
 			}
 
-			writeln!(f, "\t\t\tlocal value;")?;
-
-			for stmt in gen_des(&ev_decl.data, "value", false) {
-				writeln!(f, "\t\t\t{stmt}")?;
-			}
-
-			match ev_decl.call {
-				EvCall::SingleSync => writeln!(f, "\t\tif events[{id}] then events[{id}](player, value) end")?,
-				EvCall::SingleAsync => writeln!(
-					f,
-					"\t\tif events[{id}] then task.spawn(events[{id}], player, value) end"
-				)?,
-
-				EvCall::ManySync => writeln!(f, "\t\tfor _, cb in events[{id}] do cb(player, value) end")?,
-				EvCall::ManyAsync => writeln!(f, "\t\tfor _, cb in events[{id}] do task.spawn(cb, player, value) end")?,
-			}
-
-			writeln!(f, "\t\tend")?;
+			writeln!(f, "\tend")?;
+			writeln!(f, "end)")?;
 		}
-
-		writeln!(f, "\tend")?;
-		writeln!(f, "end)")?;
 
 		// Output Unreliable Callbacks
-		writeln!(f, "unreliable.OnServerEvent:Connect(function(player, buff, inst)")?;
-		writeln!(f, "\tincoming_buff = buff")?;
-		writeln!(f, "\tincoming_read = 0")?;
-		writeln!(f, "\tincoming_inst = inst")?;
-
-		writeln!(
-			f,
-			"\tlocal id = buffer.read{}(buff, read({}))",
-			file.event_id_ty(),
-			file.event_id_ty().size()
-		)?;
-
-		for (i, ev_decl) in file
+		if file
 			.ev_decls
 			.iter()
-			.enumerate()
-			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client && ev_decl.evty == EvType::Unreliable)
+			.any(|ev_decl| ev_decl.from == EvSource::Client && ev_decl.evty == EvType::Unreliable)
 		{
-			let id = i + 1;
+			writeln!(f, "unreliable.OnServerEvent:Connect(function(player, buff, inst)")?;
+			writeln!(f, "\tincoming_buff = buff")?;
+			writeln!(f, "\tincoming_read = 0")?;
+			writeln!(f, "\tincoming_inst = inst")?;
 
-			if i == 0 {
-				writeln!(f, "\tif id == {id} then")?;
-			} else {
-				writeln!(f, "\telseif id == {id} then")?;
+			writeln!(
+				f,
+				"\tlocal id = buffer.read{}(buff, read({}))",
+				file.event_id_ty(),
+				file.event_id_ty().size()
+			)?;
+
+			for (i, ev_decl) in file
+				.ev_decls
+				.iter()
+				.enumerate()
+				.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client && ev_decl.evty == EvType::Unreliable)
+			{
+				let id = i + 1;
+
+				if i == 0 {
+					writeln!(f, "\tif id == {id} then")?;
+				} else {
+					writeln!(f, "\telseif id == {id} then")?;
+				}
+
+				writeln!(f, "\t\tlocal value;")?;
+
+				for stmt in gen_des(&ev_decl.data, "value", false) {
+					writeln!(f, "\t\t{stmt}")?;
+				}
+
+				match ev_decl.call {
+					EvCall::SingleSync => writeln!(f, "\t\tif events[{id}] then events[{id}](player, value) end")?,
+					EvCall::SingleAsync => writeln!(
+						f,
+						"\t\tif events[{id}] then task.spawn(events[{id}], player, value) end"
+					)?,
+
+					EvCall::ManySync => writeln!(f, "\t\tfor _, cb in events[{id}] do cb(player, value) end")?,
+					EvCall::ManyAsync => {
+						writeln!(f, "\t\tfor _, cb in events[{id}] do task.spawn(cb, player, value) end")?
+					}
+				}
+
+				writeln!(f, "\t\tend")?;
 			}
 
-			writeln!(f, "\t\tlocal value;")?;
-
-			for stmt in gen_des(&ev_decl.data, "value", false) {
-				writeln!(f, "\t\t{stmt}")?;
-			}
-
-			match ev_decl.call {
-				EvCall::SingleSync => writeln!(f, "\t\tif events[{id}] then events[{id}](player, value) end")?,
-				EvCall::SingleAsync => writeln!(
-					f,
-					"\t\tif events[{id}] then task.spawn(events[{id}], player, value) end"
-				)?,
-
-				EvCall::ManySync => writeln!(f, "\t\tfor _, cb in events[{id}] do cb(player, value) end")?,
-				EvCall::ManyAsync => writeln!(f, "\t\tfor _, cb in events[{id}] do task.spawn(cb, player, value) end")?,
-			}
-
-			writeln!(f, "\t\tend")?;
+			writeln!(f, "\tend")?;
+			writeln!(f, "end)")?;
 		}
 
-		writeln!(f, "\tend")?;
-		writeln!(f, "end)")?;
-
 		// Output Event Declarations
-		for (i, ev_decl) in file.ev_decls.iter().enumerate().filter(|(_, ev_decl)| {
+		for (i, _) in file.ev_decls.iter().enumerate().filter(|(_, ev_decl)| {
 			ev_decl.from == EvSource::Client && matches!(ev_decl.call, EvCall::ManyAsync | EvCall::ManySync)
 		}) {
 			let id = i + 1;
@@ -405,4 +421,8 @@ impl<'a> Display for ServerFile<'a> {
 
 		Ok(())
 	}
+}
+
+pub fn code(file: &File) -> String {
+	format!("{}", ServerFile(file))
 }
