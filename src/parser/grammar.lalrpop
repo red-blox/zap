@@ -1,9 +1,18 @@
+use std::collections::HashSet;
 use std::str::FromStr;
 use crate::util::Range;
 use crate::parser::*;
 use crate::parser::working_ast::*;
+use lalrpop_util::ParseError;
 
-grammar;
+grammar(ref_decl: &mut HashSet<String>, ref_used: &mut HashSet<String>, ev_names: &mut HashSet<String>);
+
+match {
+    r"\s*" => { },
+    r"(--\[\[[^(\]\])]*\]\])|(--.*)" => { },
+} else {
+	_
+}
 
 pub File: File = <opts:Opt*> <decls:Decl*> => {
 	let mut ty_decls = Vec::new();
@@ -43,7 +52,13 @@ Decl: Decl = {
 	<decl:EvDecl> => Decl::Ev(decl),
 }
 
-EvDecl: EvDecl = "event" <name:Word> "=" "{" <fields:Comma<EvField>> "}" => {
+EvDecl: EvDecl = "event" <name:Word> "=" "{" <fields:Comma<EvField>> "}" =>? {
+	if !ev_names.insert(name.clone()) {
+		return Err(ParseError::User {
+			error: "event declared twice!",
+		})
+	}
+
 	let mut from = EvSource::Server;
 	let mut evty = EvType::Reliable;
 	let mut call = EvCall::SingleSync;
@@ -58,13 +73,13 @@ EvDecl: EvDecl = "event" <name:Word> "=" "{" <fields:Comma<EvField>> "}" => {
 		}
 	}
 
-	EvDecl {
+	Ok(EvDecl {
 		name,
 		from,
 		evty,
 		call,
 		data,
-	}
+	})
 };
 
 EvField: EvField = {
@@ -82,7 +97,15 @@ EvField: EvField = {
 	"call" ":" "ManyAsync" => EvField::Call(EvCall::ManyAsync),
 }
 
-TyDecl: TyDecl = "type" <name:Word> "=" <ty:Ty> => TyDecl { name, ty };
+TyDecl: TyDecl = "type" <name:Word> "=" <ty:Ty> =>? {
+	if !ref_decl.insert(name.clone()) {
+		Err(ParseError::User {
+			error: "type declared twice!",
+		})
+	} else {
+		Ok(TyDecl { name, ty })
+	}
+};
 
 Ty: Ty = {
 	"bool" => Ty::Bool,
@@ -105,7 +128,10 @@ Ty: Ty = {
 	"{" <fields:Comma<(<Word> ":" <Ty>)>> "}" => Ty::Struct { fields },
 	"{" <variants:Comma<(<Word>)>> "}" => Ty::Enum { variants },
 
-	<name:Word> => Ty::Ref(name),
+	<name:Word> => {
+		ref_used.insert(name.clone());
+		Ty::Ref(name)
+	},
 
 	<ty:Ty> "?" => Ty::Optional(Box::new(ty)),
 }

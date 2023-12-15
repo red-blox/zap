@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use lalrpop_util::lalrpop_mod;
 
 use crate::util::{NumTy, Range};
@@ -150,8 +152,20 @@ impl Ty {
 }
 
 pub fn parse(code: &str) -> Result<File, String> {
-	match grammar::FileParser::new().parse(code) {
-		Ok(file) => Ok(file),
-		Err(e) => Err(e.to_string()),
+	let mut ref_decl = HashSet::new();
+	let mut ref_used = HashSet::new();
+
+	let file = match grammar::FileParser::new().parse(&mut ref_decl, &mut ref_used, &mut HashSet::new(), code) {
+		Ok(file) => file,
+		Err(e) => return Err(e.to_string()),
+	};
+
+	let unknown_refs = ref_used.difference(&ref_decl).collect::<Vec<_>>();
+
+	// TODO: Better error reporting with error location
+	if unknown_refs.len() > 0 {
+		return Err(format!("Unknown type referenced: `{}`", unknown_refs[0]));
 	}
+
+	Ok(file)
 }
