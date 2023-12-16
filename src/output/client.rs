@@ -160,7 +160,7 @@ impl<'a> Display for ClientFile<'a> {
 
 			writeln!(
 				f,
-				"\t\t{fire} = function({value}: {ty}",
+				"\t\t{fire} = function({value}: {ty})",
 				fire = casing(file.casing, "Fire", "fire", "fire")
 			)?;
 
