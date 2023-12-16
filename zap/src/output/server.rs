@@ -17,6 +17,7 @@ impl<'a> Display for ServerFile<'a> {
 		}
 
 		write!(f, "{}", include_str!("base.luau"))?;
+		write!(f, "{}", include_str!("server.luau"))?;
 
 		writeln!(f, "local events = table.create({})", file.ev_decls.len())?;
 
@@ -152,9 +153,6 @@ impl<'a> Display for ServerFile<'a> {
 
 			writeln!(f, "events[{id}] = {{}}")?;
 		}
-
-		// Fire Reliable
-		write!(f, "{}", include_str!("server.luau"))?;
 
 		writeln!(f, "return {{")?;
 
