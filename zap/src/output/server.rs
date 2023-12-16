@@ -63,7 +63,7 @@ impl<'a> Display for ServerFile<'a> {
 
 				writeln!(f, "\t\t\tlocal value;")?;
 
-				for stmt in gen_des(&ev_decl.data, "value", false) {
+				for stmt in gen_des(&ev_decl.data, "value", true) {
 					writeln!(f, "\t\t\t{stmt}")?;
 				}
 
@@ -121,7 +121,7 @@ impl<'a> Display for ServerFile<'a> {
 
 				writeln!(f, "\t\tlocal value;")?;
 
-				for stmt in gen_des(&ev_decl.data, "value", false) {
+				for stmt in gen_des(&ev_decl.data, "value", true) {
 					writeln!(f, "\t\t{stmt}")?;
 				}
 
@@ -168,7 +168,7 @@ impl<'a> Display for ServerFile<'a> {
 			let id = i + 1;
 			let ty = &ev_decl.data;
 
-			let ser = &gen_ser(ty, value, false);
+			let ser = &gen_ser(ty, value, file.write_checks);
 
 			writeln!(f, "\t{name} = {{", name = ev_decl.name)?;
 
