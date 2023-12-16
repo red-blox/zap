@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
+use anyhow::Result;
 use clap::Parser;
-use zap::{run, Error};
+use zap::run;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -13,7 +14,7 @@ struct Args {
 	output: Option<PathBuf>,
 }
 
-fn main() -> Result<(), Error> {
+fn main() -> Result<()> {
 	let args = Args::parse();
 
 	let config_path = args.config.unwrap();

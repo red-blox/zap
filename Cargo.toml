@@ -1,17 +1,2 @@
-[package]
-name = "zap"
-authors = ["Redblox Organization"]
-description = "A blazingly fast networking solution for Roblox."
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[build-dependencies]
-lalrpop = "0.20.0"
-
-[dependencies]
-clap = { version = "4.4.11", features = ["derive"] }
-lalrpop-util = { version = "0.20.0", features = ["lexer", "unicode"] }
-num-traits = "0.2.17"
-thiserror = "1.0"
+[workspace]
+members = ["zap", "cli"]

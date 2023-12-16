@@ -4,6 +4,7 @@ mod parser;
 mod util;
 
 use thiserror::Error;
+use wasm_bindgen::prelude::*;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -19,6 +20,7 @@ pub enum Error {
 	DuplicateEvent(String),
 }
 
+#[wasm_bindgen(getter_with_clone)]
 pub struct Code {
 	pub server: String,
 	pub client: String,
@@ -31,4 +33,9 @@ pub fn run(config: &str) -> Result<Code, Error> {
 		server: output::server::code(&file),
 		client: output::client::code(&file),
 	})
+}
+
+#[wasm_bindgen]
+pub fn run_wasm(config: &str) -> Result<Code, JsError> {
+	Ok(run(config)?)
 }
