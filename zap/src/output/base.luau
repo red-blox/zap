@@ -1,5 +1,3 @@
---!native
---!optimize 2
 local outgoing_buff: buffer
 local outgoing_used: number
 local outgoing_size: number
