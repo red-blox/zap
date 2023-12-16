@@ -12,6 +12,10 @@ impl<'a> Display for ServerFile<'a> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let file = &self.0;
 
+		if file.ev_decls.is_empty() {
+			return Ok(())
+		}
+
 		write!(f, "{}", include_str!("base.luau"))?;
 
 		writeln!(f, "local events = table.create({})", file.ev_decls.len())?;
