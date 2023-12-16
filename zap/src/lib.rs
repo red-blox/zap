@@ -8,15 +8,15 @@ use wasm_bindgen::prelude::*;
 
 #[derive(Error, Debug)]
 pub enum Error {
-	#[error("Config parser error: {0}")]
+	#[error("Unable to parse config file: {0}")]
 	ParseError(String),
 	#[error("File System error: {0}")]
 	FSError(#[from] std::io::Error),
 	#[error("Unknown type referenced: `{0}`")]
-	UnknownTypeReference(String),
-	#[error("Duplicate type referenced: `{0}`")]
+	UnknownTypeRef(String),
+	#[error("Duplicate type declared: `{0}`")]
 	DuplicateType(String),
-	#[error("Duplicate Event referenced: `{0}`")]
+	#[error("Duplicate event declared: `{0}`")]
 	DuplicateEvent(String),
 }
 

@@ -172,7 +172,7 @@ pub fn parse(code: &str) -> Result<File, Error> {
 
 	// TODO: Better error reporting with error location
 	if !unknown_refs.is_empty() {
-		return Err(Error::UnknownTypeReference(unknown_refs[0].to_owned()));
+		return Err(Error::UnknownTypeRef(unknown_refs[0].to_owned()));
 	}
 
 	Ok(file)
