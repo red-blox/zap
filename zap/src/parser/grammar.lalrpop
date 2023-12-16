@@ -1,11 +1,18 @@
 use std::collections::HashSet;
 use std::str::FromStr;
+
+use crate::Error;
 use crate::util::Range;
 use crate::parser::*;
 use crate::parser::working_ast::*;
+
 use lalrpop_util::ParseError;
 
 grammar(ref_decl: &mut HashSet<String>, ref_used: &mut HashSet<String>, ev_names: &mut HashSet<String>);
+
+extern {
+	type Error = Error;
+}
 
 match {
     r"\s*" => { },
@@ -55,7 +62,7 @@ Decl: Decl = {
 EvDecl: EvDecl = "event" <name:Word> "=" "{" <fields:Comma<EvField>> "}" =>? {
 	if !ev_names.insert(name.clone()) {
 		return Err(ParseError::User {
-			error: "event declared twice!",
+			error: Error::DuplicateEvent(name),
 		})
 	}
 
@@ -100,7 +107,7 @@ EvField: EvField = {
 TyDecl: TyDecl = "type" <name:Word> "=" <ty:Ty> =>? {
 	if !ref_decl.insert(name.clone()) {
 		Err(ParseError::User {
-			error: "type declared twice!",
+			error: Error::DuplicateType(name),
 		})
 	} else {
 		Ok(TyDecl { name, ty })
