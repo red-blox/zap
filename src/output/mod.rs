@@ -116,13 +116,13 @@ impl Display for Stmt {
 				write!(f, "buffer.writestring(outgoing_buff, alloc({len}), {expr}, {len})")
 			}
 
-			Stmt::WriteRef { expr, ref_name } => write!(f, "buffer.write_{ref_name}({expr})"),
+			Stmt::WriteRef { expr, ref_name } => write!(f, "types.write_{ref_name}({expr})"),
 
 			Stmt::WriteInst { expr } => write!(f, "buffer.writeu16(outgoing_buff, alloc(2), alloc_inst({expr}))"),
 
 			Stmt::ReadNum { into, ty } => write!(f, "{into} = buffer.read{ty}(incoming_buff, read({}))", ty.size()),
 			Stmt::ReadStr { into, len } => write!(f, "{into} = buffer.readstring(incoming_buff, read({len}), {len})"),
-			Stmt::ReadRef { into, ref_name } => write!(f, "{into} = buffer.read_{ref_name}()"),
+			Stmt::ReadRef { into, ref_name } => write!(f, "{into} = types.read_{ref_name}()"),
 			Stmt::ReadInst { into } => write!(f, "{into} = incoming_inst[buffer.readu16(incoming_buff, read(2))]"),
 		}
 	}
