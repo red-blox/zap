@@ -172,7 +172,7 @@ impl Display for Expr {
 
 			Expr::Vector3(x, y, z) => write!(f, "Vector3.new({x}, {y}, {z})"),
 
-			Expr::InstanceIsA(expr, class) => write!(f, "{expr}:IsA(\"{class}\")"),
+			Expr::InstanceIsA(expr, class) => write!(f, "{expr}:IsA({class})"),
 
 			Expr::Len(expr) => write!(f, "#{expr}"),
 
