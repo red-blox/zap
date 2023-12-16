@@ -133,7 +133,7 @@ Ty: Ty = {
 	"{" "[" <key:Ty> "]:" <val:Ty> "}" => Ty::Map { key: Box::new(key), val: Box::new(val) },
 	
 	"{" <fields:Comma<(<Word> ":" <Ty>)>> "}" => Ty::Struct { fields },
-	"{" <variants:Comma<(<Word>)>> "}" => Ty::Enum { variants },
+	"(" <variants:Comma<(<Word>)>> ")" => Ty::Enum { variants },
 
 	"Instance" <class:("(" <Word> ")")?> => Ty::Instance(class),
 	"Vector3" => Ty::Vector3,
@@ -161,8 +161,7 @@ Range: Range<f64> = {
 }
 
 Comma<T>: Vec<T> = {
-	<e:T> => vec![e],
-	<mut v:(<T> ",")+> <e:T?> => match e {
+	<mut v:(<T> ",")*> <e:T?> => match e {
 		None => v,
 		Some(e) => {
 			v.push(e);
