@@ -13,7 +13,7 @@ impl<'a> Display for ServerFile<'a> {
 		let file = &self.0;
 
 		if file.ev_decls.is_empty() {
-			return Ok(())
+			return Ok(());
 		}
 
 		write!(f, "{}", include_str!("base.luau"))?;
