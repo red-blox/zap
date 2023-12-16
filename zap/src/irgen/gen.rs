@@ -154,6 +154,10 @@ impl Gen {
 					self.local("len");
 					self.assign("len".into(), from_expr.clone().len());
 
+					if self.ser_checks {
+						self.check_range(&"len".into(), len);
+					}
+
 					self.write_num("len".into(), NumTy::U16);
 					self.write_str(from_expr, "len".into());
 
@@ -295,6 +299,10 @@ impl Gen {
 
 					self.local("len");
 					self.read_num("len".into(), NumTy::U16);
+
+					if self.des_checks {
+						self.check_range(&"len".into(), len);
+					}
 
 					self.read_str(into.clone(), "len".into());
 
@@ -472,35 +480,9 @@ impl Gen {
 			Ty::I16(range) => self.check_range(var, range),
 			Ty::I32(range) => self.check_range(var, range),
 
-			Ty::Str { len } => {
-				if len.is_exact() {
-					self.assert(
-						Expr::from(var.clone()).len().eq(len.min().unwrap().into()),
-						format!("String is not exactly {} characters long!", len.min().unwrap()),
-					);
-				} else {
-					if let Some(min) = len.min() {
-						self.assert(
-							Expr::from(var.clone()).len().ge(min.into()),
-							format!("String is shorter than minimum length of {}!", min),
-						);
-					}
-
-					if let Some(max) = len.max() {
-						if len.max_inclusive() {
-							self.assert(
-								Expr::from(var.clone()).len().le(max.into()),
-								format!("String is longer than maximum length of {}!", max),
-							);
-						} else {
-							self.assert(
-								Expr::from(var.clone()).len().lt(max.into()),
-								format!("String is longer than maximum length of {}!", max),
-							);
-						}
-					}
-				}
-			}
+			// Checks for strings are done inline in the serializer/deserializer
+			// because we need to check len before deserializing the string.
+			Ty::Str { .. } => {}
 
 			Ty::Arr { len, .. } => {
 				if len.is_exact() {
