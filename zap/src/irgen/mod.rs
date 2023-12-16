@@ -85,6 +85,7 @@ pub enum Expr {
 }
 
 impl Expr {
+	#[allow(clippy::wrong_self_convention)]
 	pub fn is_a(self, ty: Expr) -> Expr {
 		Expr::InstanceIsA(Box::new(self), Box::new(ty))
 	}

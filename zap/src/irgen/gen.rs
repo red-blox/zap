@@ -151,7 +151,7 @@ impl Gen {
 				} else {
 					self.block_start();
 
-					self.local("len".into());
+					self.local("len");
 					self.assign("len".into(), from_expr.clone().len());
 
 					self.write_num("len".into(), NumTy::U16);
@@ -171,7 +171,7 @@ impl Gen {
 				} else {
 					self.block_start();
 
-					self.local("len".into());
+					self.local("len");
 					self.assign("len".into(), from_expr.clone().len());
 
 					self.write_num("len".into(), NumTy::U16);
@@ -189,10 +189,10 @@ impl Gen {
 			Ty::Map { key, val } => {
 				self.block_start();
 
-				self.local("len".into());
+				self.local("len");
 				self.assign("len".into(), 0.into());
 
-				self.local("len_pos".into());
+				self.local("len_pos");
 				self.alloc("len_pos".into(), 2.into());
 
 				self.gen_for("key".into(), "val".into(), from_expr);
@@ -264,7 +264,7 @@ impl Gen {
 			Ty::Bool => {
 				self.block_start();
 
-				self.local("val".into());
+				self.local("val");
 				self.read_num("val".into(), NumTy::U8);
 
 				self.if_(Expr::from("val").eq(Expr::Num(0.0)));
@@ -293,7 +293,7 @@ impl Gen {
 				} else {
 					self.block_start();
 
-					self.local("len".into());
+					self.local("len");
 					self.read_num("len".into(), NumTy::U16);
 
 					self.read_str(into.clone(), "len".into());
@@ -314,7 +314,7 @@ impl Gen {
 				} else {
 					self.block_start();
 
-					self.local("len".into());
+					self.local("len");
 					self.read_num("len".into(), NumTy::U16);
 
 					self.num_for("i".into(), 1.into(), "len".into());
@@ -332,15 +332,15 @@ impl Gen {
 
 				self.block_start();
 
-				self.local("len".into());
+				self.local("len");
 				self.read_num("len".into(), NumTy::U16);
 
 				self.num_for("i".into(), 1.into(), "len".into());
 
-				self.local("key".into());
+				self.local("key");
 				self.des(key, &"key".into());
 
-				self.local("val".into());
+				self.local("val");
 				self.des(val, &"val".into());
 
 				self.assign(into.clone().expr_index("key".into()), "val".into());
@@ -363,7 +363,7 @@ impl Gen {
 
 				self.block_start();
 
-				self.local("val".into());
+				self.local("val");
 				self.read_num("val".into(), num_ty);
 
 				for (i, variant) in variants.iter().enumerate() {
@@ -413,7 +413,7 @@ impl Gen {
 				_ => {
 					self.block_start();
 
-					self.local("val".into());
+					self.local("val");
 					self.read_num("val".into(), NumTy::U8);
 
 					self.if_(Expr::from("val").eq(0.into()));
@@ -532,29 +532,23 @@ impl Gen {
 				}
 			}
 
-			Ty::Instance(class) => match class {
-				Some(class) => self.assert(
+			Ty::Instance(Some(class)) => {
+				self.assert(
 					Expr::from(var.clone()).is_a(class.clone().into()),
 					format!("Instance is not of class {}!", class),
-				),
+				);
+			}
 
-				None => {}
-			},
-
-			Ty::Optional(ty) => match *ty.clone() {
-				Ty::Instance(class) => match class {
-					Some(class) => self.assert(
+			Ty::Optional(ty) => {
+				if let Ty::Instance(Some(class)) = *ty.clone() {
+					self.assert(
 						Expr::from(var.clone())
 							.eq(Expr::Nil)
 							.or(Expr::from(var.clone()).is_a(class.clone().into())),
 						format!("Instance is not of class {}!", class),
-					),
-
-					None => {}
-				},
-
-				_ => {}
-			},
+					)
+				}
+			}
 
 			_ => {}
 		}

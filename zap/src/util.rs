@@ -122,16 +122,14 @@ impl NumTy {
 			} else {
 				NumTy::I32
 			}
+		} else if max <= u8::MAX as f64 {
+			NumTy::U8
+		} else if max <= u16::MAX as f64 {
+			NumTy::U16
+		} else if max <= u32::MAX as f64 {
+			NumTy::U32
 		} else {
-			if max <= u8::MAX as f64 {
-				NumTy::U8
-			} else if max <= u16::MAX as f64 {
-				NumTy::U16
-			} else if max <= u32::MAX as f64 {
-				NumTy::U32
-			} else {
-				NumTy::F64
-			}
+			NumTy::F64
 		}
 	}
 

@@ -27,7 +27,7 @@ impl Display for TyDecl {
 		writeln!(f, "function types.read_{name}()")?;
 		writeln!(f, "\tlocal value;")?;
 
-		for stmt in gen_ser(&ty, "value", true) {
+		for stmt in gen_ser(ty, "value", true) {
 			writeln!(f, "\t{stmt}")?;
 		}
 

@@ -3,3 +3,6 @@
 # Zap Input & Output
 /network
 net.zap
+
+# WASM
+zap/pkg
