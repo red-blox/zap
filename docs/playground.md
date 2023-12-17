@@ -1,5 +1,7 @@
 # Playground
 
+<ClientOnly>
+
 <div class="button plugin-tabs">
 	<button @click="saveURL"><span>📎</span> Save URL</button>
 </div>
@@ -27,6 +29,8 @@
 />
 :::
 
+</ClientOnly>
+
 <script setup lang="ts">
 import MonacoEditor from "@guolao/vue-monaco-editor";
 import type { Monaco } from "@monaco-editor/loader";
@@ -42,7 +46,7 @@ const styles = ref({
 	height: "300px",
 	padding: "20px 0px",
 })
-const code = ref<string>();
+const code = ref("");
 const compiledResult = ref<Code>({
 	client: "-- Write some code to see output here!\n",
 	server: "-- Write some code to see output here!\n",
