@@ -1,7 +1,7 @@
 {
   "scripts": {
+    "predocs:dev": "yarn wasm:build",
     "docs:dev": "vitepress dev docs",
-    "predocs:build": "yarn wasm:build",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "wasm:build": "wasm-pack build zap -d package"
