@@ -4,5 +4,13 @@
 /network
 net.zap
 
+# Docs
+docs/.vitepress/dist
+docs/.vitepress/cache
+node_modules
+
 # WASM
 zap/pkg
+
+# Mac Moment
+.DS_Store

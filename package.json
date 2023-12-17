@@ -1,0 +1,17 @@
+{
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "predocs:build": "yarn wasm:build",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "wasm:build": "wasm-pack build zap"
+  },
+  "devDependencies": {
+    "@guolao/vue-monaco-editor": "1.4.1",
+    "monaco-editor": "0.45.0",
+    "vite-plugin-wasm": "3.3.0",
+    "vitepress": "1.0.0-rc.31",
+    "vitepress-plugin-tabs": "0.5.0",
+    "vue": "3.3.11"
+  }
+}
