@@ -46,9 +46,9 @@ pub File: File = <opts:Opt*> <decls:Decl*> => {
 };
 
 Opt: Opt = {
-	"opt" "casing" "=" "camel" => Opt::Casing(Casing::Camel),
-	"opt" "casing" "=" "snake" => Opt::Casing(Casing::Snake),
-	"opt" "casing" "=" "pascal" => Opt::Casing(Casing::Pascal),
+	"opt" "casing" "=" "camelCase" => Opt::Casing(Casing::Camel),
+	"opt" "casing" "=" "snake_case" => Opt::Casing(Casing::Snake),
+	"opt" "casing" "=" "PascalCase" => Opt::Casing(Casing::Pascal),
 
 	"opt" "writechecks" "=" "true" => Opt::WriteChecks(true),
 	"opt" "writechecks" "=" "false" => Opt::WriteChecks(false),
