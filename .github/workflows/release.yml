@@ -148,7 +148,7 @@ jobs:
 
       - name: Build Release
         run: |
-          cd ${{ github.workspace }}
+          wasm-pack build zap
           wasm-pack pack zap
 
       - name: Upload Archive to Release
