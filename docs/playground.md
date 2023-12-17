@@ -32,7 +32,7 @@ import MonacoEditor from "@guolao/vue-monaco-editor";
 import type { Monaco } from "@monaco-editor/loader";
 import { useData, useRouter } from "vitepress";
 import { ref, watch, onMounted } from "vue";
-import { run_wasm, Code } from "../zap/pkg"
+import { run_wasm, Code } from "../zap/package"
 
 const { isDark } = useData();
 const { go } = useRouter();

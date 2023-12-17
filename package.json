@@ -4,7 +4,7 @@
     "predocs:build": "yarn wasm:build",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
-    "wasm:build": "wasm-pack build zap"
+    "wasm:build": "wasm-pack build zap -d package"
   },
   "devDependencies": {
     "@guolao/vue-monaco-editor": "1.4.1",

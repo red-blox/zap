@@ -28,7 +28,7 @@ jobs:
           fileName: "zap-*-wasm.tgz"
           out-file-path: "staging"
       - name: Extract file
-        run: tar -xvzf staging/zap-*-wasm.tgz -C zap/pkg
+        run: tar -xvzf staging/zap-*-wasm.tgz -C zap
       - name: Install Dependencies
         run: yarn install --frozen-lockfile --force
       - name: Build
