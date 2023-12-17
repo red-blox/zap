@@ -1,6 +1,6 @@
 # Events
 
-Events are the core function of zap, and can be defined through the following fields in the struct. Each field is optional and not required.
+Events are the core function of Zap, and can be defined through the following fields in the struct. Each field is optional and not required.
 
 ## Example Event
 

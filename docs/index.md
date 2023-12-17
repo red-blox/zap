@@ -25,6 +25,6 @@ features:
       Zap generates code for your specific types which makes this process blazingly fast.
   - title: Complex Types
     icon: 🔎
-    details: While buffers may only support a small number of types, zap has complex type support.
+    details: While buffers may only support a small number of types, Zap has complex type support.
 ---
 

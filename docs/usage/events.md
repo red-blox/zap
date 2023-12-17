@@ -1,6 +1,6 @@
 # Using Zap
 
-All of zap's output code is **fully typed**, and will pickup if you input the wrong type.
+All of Zap's output code is **fully typed**, and will pickup if you input the wrong type.
 
 ::: warning
 The outputted code will **only type assert at runtime** if conditional constraints are added to the config file (that can't be validated by luau's type system).
