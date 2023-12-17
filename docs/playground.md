@@ -1,6 +1,8 @@
 # Playground
 
-<br>
+<div class="plugin-tabs button">
+	<button @click="saveURL">Save URL</button>
+</div>
 
 **Input:**
 
@@ -30,19 +32,32 @@
 <script setup lang="ts">
 import MonacoEditor from "@guolao/vue-monaco-editor";
 import type { Monaco } from "@monaco-editor/loader";
-import { useData, useRoute } from "vitepress";
+import { useData, useRouter } from "vitepress";
 import { ref, watch } from "vue";
 import { run_wasm, Code } from "../zap/pkg"
 
 const { isDark } = useData();
-const { path, data } = useRoute();
+const { go } = useRouter();
+
+const codeParam = new URLSearchParams(window.location.search).get("code")
+const storedCode = localStorage.getItem("code")
+
+if (!codeParam && storedCode) go(`/playground?code=${storedCode}`);
+
+let initalCodeValue;
+try {
+	initalCodeValue = codeParam ? atob(codeParam) : ""
+} catch (err) {
+	initalCodeValue = ""
+}
+
 
 const styles = ref({
 	width: "100%",
 	height: "300px",
 	padding: "20px 0px",
 })
-const code = ref("");
+const code = ref(initalCodeValue);
 const compiledResult = ref<Code>({
 	client: "-- Write some code to see output here!\n",
 	server: "-- Write some code to see output here!\n",
@@ -73,13 +88,31 @@ watch(code, (newCode) => {
 		height: clamp(newCode.split("\n").length * 18, 260, 460) + 40 + "px",
 		padding: "20px 0px",
 	};
+
+	localStorage.setItem("code", btoa(newCode))
 })
 
+const saveURL = () => {
+	const result = btoa(code.value)
+
+	localStorage.setItem("code", btoa(newCode))
+	navigator.clipboard.writeText(result)
+
+	go(`/playground?code=${result}`)
+}
 </script>
 
 <style>
 .editor {
 	width: 100%;
 	height: 60vh;
+}
+
+.button {
+	padding: 12px;
+	width: fit-content;
+}
+.button button {
+	font-weight: 700
 }
 </style>

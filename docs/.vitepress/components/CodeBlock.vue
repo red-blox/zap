@@ -4,7 +4,7 @@
 			:modelValue="props.code"
 			:options="EDITOR_OPTIONS"
 			:lang="lang"
-			:isCodeBlock="props.isCodeBlock ?? true"
+			:isCodeBlock="props.isCodeBlock"
 		/>
 	</div>
 </template>
