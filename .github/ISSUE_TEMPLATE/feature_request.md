@@ -2,7 +2,7 @@
 name: Feature request
 about: Suggest an idea for Zap, this could be performance improvements, syntax changes,
   API changes, etc.
-title: ''
+title: "[FEAT]"
 labels: enhancement
 assignees: ''
 
