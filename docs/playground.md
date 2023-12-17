@@ -57,13 +57,20 @@ onMounted(() => {
 	const codeParam = new URLSearchParams(window.location.search).get("code")
 	const storedCode = localStorage.getItem("code")
 
+	let codeStr = ""
+
 	if (!codeParam && !!storedCode) {
+		codeStr = storedCode;
 		go(`/playground?code=${storedCode}`);
 	} else if (codeParam) {
-		try {
-			const result = atob(codeParam)
-			code.value = result
-		} catch (err) {}
+		codeStr = codeParam;
+	}
+
+	try {
+		const result = atob(codeStr)
+		code.value = result
+	} catch (err) {
+		console.warn(err)
 	}
 })
 
