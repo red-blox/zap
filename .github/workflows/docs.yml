@@ -17,12 +17,18 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v3
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - uses: actions/setup-node@v3
         with:
           node-version: 20
           cache: yarn
+      - name: Get latest zap release
+        uses: robinraju/release-downloader@v1.8
+        with:
+          latest: true
+          fileName: "zap-*-wasm.tgz"
+          out-file-path: "staging"
+      - name: Extract file
+        run: tar -xvzf staging/zap-*-wasm.tgz -C zap/pkg
       - name: Install Dependencies
         run: yarn install --frozen-lockfile --force
       - name: Build
