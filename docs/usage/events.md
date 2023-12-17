@@ -2,7 +2,9 @@
 
 All of zap's output code is **fully typed**, and will pickup if you input the wrong type.
 
-The code will also assert **at runtime** if conditional constraints are added to the config file (that can't be validated by luau's type system).
+::: warning
+The outputted code will **only type assert at runtime** if conditional constraints are added to the config file (that can't be validated by luau's type system).
+:::
 
 Let's assume we have the following config file:
 

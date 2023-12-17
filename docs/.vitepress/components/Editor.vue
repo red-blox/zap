@@ -18,7 +18,7 @@ import { useData } from "vitepress";
 const props = defineProps<{ modelValue: string, options?: monacoEditor.editor.IStandaloneEditorConstructionOptions, lang?: string, isCodeBlock?: boolean  }>()
 defineEmits<{ (e: "update:modelValue", value: string): void }>()
 
-const EDITOR_OPTIONS: monacoEditor.editor.IStandaloneEditorConstructionOptions = { ...props.options, formatOnPaste: true, formatOnType: true, stickyScroll: { enabled: true } }
+const EDITOR_OPTIONS: monacoEditor.editor.IStandaloneEditorConstructionOptions = { ...props.options, formatOnPaste: true, formatOnType: true, stickyScroll: { enabled: true }, minimap: { enabled: false } }
 const { isDark } = useData();
 
 const beforeMount = (monaco: Monaco) => {
@@ -92,9 +92,9 @@ const beforeMount = (monaco: Monaco) => {
 		],
 	});
 
-	const keywords = ["event", "opt", "type"] as const;
+	const Keywords = ["event", "opt", "type"] as const;
 
-	const operators = ["true", "false"] as const;
+	const Operators = ["true", "false"] as const;
 
 	const Locations = ["Server", "Client"] as const;
 
@@ -125,28 +125,28 @@ const beforeMount = (monaco: Monaco) => {
 		"Vector3"
 	] as const;
 
-	const eventParamToArray = {
+	const EventParamToArray = {
 		from: Locations,
 		type: Brand,
 		call: Calls,
 		data: [],
 	} as const;
 
-	const wordToArray = {
-		...eventParamToArray,
+	const WordToArray = {
+		...EventParamToArray,
 
 		opt: Options,
 
 		casing: Casing,
-		typescript: operators,
-		writechecks: operators,
+		typescript: Operators,
+		writechecks: Operators,
 	} as const;
 
 	monaco.languages.registerTokensProviderFactory("zapConfig", {
 		create: () => ({
 			defaultToken: "",
 
-			keywords: [...keywords, ...operators],
+			keywords: [...Keywords, ...Operators],
 
 			brackets: [
 				{ token: "delimiter.bracket", open: "{", close: "}" },
@@ -300,8 +300,8 @@ const beforeMount = (monaco: Monaco) => {
 
 				// for now, if there's no wordBefore we can assume it's the event object
 				const arr = !wordBefore
-					? Object.keys(eventParamToArray)
-					: wordToArray[wordBefore.word] ?? types;
+					? Object.keys(EventParamToArray)
+					: WordToArray[wordBefore.word] ?? types;
 
 				const identifiers = arr.map((k) => ({
 					label: k,
@@ -309,6 +309,7 @@ const beforeMount = (monaco: Monaco) => {
 					kind: monaco.languages.CompletionItemKind.Variable,
 					range,
 				}));
+
 				return { suggestions: identifiers };
 			}
 		},

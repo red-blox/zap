@@ -1,7 +1,7 @@
 # Playground
 
-<div class="plugin-tabs button">
-	<button @click="saveURL">Save URL</button>
+<div class="button plugin-tabs">
+	<button @click="saveURL"><span>📎</span> Save URL</button>
 </div>
 
 **Input:**
@@ -17,14 +17,12 @@
 <CodeBlock
 	:code="compiledResult.client"
 	language="lua"
-	scroll
 	:isCodeBlock="false"
 />
 == Server
 <CodeBlock
 	:code="compiledResult.server"
 	language="lua"
-	scroll
 	:isCodeBlock="false"
 />
 :::
@@ -33,35 +31,36 @@
 import MonacoEditor from "@guolao/vue-monaco-editor";
 import type { Monaco } from "@monaco-editor/loader";
 import { useData, useRouter } from "vitepress";
-import { ref, watch } from "vue";
+import { ref, watch, onMounted } from "vue";
 import { run_wasm, Code } from "../zap/pkg"
 
 const { isDark } = useData();
 const { go } = useRouter();
-
-const codeParam = new URLSearchParams(window.location.search).get("code")
-const storedCode = localStorage.getItem("code")
-
-if (!codeParam && storedCode) go(`/playground?code=${storedCode}`);
-
-let initalCodeValue;
-try {
-	initalCodeValue = codeParam ? atob(codeParam) : ""
-} catch (err) {
-	initalCodeValue = ""
-}
-
 
 const styles = ref({
 	width: "100%",
 	height: "300px",
 	padding: "20px 0px",
 })
-const code = ref(initalCodeValue);
+const code = ref<string>();
 const compiledResult = ref<Code>({
 	client: "-- Write some code to see output here!\n",
 	server: "-- Write some code to see output here!\n",
 	free: () => {}
+})
+
+onMounted(() => {
+	const codeParam = new URLSearchParams(window.location.search).get("code")
+	const storedCode = localStorage.getItem("code")
+
+	if (!codeParam && !!storedCode) {
+		go(`/playground?code=${storedCode}`);
+	} else if (codeParam) {
+		try {
+			const result = atob(codeParam)
+			code.value = result
+		} catch (err) {}
+	}
 })
 
 const clamp = (number, min, max) => Math.max(min, Math.min(number, max));
@@ -95,8 +94,8 @@ watch(code, (newCode) => {
 const saveURL = () => {
 	const result = btoa(code.value)
 
-	localStorage.setItem("code", btoa(newCode))
-	navigator.clipboard.writeText(result)
+	localStorage.setItem("code", result)
+	navigator.clipboard.writeText(`${location.protocol}//${location.host}/playground?code=${result}`)
 
 	go(`/playground?code=${result}`)
 }
@@ -111,8 +110,16 @@ const saveURL = () => {
 .button {
 	padding: 12px;
 	width: fit-content;
+	transition: 0.2s transform
 }
 .button button {
 	font-weight: 700
+}
+.button span {
+	margin-right: 8px
+}
+
+.button:hover {
+	transform: scale(1.1)
 }
 </style>

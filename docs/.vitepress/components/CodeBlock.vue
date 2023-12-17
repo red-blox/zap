@@ -2,7 +2,7 @@
     <div class="language-" :style="styles">
 		<Editor
 			:modelValue="props.code"
-			:options="EDITOR_OPTIONS"
+			:options="{ ...(props.isCodeBlock ? CODEBLOCK_OPTIONS : EDITOR_OPTIONS), ...props.options }"
 			:lang="lang"
 			:isCodeBlock="props.isCodeBlock"
 		/>
@@ -13,7 +13,7 @@
 import type monacoEditor from 'monaco-editor/esm/vs/editor/editor.api';
 import { ref, watch } from 'vue';
 
-const props = withDefaults(defineProps<{ code: string, options?: monacoEditor.editor.IStandaloneEditorConstructionOptions, lang?: string, scroll?: boolean, isCodeBlock?: boolean }>(), {
+const props = withDefaults(defineProps<{ code: string, options?: monacoEditor.editor.IStandaloneEditorConstructionOptions, lang?: string, isCodeBlock?: boolean }>(), {
 	isCodeBlock: true
 })
 defineEmits<{ (e: "update:modelValue", value: string): void }>()
@@ -33,6 +33,7 @@ watch(
 );
 ;
 
-const EDITOR_OPTIONS: monacoEditor.editor.IStandaloneEditorConstructionOptions = { ...props.options, readOnly: true, minimap: { enabled: false }, lineNumbers: "off", scrollbar: props.scroll ? undefined : { vertical: "hidden", horizontal: "hidden" }, scrollBeyondLastLine: false  }
+const EDITOR_OPTIONS: monacoEditor.editor.IStandaloneEditorConstructionOptions = { readOnly: true, scrollBeyondLastLine: false }
+const CODEBLOCK_OPTIONS: monacoEditor.editor.IStandaloneEditorConstructionOptions = { ...EDITOR_OPTIONS, minimap: { enabled: false }, lineNumbers: "off", scrollbar: { vertical: "hidden", horizontal: "hidden", handleMouseWheel: false }, overviewRulerLanes: 0  }
 </script>
 

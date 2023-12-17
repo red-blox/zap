@@ -4,6 +4,8 @@ outline: deep
 
 # Types
 
+Zap supports a large number of complex types 
+
 ## Numbers
 
 There are there types of numbers in zap, unsigned (`u`), signed (`i`), and floats (`f`). Each number has a limit, in relation to the amount of bytes (space) the number utilises.
@@ -84,12 +86,25 @@ Maps are objects where it is indexed by a type, such as:
 Enums are values seperated by a comma (`,`) inside brackets (`()`). For example:
 <CodeBlock code="type RoundStatus = ( Playing, Intermission )" />
 
-## Optional Types
+## Instances
+Roblox Instances can be passed through zap.
 
-A type can be made optional by appending a `?` after it, such as:
-<CodeBlock code="type Round = u8?" />
+<CodeBlock code="type Player = Instance" />
 
-## Roblox Classes
-The following Roblox Classes are avaliable as types in zap:
+### Constraining the Subclass
+
+You can also specify which subclass (that must extend instance) that you would like to receive for further type safety. It will be asserted at runtime.
+
+<CodeBlock code="type Part = Instance (BasePart)" />
+
+Classes that inherit your specified class will be accepted, for example `Part`.
+
+## Other Roblox Classes
+The following Roblox Classes are also available as types in zap:
 
 - `Vector3`
+
+## Optional Types
+
+A type can be made optional by appending a `?` after the **whole type**, such as:
+<CodeBlock code="type Character = Instance (Player)?" />
