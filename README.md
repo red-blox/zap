@@ -57,7 +57,7 @@ At this time Zap has not been benchmarked, as it progresses through development 
 
 ### Complex Types
 
-While buffers may only support a small number of types, zap has complex type support. Below is a list of all supported types:
+While buffers may only support a small number of types, Zap has complex type support. Below is a list of all supported types:
 
 - Booleans
 
