@@ -312,7 +312,7 @@ impl<'a> ClientOutput<'a> {
 			.ev_decls
 			.iter()
 			.enumerate()
-			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client)
+			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server)
 		{
 			let id = i + 1;
 
@@ -325,7 +325,7 @@ impl<'a> ClientOutput<'a> {
 			}
 
 			self.dedent();
-			self.push_line("}},");
+			self.push_line("},");
 		}
 	}
 
