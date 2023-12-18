@@ -377,7 +377,7 @@ pub fn gen_ser(ty: &Ty, from: Var, gen_checks: bool) -> Vec<Stmt> {
 			}
 		}
 
-		Ty::Instance(strict, class) => {
+		Ty::Instance(_, class) => {
 			if gen_checks && class.is_some() {
 				assert(
 					&mut stmts,
