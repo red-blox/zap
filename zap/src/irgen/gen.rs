@@ -466,8 +466,6 @@ pub fn gen_des(ty: &Ty, to: Var, gen_checks: bool) -> Vec<Stmt> {
 					range_check(&mut stmts, "len".into(), len.cast());
 				}
 
-				assign(&mut stmts, to.clone(), Var::from("alloc").call(vec!["len".into()]));
-
 				stmts.push(Stmt::NumFor {
 					var: "i",
 					from: 1.0.into(),
