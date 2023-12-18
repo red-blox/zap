@@ -4,10 +4,32 @@ use crate::{
 	util::casing,
 };
 
+use super::Output;
+
 struct ServerOutput<'a> {
 	file: &'a File,
 	buff: String,
 	tabs: u32,
+}
+
+impl<'a> Output for ServerOutput<'a> {
+	fn push(&mut self, s: &str) {
+		self.buff.push_str(s);
+	}
+
+	fn indent(&mut self) {
+		self.indent();
+	}
+
+	fn dedent(&mut self) {
+		self.dedent();
+	}
+
+	fn push_indent(&mut self) {
+		for _ in 0..self.tabs {
+			self.push("\t");
+		}
+	}
 }
 
 impl<'a> ServerOutput<'a> {
@@ -16,78 +38,6 @@ impl<'a> ServerOutput<'a> {
 			file,
 			buff: String::new(),
 			tabs: 0,
-		}
-	}
-
-	fn push(&mut self, s: &str) {
-		self.buff.push_str(s);
-	}
-
-	fn push_tab(&mut self) {
-		for _ in 0..self.tabs {
-			self.buff.push('\t');
-		}
-	}
-
-	fn push_line(&mut self, s: &str) {
-		self.push_tab();
-		self.push(s);
-		self.buff.push('\n');
-	}
-
-	fn push_stmt(&mut self, stmt: &Stmt) {
-		if matches!(stmt, Stmt::ElseIf(..) | Stmt::Else | Stmt::End) {
-			self.tabs -= 1;
-		}
-
-		match &stmt {
-			Stmt::Local(name, expr) => {
-				if let Some(expr) = expr {
-					self.push_line(&format!("local {name} = {expr}"));
-				} else {
-					self.push_line(&format!("local {name}"));
-				}
-			}
-
-			Stmt::Assign(var, expr) => self.push_line(&format!("{var} = {expr}")),
-			Stmt::Error(msg) => self.push_line(&format!("error({msg})")),
-			Stmt::Assert(cond, msg) => match msg {
-				Some(msg) => self.push_line(&format!("assert({cond}, {msg})")),
-				None => self.push_line(&format!("assert({cond})")),
-			},
-
-			Stmt::Call(var, method, args) => match method {
-				Some(method) => self.push_line(&format!(
-					"{var}:{method}({})",
-					args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>().join(", ")
-				)),
-
-				None => self.push_line(&format!(
-					"{var}({})",
-					args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>().join(", ")
-				)),
-			},
-
-			Stmt::NumFor { var, from, to } => self.push_line(&format!("for {var} = {from}, {to} do")),
-			Stmt::GenFor { key, val, obj } => self.push_line(&format!("for {key}, {val} in {obj} do")),
-			Stmt::If(cond) => self.push_line(&format!("if {cond} then")),
-			Stmt::ElseIf(cond) => self.push_line(&format!("elseif {cond} then")),
-			Stmt::Else => self.push_line("else"),
-
-			Stmt::End => self.push_line("end"),
-		};
-
-		if matches!(
-			stmt,
-			Stmt::NumFor { .. } | Stmt::GenFor { .. } | Stmt::If(..) | Stmt::ElseIf(..) | Stmt::Else
-		) {
-			self.tabs += 1;
-		};
-	}
-
-	fn push_stmts(&mut self, stmts: &[Stmt]) {
-		for stmt in stmts {
-			self.push_stmt(stmt);
 		}
 	}
 
@@ -116,7 +66,7 @@ impl<'a> ServerOutput<'a> {
 
 	fn push_reliable_header(&mut self) {
 		self.push_line("reliable.OnServerEvent:Connect(function(player, buff, inst)");
-		self.tabs += 1;
+		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
@@ -124,7 +74,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("local len = buffer.len(buff)");
 		self.push_line("while incoming_read < len do");
 
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line(&format!(
 			"local id = buffer.read{}(buff, read({}))",
@@ -134,7 +84,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_reliable_callback(&mut self, first: bool, ev: &EvDecl, id: usize) {
-		self.push_tab();
+		self.push_indent();
 
 		if first {
 			self.push("if ");
@@ -145,7 +95,7 @@ impl<'a> ServerOutput<'a> {
 		self.push(&format!("id == {id} then"));
 		self.push("\n");
 
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line("local value");
 		self.push_stmts(&gen_des(&ev.data, "value".into(), true));
@@ -161,18 +111,18 @@ impl<'a> ServerOutput<'a> {
 			)),
 		}
 
-		self.tabs -= 1;
+		self.dedent();
 	}
 
 	fn push_reliable_footer(&mut self) {
 		self.push_line("else");
-		self.tabs += 1;
+		self.indent();
 		self.push_line("error(\"Unknown event id\")");
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end");
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end");
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end)");
 	}
 
@@ -199,7 +149,7 @@ impl<'a> ServerOutput<'a> {
 
 	fn push_unreliable_header(&mut self) {
 		self.push_line("unreliable.OnServerEvent:Connect(function(player, buff, inst)");
-		self.tabs += 1;
+		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
@@ -212,7 +162,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_unreliable_callback(&mut self, first: bool, ev: &EvDecl, id: usize) {
-		self.push_tab();
+		self.push_indent();
 
 		if first {
 			self.push("if ");
@@ -223,7 +173,7 @@ impl<'a> ServerOutput<'a> {
 		self.push(&format!("id == {id} then"));
 		self.push("\n");
 
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line("local value");
 		self.push_stmts(&gen_des(&ev.data, "value".into(), true));
@@ -239,16 +189,16 @@ impl<'a> ServerOutput<'a> {
 			)),
 		}
 
-		self.tabs -= 1;
+		self.dedent();
 	}
 
 	fn push_unreliable_footer(&mut self) {
 		self.push_line("else");
-		self.tabs += 1;
+		self.indent();
 		self.push_line("error(\"Unknown event id\")");
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end");
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end)");
 	}
 
@@ -291,7 +241,7 @@ impl<'a> ServerOutput<'a> {
 		let value = casing(self.file.casing, "Value", "value", "value");
 
 		self.push_line(&format!("{fire} = function({player}: Player, {value}: {ty})"));
-		self.tabs += 1;
+		self.indent();
 
 		match ev.evty {
 			EvType::Reliable => self.push_line(&format!("load(player_map[{player}])")),
@@ -310,7 +260,7 @@ impl<'a> ServerOutput<'a> {
 			}
 		}
 
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end,");
 	}
 
@@ -321,7 +271,7 @@ impl<'a> ServerOutput<'a> {
 		let value = casing(self.file.casing, "Value", "value", "value");
 
 		self.push_line(&format!("{fire_all} = function({value}: {ty})"));
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line("load_empty()");
 
@@ -332,12 +282,12 @@ impl<'a> ServerOutput<'a> {
 			EvType::Reliable => {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
 				self.push_line("for player, outgoing in player_map do");
-				self.tabs += 1;
+				self.indent();
 				self.push_line("load(outgoing)");
 				self.push_line("local pos = alloc(used)");
 				self.push_line("buffer.copy(outgoing_buff, pos, buff, 0, used)");
 				self.push_line("player_map[player] = save()");
-				self.tabs -= 1;
+				self.dedent();
 				self.push_line("end");
 			}
 
@@ -348,7 +298,7 @@ impl<'a> ServerOutput<'a> {
 			}
 		}
 
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end,");
 	}
 
@@ -360,7 +310,7 @@ impl<'a> ServerOutput<'a> {
 		let value = casing(self.file.casing, "Value", "value", "value");
 
 		self.push_line(&format!("{fire_except} = function({except}: Player, {value}: {ty})"));
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line("load_empty()");
 
@@ -371,16 +321,16 @@ impl<'a> ServerOutput<'a> {
 			EvType::Reliable => {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
 				self.push_line("for player, outgoing in player_map do");
-				self.tabs += 1;
+				self.indent();
 				self.push_line(&format!("if player ~= {except} then"));
-				self.tabs += 1;
+				self.indent();
 				self.push_line("load(outgoing)");
 				self.push_line("local pos = alloc(used)");
 				self.push_line("buffer.copy(outgoing_buff, pos, buff, 0, used)");
 				self.push_line("player_map[player] = save()");
-				self.tabs -= 1;
+				self.dedent();
 				self.push_line("end");
-				self.tabs -= 1;
+				self.dedent();
 				self.push_line("end");
 			}
 
@@ -388,18 +338,18 @@ impl<'a> ServerOutput<'a> {
 				self.push_line("local buff = buffer.create(outgoing_used)");
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
 				self.push_line("for player in player_map do");
-				self.tabs += 1;
+				self.indent();
 				self.push_line(&format!("if player ~= {except} then"));
-				self.tabs += 1;
+				self.indent();
 				self.push_line("unreliable:FireClient(player, buff, outgoing_inst)");
-				self.tabs -= 1;
+				self.dedent();
 				self.push_line("end");
-				self.tabs -= 1;
+				self.dedent();
 				self.push_line("end");
 			}
 		}
 
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end,");
 	}
 
@@ -411,7 +361,7 @@ impl<'a> ServerOutput<'a> {
 		let value = casing(self.file.casing, "Value", "value", "value");
 
 		self.push_line(&format!("{fire_list} = function({list}: {{ Player }}, {value}: {ty})"));
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line("load_empty()");
 
@@ -422,12 +372,12 @@ impl<'a> ServerOutput<'a> {
 			EvType::Reliable => {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
 				self.push_line(&format!("for _, player in {list} do"));
-				self.tabs += 1;
+				self.indent();
 				self.push_line("load(player_map[player])");
 				self.push_line("local pos = alloc(used)");
 				self.push_line("buffer.copy(outgoing_buff, pos, buff, 0, used)");
 				self.push_line("player_map[player] = save()");
-				self.tabs -= 1;
+				self.dedent();
 				self.push_line("end");
 			}
 
@@ -435,14 +385,14 @@ impl<'a> ServerOutput<'a> {
 				self.push_line("local buff = buffer.create(outgoing_used)");
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
 				self.push_line(&format!("for _, player in {list} do"));
-				self.tabs += 1;
+				self.indent();
 				self.push_line("unreliable:FireClient(player, buff, outgoing_inst)");
-				self.tabs -= 1;
+				self.dedent();
 				self.push_line("end");
 			}
 		}
 
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end,");
 	}
 
@@ -457,14 +407,14 @@ impl<'a> ServerOutput<'a> {
 			let id = i + 1;
 
 			self.push_line(&format!("{name} = {{", name = ev.name));
-			self.tabs += 1;
+			self.indent();
 
 			self.push_return_fire(ev, id);
 			self.push_return_fire_all(ev, id);
 			self.push_return_fire_except(ev, id);
 			self.push_return_fire_list(ev, id);
 
-			self.tabs -= 1;
+			self.dedent();
 			self.push_line("}},");
 		}
 	}
@@ -476,11 +426,11 @@ impl<'a> ServerOutput<'a> {
 		let callback = casing(self.file.casing, "Callback", "callback", "callback");
 
 		self.push_line(&format!("{set_callback} = function({callback}: (Player, {ty}) -> ())",));
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line(&format!("events[{id}] = {callback}"));
 
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end,");
 	}
 
@@ -491,11 +441,11 @@ impl<'a> ServerOutput<'a> {
 		let callback = casing(self.file.casing, "Callback", "callback", "callback");
 
 		self.push_line(&format!("{on} = function({callback}: (Player, {ty}) -> ())",));
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line(&format!("table.insert(events[{id}], {callback})",));
 
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end,");
 	}
 
@@ -510,36 +460,32 @@ impl<'a> ServerOutput<'a> {
 			let id = i + 1;
 
 			self.push_line(&format!("{name} = {{", name = ev.name));
-			self.tabs += 1;
+			self.indent();
 
 			match ev.call {
 				EvCall::SingleSync | EvCall::SingleAsync => self.push_return_setcallback(ev, id),
 				EvCall::ManySync | EvCall::ManyAsync => self.push_return_on(ev, id),
 			}
 
-			self.tabs -= 1;
+			self.dedent();
 			self.push_line("}},");
 		}
 	}
 
 	pub fn push_return(&mut self) {
 		self.push_line("return {");
-		self.tabs += 1;
+		self.indent();
 
 		self.push_return_outgoing();
 		self.push_return_listen();
 
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("}");
 	}
 
 	pub fn output(&mut self) {
-		self.push_line("--!native");
-		self.push_line("--!optimize 2");
+		self.push_file_header();
 
-		self.push_line(&format!("-- Generated by Zap v{}", env!("CARGO_PKG_VERSION")));
-
-		self.push(include_str!("base.luau"));
 		self.push(include_str!("server.luau"));
 
 		self.push_tydecls();

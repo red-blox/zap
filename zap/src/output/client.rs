@@ -4,10 +4,32 @@ use crate::{
 	util::casing,
 };
 
+use super::Output;
+
 struct ClientOutput<'a> {
 	file: &'a File,
 	buff: String,
 	tabs: u32,
+}
+
+impl<'a> Output for ClientOutput<'a> {
+	fn push(&mut self, s: &str) {
+		self.buff.push_str(s);
+	}
+
+	fn indent(&mut self) {
+		self.tabs += 1;
+	}
+
+	fn dedent(&mut self) {
+		self.tabs -= 1;
+	}
+
+	fn push_indent(&mut self) {
+		for _ in 0..self.tabs {
+			self.push("\t");
+		}
+	}
 }
 
 impl<'a> ClientOutput<'a> {
@@ -16,78 +38,6 @@ impl<'a> ClientOutput<'a> {
 			file,
 			buff: String::new(),
 			tabs: 0,
-		}
-	}
-
-	fn push(&mut self, s: &str) {
-		self.buff.push_str(s);
-	}
-
-	fn push_tab(&mut self) {
-		for _ in 0..self.tabs {
-			self.buff.push('\t');
-		}
-	}
-
-	fn push_line(&mut self, s: &str) {
-		self.push_tab();
-		self.push(s);
-		self.buff.push('\n');
-	}
-
-	fn push_stmt(&mut self, stmt: &Stmt) {
-		if matches!(stmt, Stmt::ElseIf(..) | Stmt::Else | Stmt::End) {
-			self.tabs -= 1;
-		}
-
-		match &stmt {
-			Stmt::Local(name, expr) => {
-				if let Some(expr) = expr {
-					self.push_line(&format!("local {name} = {expr}"));
-				} else {
-					self.push_line(&format!("local {name}"));
-				}
-			}
-
-			Stmt::Assign(var, expr) => self.push_line(&format!("{var} = {expr}")),
-			Stmt::Error(msg) => self.push_line(&format!("error({msg})")),
-			Stmt::Assert(cond, msg) => match msg {
-				Some(msg) => self.push_line(&format!("assert({cond}, {msg})")),
-				None => self.push_line(&format!("assert({cond})")),
-			},
-
-			Stmt::Call(var, method, args) => match method {
-				Some(method) => self.push_line(&format!(
-					"{var}:{method}({})",
-					args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>().join(", ")
-				)),
-
-				None => self.push_line(&format!(
-					"{var}({})",
-					args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>().join(", ")
-				)),
-			},
-
-			Stmt::NumFor { var, from, to } => self.push_line(&format!("for {var} = {from}, {to} do")),
-			Stmt::GenFor { key, val, obj } => self.push_line(&format!("for {key}, {val} in {obj} do")),
-			Stmt::If(cond) => self.push_line(&format!("if {cond} then")),
-			Stmt::ElseIf(cond) => self.push_line(&format!("elseif {cond} then")),
-			Stmt::Else => self.push_line("else"),
-
-			Stmt::End => self.push_line("end"),
-		};
-
-		if matches!(
-			stmt,
-			Stmt::NumFor { .. } | Stmt::GenFor { .. } | Stmt::If(..) | Stmt::ElseIf(..) | Stmt::Else
-		) {
-			self.tabs += 1;
-		};
-	}
-
-	fn push_stmts(&mut self, stmts: &[Stmt]) {
-		for stmt in stmts {
-			self.push_stmt(stmt);
 		}
 	}
 
@@ -116,7 +66,7 @@ impl<'a> ClientOutput<'a> {
 
 	fn push_reliable_header(&mut self) {
 		self.push_line("reliable.OnClientEvent:Connect(function(buff, inst)");
-		self.tabs += 1;
+		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
@@ -124,7 +74,7 @@ impl<'a> ClientOutput<'a> {
 		self.push_line("local len = buffer.len(buff)");
 		self.push_line("while incoming_read < len do");
 
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line(&format!(
 			"local id = buffer.read{}(buff, read({}))",
@@ -133,7 +83,7 @@ impl<'a> ClientOutput<'a> {
 		));
 	}
 	fn push_reliable_callback(&mut self, first: bool, ev: &EvDecl, id: usize) {
-		self.push_tab();
+		self.push_indent();
 
 		if first {
 			self.push("if ");
@@ -144,7 +94,7 @@ impl<'a> ClientOutput<'a> {
 		self.push(&format!("id == {id} then"));
 		self.push("\n");
 
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line("local value");
 		self.push_stmts(&gen_des(&ev.data, "value".into(), false));
@@ -156,18 +106,18 @@ impl<'a> ClientOutput<'a> {
 			EvCall::ManyAsync => self.push_line(&format!("for _, cb in events[{id}] do task.spawn(cb, value) end")),
 		}
 
-		self.tabs -= 1;
+		self.dedent();
 	}
 
 	fn push_reliable_footer(&mut self) {
 		self.push_line("else");
-		self.tabs += 1;
+		self.indent();
 		self.push_line("error(\"Unknown event id\")");
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end");
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end");
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end)");
 	}
 
@@ -194,7 +144,7 @@ impl<'a> ClientOutput<'a> {
 
 	fn push_unreliable_header(&mut self) {
 		self.push_line("unreliable.OnServerEvent:Connect(function(buff, inst)");
-		self.tabs += 1;
+		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
@@ -207,7 +157,7 @@ impl<'a> ClientOutput<'a> {
 	}
 
 	fn push_unreliable_callback(&mut self, first: bool, ev: &EvDecl, id: usize) {
-		self.push_tab();
+		self.push_indent();
 
 		if first {
 			self.push("if ");
@@ -218,7 +168,7 @@ impl<'a> ClientOutput<'a> {
 		self.push(&format!("id == {id} then"));
 		self.push("\n");
 
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line("local value");
 		self.push_stmts(&gen_des(&ev.data, "value".into(), true));
@@ -230,16 +180,16 @@ impl<'a> ClientOutput<'a> {
 			EvCall::ManyAsync => self.push_line(&format!("for _, cb in events[{id}] do task.spawn(cb, value) end")),
 		}
 
-		self.tabs -= 1;
+		self.dedent();
 	}
 
 	fn push_unreliable_footer(&mut self) {
 		self.push_line("else");
-		self.tabs += 1;
+		self.indent();
 		self.push_line("error(\"Unknown event id\")");
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end");
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end)");
 	}
 
@@ -281,7 +231,7 @@ impl<'a> ClientOutput<'a> {
 		let value = casing(self.file.casing, "Value", "value", "value");
 
 		self.push_line(&format!("{fire} = function({value}: {ty})"));
-		self.tabs += 1;
+		self.indent();
 
 		if ev.evty == EvType::Unreliable {
 			self.push_line("local saved = save()");
@@ -298,7 +248,7 @@ impl<'a> ClientOutput<'a> {
 			self.push_line("load(saved)");
 		}
 
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end,");
 	}
 
@@ -313,11 +263,11 @@ impl<'a> ClientOutput<'a> {
 			let id = i + 1;
 
 			self.push_line(&format!("{name} = {{", name = ev.name));
-			self.tabs += 1;
+			self.indent();
 
 			self.push_return_fire(ev, id);
 
-			self.tabs -= 1;
+			self.dedent();
 			self.push_line("}},");
 		}
 	}
@@ -329,11 +279,11 @@ impl<'a> ClientOutput<'a> {
 		let callback = casing(self.file.casing, "Callback", "callback", "callback");
 
 		self.push_line(&format!("{set_callback} = function({callback}: ({ty}) -> ())",));
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line(&format!("events[{id}] = {callback}"));
 
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end,");
 	}
 
@@ -344,11 +294,11 @@ impl<'a> ClientOutput<'a> {
 		let callback = casing(self.file.casing, "Callback", "callback", "callback");
 
 		self.push_line(&format!("{on} = function({callback}: ({ty}) -> ())",));
-		self.tabs += 1;
+		self.indent();
 
 		self.push_line(&format!("table.insert(events[{id}], {callback})",));
 
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("end,");
 	}
 
@@ -363,36 +313,32 @@ impl<'a> ClientOutput<'a> {
 			let id = i + 1;
 
 			self.push_line(&format!("{name} = {{", name = ev.name));
-			self.tabs += 1;
+			self.indent();
 
 			match ev.call {
 				EvCall::SingleSync | EvCall::SingleAsync => self.push_return_setcallback(ev, id),
 				EvCall::ManySync | EvCall::ManyAsync => self.push_return_on(ev, id),
 			}
 
-			self.tabs -= 1;
+			self.dedent();
 			self.push_line("}},");
 		}
 	}
 
 	pub fn push_return(&mut self) {
 		self.push_line("return {");
-		self.tabs += 1;
+		self.indent();
 
 		self.push_return_outgoing();
 		self.push_return_listen();
 
-		self.tabs -= 1;
+		self.dedent();
 		self.push_line("}");
 	}
 
 	pub fn output(&mut self) {
-		self.push_line("--!native");
-		self.push_line("--!optimize 2");
+		self.push_file_header();
 
-		self.push_line(&format!("-- Generated by Zap v{}", env!("CARGO_PKG_VERSION")));
-
-		self.push(include_str!("base.luau"));
 		self.push(include_str!("client.luau"));
 
 		self.push_tydecls();
