@@ -48,13 +48,17 @@ impl<'a> ClientOutput<'a> {
 		self.push_line(&format!("export type {name} = {ty}"));
 
 		self.push_line(&format!("function types.write_{name}(value: {name})"));
+		self.indent();
 		self.push_stmts(&gen_ser(ty, "value".into(), self.file.write_checks));
+		self.dedent();
 		self.push_line("end");
 
 		self.push_line(&format!("function types.read_{name}()"));
+		self.indent();
 		self.push_line("local value;");
 		self.push_stmts(&gen_des(ty, "value".into(), false));
 		self.push_line("return value");
+		self.dedent();
 		self.push_line("end");
 	}
 
