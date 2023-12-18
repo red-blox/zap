@@ -358,21 +358,23 @@ pub fn gen_ser(ty: &Ty, from: Var, gen_checks: bool) -> Vec<Stmt> {
 		}
 
 		Ty::Enum { variants } => {
-			let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
+			if !variants.is_empty() {
+				let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
 
-			for (i, name) in variants.iter().enumerate() {
-				if i == 0 {
-					stmts.push(Stmt::If(from_expr.clone().eq(name.clone().into())));
-				} else {
-					stmts.push(Stmt::ElseIf(from_expr.clone().eq(name.clone().into())));
+				for (i, name) in variants.iter().enumerate() {
+					if i == 0 {
+						stmts.push(Stmt::If(from_expr.clone().eq(name.clone().into())));
+					} else {
+						stmts.push(Stmt::ElseIf(from_expr.clone().eq(name.clone().into())));
+					}
+
+					buffer_writenumty(&mut stmts, (i as f64).into(), numty);
 				}
 
-				buffer_writenumty(&mut stmts, (i as f64).into(), numty);
+				stmts.push(Stmt::Else);
+				stmts.push(Stmt::Error("invalid enum variant!".to_string()));
+				stmts.push(Stmt::End);
 			}
-
-			stmts.push(Stmt::Else);
-			stmts.push(Stmt::Error("invalid enum variant!".to_string()));
-			stmts.push(Stmt::End);
 		}
 
 		Ty::Instance(class) => {
@@ -506,23 +508,25 @@ pub fn gen_des(ty: &Ty, to: Var, gen_checks: bool) -> Vec<Stmt> {
 		}
 
 		Ty::Enum { variants } => {
-			let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
+			if !variants.is_empty() {
+				let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
 
-			assign(&mut stmts, to.clone(), buffer_readnumty(numty));
+				assign(&mut stmts, to.clone(), buffer_readnumty(numty));
 
-			for (i, name) in variants.iter().enumerate() {
-				if i == 0 {
-					stmts.push(Stmt::If(Expr::from(to.clone()).eq((i as f64).into())));
-				} else {
-					stmts.push(Stmt::ElseIf(Expr::from(to.clone()).eq((i as f64).into())));
+				for (i, name) in variants.iter().enumerate() {
+					if i == 0 {
+						stmts.push(Stmt::If(Expr::from(to.clone()).eq((i as f64).into())));
+					} else {
+						stmts.push(Stmt::ElseIf(Expr::from(to.clone()).eq((i as f64).into())));
+					}
+
+					assign(&mut stmts, to.clone(), name.clone().into());
 				}
 
-				assign(&mut stmts, to.clone(), name.clone().into());
+				stmts.push(Stmt::Else);
+				stmts.push(Stmt::Error("invalid enum variant!".to_string()));
+				stmts.push(Stmt::End);
 			}
-
-			stmts.push(Stmt::Else);
-			stmts.push(Stmt::Error("invalid enum variant!".to_string()));
-			stmts.push(Stmt::End);
 		}
 
 		Ty::Instance(class) => {
