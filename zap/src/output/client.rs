@@ -347,8 +347,23 @@ impl<'a> ClientOutput<'a> {
 
 		self.push_tydecls();
 
-		self.push_reliable();
-		self.push_unreliable();
+		if self
+			.file
+			.ev_decls
+			.iter()
+			.any(|ev| ev.evty == EvType::Reliable && ev.from == EvSource::Server)
+		{
+			self.push_reliable();
+		}
+
+		if self
+			.file
+			.ev_decls
+			.iter()
+			.any(|ev| ev.evty == EvType::Unreliable && ev.from == EvSource::Server)
+		{
+			self.push_unreliable();
+		}
 
 		self.push_callback_lists();
 
