@@ -257,7 +257,7 @@ pub fn gen_ser(ty: &Ty, from: Var, gen_checks: bool) -> Vec<Stmt> {
 			Ty::I16(range) => range_check(&mut stmts, from_expr.clone(), range.cast()),
 			Ty::I32(range) => range_check(&mut stmts, from_expr.clone(), range.cast()),
 
-			_ => unreachable!(),
+			_ => {}
 		};
 	}
 
