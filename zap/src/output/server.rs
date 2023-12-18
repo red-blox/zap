@@ -45,7 +45,10 @@ impl<'a> ServerOutput<'a> {
 		let name = &tydecl.name;
 		let ty = &tydecl.ty;
 
-		self.push_line(&format!("export type {name} = {ty}"));
+		self.push_indent();
+		self.push(&format!("export type {name} = "));
+		self.push_ty(ty);
+		self.push("\n");
 
 		self.push_line(&format!("function types.write_{name}(value: {name})"));
 		self.indent();
@@ -250,7 +253,10 @@ impl<'a> ServerOutput<'a> {
 		let player = casing(self.file.casing, "Player", "player", "player");
 		let value = casing(self.file.casing, "Value", "value", "value");
 
-		self.push_line(&format!("{fire} = function({player}: Player, {value}: {ty})"));
+		self.push_indent();
+		self.push(&format!("{fire} = function({player}: Player, {value}: "));
+		self.push_ty(ty);
+		self.push(")\n");
 		self.indent();
 
 		match ev.evty {
@@ -280,7 +286,10 @@ impl<'a> ServerOutput<'a> {
 		let fire_all = casing(self.file.casing, "FireAll", "fireAll", "fire_all");
 		let value = casing(self.file.casing, "Value", "value", "value");
 
-		self.push_line(&format!("{fire_all} = function({value}: {ty})"));
+		self.push_indent();
+		self.push(&format!("{fire_all} = function({value}: "));
+		self.push_ty(ty);
+		self.push(")\n");
 		self.indent();
 
 		self.push_line("load_empty()");
@@ -319,7 +328,10 @@ impl<'a> ServerOutput<'a> {
 		let except = casing(self.file.casing, "Except", "except", "except");
 		let value = casing(self.file.casing, "Value", "value", "value");
 
-		self.push_line(&format!("{fire_except} = function({except}: Player, {value}: {ty})"));
+		self.push_indent();
+		self.push(&format!("{fire_except} = function({except}: Player, {value}: "));
+		self.push_ty(ty);
+		self.push(")\n");
 		self.indent();
 
 		self.push_line("load_empty()");
@@ -370,7 +382,10 @@ impl<'a> ServerOutput<'a> {
 		let list = casing(self.file.casing, "List", "list", "list");
 		let value = casing(self.file.casing, "Value", "value", "value");
 
-		self.push_line(&format!("{fire_list} = function({list}: {{ Player }}, {value}: {ty})"));
+		self.push_indent();
+		self.push(&format!("{fire_list} = function({list}: {{ Player }}, {value}: "));
+		self.push_ty(ty);
+		self.push(")\n");
 		self.indent();
 
 		self.push_line("load_empty()");
@@ -435,7 +450,10 @@ impl<'a> ServerOutput<'a> {
 		let set_callback = casing(self.file.casing, "SetCallback", "setCallback", "set_callback");
 		let callback = casing(self.file.casing, "Callback", "callback", "callback");
 
-		self.push_line(&format!("{set_callback} = function({callback}: (Player, {ty}) -> ())",));
+		self.push_indent();
+		self.push(&format!("{set_callback} = function({callback}: (Player, "));
+		self.push_ty(ty);
+		self.push(") -> ())\n");
 		self.indent();
 
 		self.push_line(&format!("events[{id}] = {callback}"));
@@ -450,10 +468,13 @@ impl<'a> ServerOutput<'a> {
 		let on = casing(self.file.casing, "On", "on", "on");
 		let callback = casing(self.file.casing, "Callback", "callback", "callback");
 
-		self.push_line(&format!("{on} = function({callback}: (Player, {ty}) -> ())",));
+		self.push_indent();
+		self.push(&format!("{on} = function({callback}: (Player, "));
+		self.push_ty(ty);
+		self.push(") -> ())\n");
 		self.indent();
 
-		self.push_line(&format!("table.insert(events[{id}], {callback})",));
+		self.push_line(&format!("table.insert(events[{id}], {callback})"));
 
 		self.dedent();
 		self.push_line("end,");

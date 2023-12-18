@@ -45,7 +45,10 @@ impl<'a> ClientOutput<'a> {
 		let name = &tydecl.name;
 		let ty = &tydecl.ty;
 
-		self.push_line(&format!("export type {name} = {ty}"));
+		self.push_indent();
+		self.push(&format!("export type {name} = "));
+		self.push_ty(ty);
+		self.push("\n");
 
 		self.push_line(&format!("function types.write_{name}(value: {name})"));
 		self.indent();
@@ -240,7 +243,10 @@ impl<'a> ClientOutput<'a> {
 		let fire = casing(self.file.casing, "Fire", "fire", "fire");
 		let value = casing(self.file.casing, "Value", "value", "value");
 
-		self.push_line(&format!("{fire} = function({value}: {ty})"));
+		self.push_indent();
+		self.push(&format!("{fire} = function({value}: "));
+		self.push_ty(ty);
+		self.push(")\n");
 		self.indent();
 
 		if ev.evty == EvType::Unreliable {
@@ -288,7 +294,10 @@ impl<'a> ClientOutput<'a> {
 		let set_callback = casing(self.file.casing, "SetCallback", "setCallback", "set_callback");
 		let callback = casing(self.file.casing, "Callback", "callback", "callback");
 
-		self.push_line(&format!("{set_callback} = function({callback}: ({ty}) -> ())",));
+		self.push_indent();
+		self.push(&format!("{set_callback} = function({callback}: ("));
+		self.push_ty(ty);
+		self.push(") -> ())\n");
 		self.indent();
 
 		self.push_line(&format!("events[{id}] = {callback}"));
@@ -303,10 +312,13 @@ impl<'a> ClientOutput<'a> {
 		let on = casing(self.file.casing, "On", "on", "on");
 		let callback = casing(self.file.casing, "Callback", "callback", "callback");
 
-		self.push_line(&format!("{on} = function({callback}: ({ty}) -> ())",));
+		self.push_indent();
+		self.push(&format!("{on} = function({callback}: ("));
+		self.push_ty(ty);
+		self.push(") -> ())\n");
 		self.indent();
 
-		self.push_line(&format!("table.insert(events[{id}], {callback})",));
+		self.push_line(&format!("table.insert(events[{id}], {callback})"));
 
 		self.dedent();
 		self.push_line("end,");
