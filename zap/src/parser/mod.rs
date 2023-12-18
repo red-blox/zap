@@ -90,7 +90,7 @@ pub enum Ty {
 	Struct { fields: Vec<(String, Ty)> },
 	Enum { variants: Vec<String> },
 
-	Instance(Option<String>),
+	Instance(bool, Option<String>),
 	Vector3,
 
 	Ref(String),
@@ -114,17 +114,11 @@ impl Ty {
 			Ty::U16(_) => Some(2),
 			Ty::U32(_) => Some(4),
 
-			Ty::Str { len } => {
-				if len.is_exact() {
-					Some(len.min().unwrap() as usize)
-				} else {
-					None
-				}
-			}
+			Ty::Str { len } => len.exact().map(|len| len as usize),
 
 			Ty::Arr { len, ty } => {
-				if len.is_exact() && ty.exact_size().is_some() {
-					Some(len.min().unwrap() as usize * ty.exact_size().unwrap())
+				if let Some(len) = len.exact() {
+					ty.exact_size().map(|ty_size| len as usize * ty_size)
 				} else {
 					None
 				}
@@ -148,7 +142,8 @@ impl Ty {
 
 			Ty::Enum { variants } => Some(NumTy::from_f64(0.0, variants.len() as f64).size()),
 
-			Ty::Instance(_) => Some(2),
+			Ty::Instance(_, _) => Some(2),
+
 			Ty::Vector3 => Some(12),
 
 			// At some point this should evaluate the size of the referenced type

@@ -1,130 +1,162 @@
 use std::fmt::Display;
 
-use crate::{
-	irgen::{gen_ser, Expr, Stmt, Var},
-	parser::{Ty, TyDecl},
-	util::NumTy,
-};
+use crate::{irgen::Stmt, parser::Ty, util::NumTy};
 
 pub mod client;
 pub mod server;
 
-impl Display for TyDecl {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let name = &self.name;
-		let ty = &self.ty;
+pub trait Output {
+	fn push(&mut self, s: &str);
+	fn indent(&mut self);
+	fn dedent(&mut self);
+	fn push_indent(&mut self);
 
-		writeln!(f, "export type {name} = {ty}")?;
-
-		writeln!(f, "function types.write_{name}(value: {name})")?;
-
-		for stmt in gen_ser(ty, "value", false) {
-			writeln!(f, "\t{stmt}")?;
-		}
-
-		writeln!(f, "end;")?;
-
-		writeln!(f, "function types.read_{name}()")?;
-		writeln!(f, "\tlocal value;")?;
-
-		for stmt in gen_ser(ty, "value", true) {
-			writeln!(f, "\t{stmt}")?;
-		}
-
-		writeln!(f, "\treturn value;")?;
-		writeln!(f, "end;")?;
-
-		Ok(())
+	fn push_line(&mut self, s: &str) {
+		self.push_indent();
+		self.push(s);
+		self.push("\n");
 	}
-}
 
-impl Display for Ty {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Ty::Bool => write!(f, "boolean"),
+	fn push_stmt(&mut self, stmt: &Stmt) {
+		if matches!(stmt, Stmt::ElseIf(..) | Stmt::Else | Stmt::End) {
+			self.dedent();
+		}
 
-			Ty::F32(_) => write!(f, "number"),
-			Ty::F64(_) => write!(f, "number"),
-
-			Ty::U8(_) => write!(f, "number"),
-			Ty::U16(_) => write!(f, "number"),
-			Ty::U32(_) => write!(f, "number"),
-
-			Ty::I8(_) => write!(f, "number"),
-			Ty::I16(_) => write!(f, "number"),
-			Ty::I32(_) => write!(f, "number"),
-
-			Ty::Str { .. } => write!(f, "string"),
-			Ty::Arr { ty, .. } => write!(f, "{{ {ty} }}"),
-			Ty::Map { key, val } => write!(f, "{{ [{key}]: {val} }}"),
-
-			Ty::Struct { fields } => {
-				write!(f, "{{ ")?;
-
-				for (name, ty) in fields.iter() {
-					write!(f, "{name}: {ty}, ")?;
+		match &stmt {
+			Stmt::Local(name, expr) => {
+				if let Some(expr) = expr {
+					self.push_line(&format!("local {name} = {expr}"));
+				} else {
+					self.push_line(&format!("local {name}"));
 				}
-
-				write!(f, "}}")
 			}
 
-			Ty::Enum { variants } => write!(
-				f,
-				"{}",
-				variants
+			Stmt::Assign(var, expr) => self.push_line(&format!("{var} = {expr}")),
+			Stmt::Error(msg) => self.push_line(&format!("error({msg})")),
+			Stmt::Assert(cond, msg) => match msg {
+				Some(msg) => self.push_line(&format!("assert({cond}, {msg})")),
+				None => self.push_line(&format!("assert({cond})")),
+			},
+
+			Stmt::Call(var, method, args) => match method {
+				Some(method) => self.push_line(&format!(
+					"{var}:{method}({})",
+					args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>().join(", ")
+				)),
+
+				None => self.push_line(&format!(
+					"{var}({})",
+					args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>().join(", ")
+				)),
+			},
+
+			Stmt::NumFor { var, from, to } => self.push_line(&format!("for {var} = {from}, {to} do")),
+			Stmt::GenFor { key, val, obj } => self.push_line(&format!("for {key}, {val} in {obj} do")),
+			Stmt::If(cond) => self.push_line(&format!("if {cond} then")),
+			Stmt::ElseIf(cond) => self.push_line(&format!("elseif {cond} then")),
+			Stmt::Else => self.push_line("else"),
+
+			Stmt::End => self.push_line("end"),
+		};
+
+		if matches!(
+			stmt,
+			Stmt::NumFor { .. } | Stmt::GenFor { .. } | Stmt::If(..) | Stmt::ElseIf(..) | Stmt::Else
+		) {
+			self.indent();
+		};
+	}
+
+	fn push_stmts(&mut self, stmts: &[Stmt]) {
+		for stmt in stmts {
+			self.push_stmt(stmt);
+		}
+	}
+
+	fn push_ty(&mut self, ty: &Ty) {
+		match ty {
+			Ty::Bool => self.push("boolean"),
+
+			Ty::F32(_) => self.push("number"),
+			Ty::F64(_) => self.push("number"),
+
+			Ty::U8(_) => self.push("number"),
+			Ty::U16(_) => self.push("number"),
+			Ty::U32(_) => self.push("number"),
+
+			Ty::I8(_) => self.push("number"),
+			Ty::I16(_) => self.push("number"),
+			Ty::I32(_) => self.push("number"),
+
+			Ty::Str { .. } => self.push("string"),
+
+			Ty::Arr { ty, .. } => {
+				self.push("{ ");
+				self.push_ty(ty);
+				self.push(" }");
+			}
+
+			Ty::Map { key, val } => {
+				self.push("{ [");
+				self.push_ty(key);
+				self.push("]: ");
+				self.push_ty(val);
+				self.push(" }");
+			}
+
+			Ty::Struct { fields } => {
+				self.push("{\n");
+				self.indent();
+
+				for (name, ty) in fields.iter() {
+					self.push_indent();
+					self.push(&format!("{name}: "));
+					self.push_ty(ty);
+					self.push(",\n");
+				}
+
+				self.dedent();
+				self.push_indent();
+				self.push("}");
+			}
+
+			Ty::Enum { variants } => self.push(
+				&variants
 					.iter()
 					.map(|v| format!("\"{}\"", v))
 					.collect::<Vec<_>>()
 					.join(" | ")
+					.to_string(),
 			),
 
-			Ty::Instance(name) => write!(f, "{}", if let Some(name) = name { name } else { "Instance" }),
-			Ty::Vector3 => write!(f, "Vector3"),
+			Ty::Instance(strict, name) => {
+				self.push(if let Some(name) = name { name } else { "Instance" });
 
-			Ty::Ref(name) => write!(f, "{name}"),
+				if *strict {
+					self.push("?")
+				}
+			}
+			Ty::Vector3 => self.push("Vector3"),
 
-			Ty::Optional(ty) => write!(f, "{ty}?"),
+			Ty::Ref(name) => self.push(&name.to_string()),
+
+			Ty::Optional(ty) => {
+				self.push_ty(ty);
+				self.push("?");
+			}
 		}
 	}
-}
 
-impl Display for Stmt {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Stmt::Local { name } => write!(f, "local {name}"),
-			Stmt::Assign { var, val } => write!(f, "{var} = {val}"),
-			Stmt::Throw { msg } => write!(f, "error(\"{msg}\")"),
-			Stmt::Assert { cond, msg } => write!(f, "assert({cond}, \"{msg}\")"),
+	fn push_file_header(&mut self) {
+		self.push_line("--!native");
+		self.push_line("--!optimize 2");
 
-			Stmt::BlockStart => write!(f, "do"),
-			Stmt::NumFor { var, start, end } => write!(f, "for {var} = {start}, {end} do"),
-			Stmt::GenFor { key, val, expr } => write!(f, "for {key}, {val} in {expr} do"),
-			Stmt::If { cond } => write!(f, "if {cond} then"),
-			Stmt::ElseIf { cond } => write!(f, "elseif {cond} then"),
-			Stmt::Else => write!(f, "else"),
+		self.push_line(&format!(
+			"-- Generated by Zap v{} (https://github.com/red-blox/zap)",
+			env!("CARGO_PKG_VERSION")
+		));
 
-			Stmt::BlockEnd => write!(f, "end"),
-
-			Stmt::Alloc { into, len } => write!(f, "{into} = alloc({len})"),
-
-			Stmt::WriteNum { expr, ty, at } => match at {
-				Some(at) => write!(f, "buffer.write{ty}(outgoing_buff, {expr}, {at})"),
-				None => write!(f, "buffer.write{ty}(outgoing_buff, {expr}, alloc({}))", ty.size()),
-			},
-
-			Stmt::WriteStr { expr, len } => {
-				write!(f, "buffer.writestring(outgoing_buff, alloc({len}), {expr}, {len})")
-			}
-
-			Stmt::WriteRef { expr, ref_name } => write!(f, "types.write_{ref_name}({expr})"),
-
-			Stmt::WriteInst { expr } => write!(f, "buffer.writeu16(outgoing_buff, alloc(2), alloc_inst({expr}))"),
-
-			Stmt::ReadNum { into, ty } => write!(f, "{into} = buffer.read{ty}(incoming_buff, read({}))", ty.size()),
-			Stmt::ReadStr { into, len } => write!(f, "{into} = buffer.readstring(incoming_buff, read({len}), {len})"),
-			Stmt::ReadRef { into, ref_name } => write!(f, "{into} = types.read_{ref_name}()"),
-			Stmt::ReadInst { into } => write!(f, "{into} = incoming_inst[buffer.readu16(incoming_buff, read(2))]"),
-		}
+		self.push(include_str!("base.luau"));
 	}
 }
 
@@ -141,49 +173,6 @@ impl Display for NumTy {
 			NumTy::I8 => write!(f, "i8"),
 			NumTy::I16 => write!(f, "i16"),
 			NumTy::I32 => write!(f, "i32"),
-		}
-	}
-}
-
-impl Display for Var {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Var::Name(name) => write!(f, "{}", name),
-
-			Var::NameIndex(prefix, suffix) => write!(f, "{}.{}", prefix, suffix),
-			Var::ExprIndex(prefix, expr) => write!(f, "{}[{}]", prefix, expr),
-		}
-	}
-}
-
-impl Display for Expr {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Expr::False => write!(f, "false"),
-			Expr::True => write!(f, "true"),
-			Expr::Nil => write!(f, "nil"),
-
-			Expr::Num(num) => write!(f, "{num}"),
-			Expr::Str(string) => write!(f, "\"{string}\""),
-			Expr::Var(var) => write!(f, "{var}"),
-
-			Expr::EmptyArr => write!(f, "{{}}"),
-			Expr::EmptyObj => write!(f, "{{}}"),
-
-			Expr::Vector3(x, y, z) => write!(f, "Vector3.new({x}, {y}, {z})"),
-
-			Expr::InstanceIsA(expr, class) => write!(f, "{expr}:IsA({class})"),
-
-			Expr::Len(expr) => write!(f, "#{expr}"),
-
-			Expr::Lt(left, right) => write!(f, "{left} < {right}"),
-			Expr::Gt(left, right) => write!(f, "{left} > {right}"),
-			Expr::Le(left, right) => write!(f, "{left} <= {right}"),
-			Expr::Ge(left, right) => write!(f, "{left} >= {right}"),
-			Expr::Eq(left, right) => write!(f, "{left} == {right}"),
-			Expr::Or(left, right) => write!(f, "{left} or {right}"),
-
-			Expr::Add(left, right) => write!(f, "{left} + {right}"),
 		}
 	}
 }
