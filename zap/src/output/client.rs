@@ -340,7 +340,7 @@ impl<'a> ClientOutput<'a> {
 		self.push_line("}");
 	}
 
-	pub fn output(&mut self) {
+	pub fn output(mut self) -> String {
 		self.push_file_header();
 
 		self.push(include_str!("client.luau"));
@@ -368,15 +368,11 @@ impl<'a> ClientOutput<'a> {
 		self.push_callback_lists();
 
 		self.push_return();
-	}
 
-	pub fn into_inner(self) -> String {
 		self.buff
 	}
 }
 
 pub fn code(file: &File) -> String {
-	let mut output = ClientOutput::new(file);
-	output.output();
-	output.into_inner()
+	ClientOutput::new(file).output()
 }
