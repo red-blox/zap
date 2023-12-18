@@ -36,7 +36,7 @@ import MonacoEditor from "@guolao/vue-monaco-editor";
 import type { Monaco } from "@monaco-editor/loader";
 import { useData, useRouter } from "vitepress";
 import { ref, watch, onMounted } from "vue";
-import { run_wasm, Code } from "../zap/package"
+import { run, Code } from "../zap/package"
 
 const { isDark } = useData();
 const { go } = useRouter();
@@ -78,7 +78,7 @@ const clamp = (number, min, max) => Math.max(min, Math.min(number, max));
 
 watch(code, (newCode) => {
 	try {
-		compiledResult.value = run_wasm(newCode);
+		compiledResult.value = run(newCode);
 
 		if (!compiledResult.value.client && !compiledResult.value.server) compiledResult.value = {
 			client: "-- Add an event to see output here!\n",

@@ -4,6 +4,10 @@ mod parser;
 mod util;
 
 use thiserror::Error;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
+
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -21,23 +25,55 @@ pub enum Error {
 	DuplicateEvent(String),
 }
 
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter_with_clone))]
+#[derive(Debug)]
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Output {
+	pub path: PathBuf,
+	pub contents: String,
+}
+
+// wasm_bindgen doesn't support generics, so we must have two different Structs
+#[derive(Debug)]
+#[cfg(not(target_arch = "wasm32"))]
+pub struct Code {
+	pub server: Output,
+	pub client: Output,
+}
+
+#[derive(Debug)]
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(getter_with_clone)]
 pub struct Code {
 	pub server: String,
 	pub client: String,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn run(config: &str) -> Result<Code, Error> {
+	let file = parser::parse(config)?;
+
+	let server_contents = output::server::code(&file);
+	let client_contents = output::client::code(&file);
+
+	Ok(Code {
+		server: Output {
+			path: file.server_output,
+			contents: server_contents,
+		},
+		client: Output {
+			path: file.client_output,
+			contents: client_contents,
+		},
+	})
+}
+
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn run(config: &str) -> Result<Code, JsError> {
 	let file = parser::parse(config)?;
 
 	Ok(Code {
 		server: output::server::code(&file),
 		client: output::client::code(&file),
 	})
-}
-
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-pub fn run_wasm(config: &str) -> Result<Code, JsError> {
-	Ok(run(config)?)
 }

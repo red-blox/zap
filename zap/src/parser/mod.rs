@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
 use lalrpop_util::lalrpop_mod;
 
@@ -15,6 +15,9 @@ lalrpop_mod!(pub grammar);
 pub struct File {
 	pub ty_decls: Vec<TyDecl>,
 	pub ev_decls: Vec<EvDecl>,
+
+	pub server_output: PathBuf,
+	pub client_output: PathBuf,
 
 	pub casing: Casing,
 	pub write_checks: bool,
