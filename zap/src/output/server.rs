@@ -1,5 +1,5 @@
 use crate::{
-	irgen::{gen_des, gen_ser, Stmt},
+	irgen::{gen_des, gen_ser},
 	parser::{EvCall, EvDecl, EvSource, EvType, File, TyDecl},
 	util::casing,
 };
@@ -18,11 +18,11 @@ impl<'a> Output for ServerOutput<'a> {
 	}
 
 	fn indent(&mut self) {
-		self.indent();
+		self.tabs += 1;
 	}
 
 	fn dedent(&mut self) {
-		self.dedent();
+		self.tabs -= 1;
 	}
 
 	fn push_indent(&mut self) {
