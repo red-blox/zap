@@ -1,517 +1,617 @@
-use std::fmt::Display;
-
-use num_traits::{Num, NumCast};
-
+use super::{Expr, Stmt, Var};
 use crate::{
 	parser::Ty,
 	util::{NumTy, Range},
 };
 
-use super::{Expr, Stmt, Var};
-
-pub struct Gen {
-	stmts: Vec<Stmt>,
-
-	ser_checks: bool,
-	des_checks: bool,
+fn local(stmts: &mut Vec<Stmt>, name: &'static str, expr: Option<Expr>) {
+	// local <name> = <expr>
+	stmts.push(Stmt::Local(name, expr));
 }
 
-impl Gen {
-	pub fn new(ser_checks: bool, des_checks: bool) -> Self {
-		Self {
-			stmts: Vec::new(),
+fn assign(stmts: &mut Vec<Stmt>, var: Var, expr: Expr) {
+	// <var> = <expr>
+	stmts.push(Stmt::Assign(var, expr));
+}
 
-			ser_checks,
-			des_checks,
+fn assert(stmts: &mut Vec<Stmt>, cond: Expr, msg: Option<String>) {
+	// assert(<cond>, <msg>)
+	stmts.push(Stmt::Assert(cond, msg));
+}
+
+fn buffer_writef32(stmts: &mut Vec<Stmt>, val: Expr) {
+	// local pos = alloc(4)
+	local(stmts, "pos", Some(Var::from("alloc").call(vec![4.0.into()])));
+
+	// buffer.writef32(outgoing_buff, pos, <val>)
+	stmts.push(Stmt::Call(
+		Var::from("buffer").nindex("writef32"),
+		None,
+		vec!["outgoing_buff".into(), "pos".into(), val],
+	));
+}
+
+fn buffer_writef64(stmts: &mut Vec<Stmt>, val: Expr) {
+	// local pos = alloc(8)
+	local(stmts, "pos", Some(Var::from("alloc").call(vec![8.0.into()])));
+
+	// buffer.writef64(outgoing_buff, pos, <val>)
+	stmts.push(Stmt::Call(
+		Var::from("buffer").nindex("writef64"),
+		None,
+		vec!["outgoing_buff".into(), "pos".into(), val],
+	));
+}
+
+fn buffer_writeu8(stmts: &mut Vec<Stmt>, val: Expr) {
+	// local pos = alloc(1)
+	local(stmts, "pos", Some(Var::from("alloc").call(vec![1.0.into()])));
+
+	// buffer.writeu8(outgoing_buff, pos, <val>)
+	stmts.push(Stmt::Call(
+		Var::from("buffer").nindex("writeu8"),
+		None,
+		vec!["outgoing_buff".into(), "pos".into(), val],
+	));
+}
+
+fn buffer_writeu16(stmts: &mut Vec<Stmt>, val: Expr) {
+	// local pos = alloc(2)
+	local(stmts, "pos", Some(Var::from("alloc").call(vec![2.0.into()])));
+
+	// buffer.writeu16(outgoing_buff, pos, <val>)
+	stmts.push(Stmt::Call(
+		Var::from("buffer").nindex("writeu16"),
+		None,
+		vec!["outgoing_buff".into(), "pos".into(), val],
+	));
+}
+
+fn buffer_writeu32(stmts: &mut Vec<Stmt>, val: Expr) {
+	// local pos = alloc(4)
+	local(stmts, "pos", Some(Var::from("alloc").call(vec![4.0.into()])));
+
+	// buffer.writeu32(outgoing_buff, pos, <val>)
+	stmts.push(Stmt::Call(
+		Var::from("buffer").nindex("writeu32"),
+		None,
+		vec!["outgoing_buff".into(), "pos".into(), val],
+	));
+}
+
+fn buffer_writei8(stmts: &mut Vec<Stmt>, val: Expr) {
+	// local pos = alloc(1)
+	local(stmts, "pos", Some(Var::from("alloc").call(vec![1.0.into()])));
+
+	// buffer.writei8(outgoing_buff, pos, <val>)
+	stmts.push(Stmt::Call(
+		Var::from("buffer").nindex("writei8"),
+		None,
+		vec!["outgoing_buff".into(), "pos".into(), val],
+	));
+}
+
+fn buffer_writei16(stmts: &mut Vec<Stmt>, val: Expr) {
+	// local pos = alloc(2)
+	local(stmts, "pos", Some(Var::from("alloc").call(vec![2.0.into()])));
+
+	// buffer.writei16(outgoing_buff, pos, <val>)
+	stmts.push(Stmt::Call(
+		Var::from("buffer").nindex("writei16"),
+		None,
+		vec!["outgoing_buff".into(), "pos".into(), val],
+	));
+}
+
+fn buffer_writei32(stmts: &mut Vec<Stmt>, val: Expr) {
+	// local pos = alloc(4)
+	local(stmts, "pos", Some(Var::from("alloc").call(vec![4.0.into()])));
+
+	// buffer.writei32(outgoing_buff, pos, <val>)
+	stmts.push(Stmt::Call(
+		Var::from("buffer").nindex("writei32"),
+		None,
+		vec!["outgoing_buff".into(), "pos".into(), val],
+	));
+}
+
+fn buffer_writenumty(stmts: &mut Vec<Stmt>, val: Expr, numty: NumTy) {
+	match numty {
+		NumTy::F32 => buffer_writef32(stmts, val),
+		NumTy::F64 => buffer_writef64(stmts, val),
+
+		NumTy::U8 => buffer_writeu8(stmts, val),
+		NumTy::U16 => buffer_writeu16(stmts, val),
+		NumTy::U32 => buffer_writeu32(stmts, val),
+
+		NumTy::I8 => buffer_writei8(stmts, val),
+		NumTy::I16 => buffer_writei16(stmts, val),
+		NumTy::I32 => buffer_writei32(stmts, val),
+	}
+}
+
+fn buffer_writestring(stmts: &mut Vec<Stmt>, val: Expr, count: Expr) {
+	// local pos = alloc(<count>)
+	local(stmts, "pos", Some(Var::from("alloc").call(vec![count.clone()])));
+
+	// buffer.writestring(outgoing_buff, pos, <val>, <count>)
+	stmts.push(Stmt::Call(
+		Var::from("buffer").nindex("writestring"),
+		None,
+		vec!["outgoing_buff".into(), "pos".into(), val, count],
+	));
+}
+
+fn buffer_readf32() -> Expr {
+	// buffer.readf32(incoming_buff, read(4))
+	Var::from("buffer")
+		.nindex("readf32")
+		.call(vec!["incoming_buff".into(), Var::from("read").call(vec![4.0.into()])])
+}
+
+fn buffer_readf64() -> Expr {
+	// buffer.readf64(incoming_buff, read(8))
+	Var::from("buffer")
+		.nindex("readf64")
+		.call(vec!["incoming_buff".into(), Var::from("read").call(vec![8.0.into()])])
+}
+
+fn buffer_readu8() -> Expr {
+	// buffer.readu8(incoming_buff, read(1))
+	Var::from("buffer")
+		.nindex("readu8")
+		.call(vec!["incoming_buff".into(), Var::from("read").call(vec![1.0.into()])])
+}
+
+fn buffer_readu16() -> Expr {
+	// buffer.readu16(incoming_buff, read(2))
+	Var::from("buffer")
+		.nindex("readu16")
+		.call(vec!["incoming_buff".into(), Var::from("read").call(vec![2.0.into()])])
+}
+
+fn buffer_readu32() -> Expr {
+	// buffer.readu32(incoming_buff, read(4))
+	Var::from("buffer")
+		.nindex("readu32")
+		.call(vec!["incoming_buff".into(), Var::from("read").call(vec![4.0.into()])])
+}
+
+fn buffer_readi8() -> Expr {
+	// buffer.readi8(incoming_buff, read(1))
+	Var::from("buffer")
+		.nindex("readi8")
+		.call(vec!["incoming_buff".into(), Var::from("read").call(vec![1.0.into()])])
+}
+
+fn buffer_readi16() -> Expr {
+	// buffer.readi16(incoming_buff, read(2))
+	Var::from("buffer")
+		.nindex("readi16")
+		.call(vec!["incoming_buff".into(), Var::from("read").call(vec![2.0.into()])])
+}
+
+fn buffer_readi32() -> Expr {
+	// buffer.readi32(incoming_buff, read(4))
+	Var::from("buffer")
+		.nindex("readi32")
+		.call(vec!["incoming_buff".into(), Var::from("read").call(vec![4.0.into()])])
+}
+
+fn buffer_readnumty(numty: NumTy) -> Expr {
+	match numty {
+		NumTy::F32 => buffer_readf32(),
+		NumTy::F64 => buffer_readf64(),
+
+		NumTy::U8 => buffer_readu8(),
+		NumTy::U16 => buffer_readu16(),
+		NumTy::U32 => buffer_readu32(),
+
+		NumTy::I8 => buffer_readi8(),
+		NumTy::I16 => buffer_readi16(),
+		NumTy::I32 => buffer_readi32(),
+	}
+}
+
+fn buffer_readstring(count: Expr) -> Expr {
+	// buffer.readstring(incoming_buff, read(<count>), <count>)
+	Var::from("buffer").nindex("readstring").call(vec![
+		"incoming_buff".into(),
+		Var::from("read").call(vec![count.clone()]),
+		count,
+	])
+}
+
+fn range_check(stmts: &mut Vec<Stmt>, val: Expr, range: Range<f64>) {
+	if let Some(min) = range.min() {
+		assert(stmts, val.clone().gte(min.into()), None);
+	}
+
+	if let Some(max) = range.max() {
+		assert(
+			stmts,
+			if range.max_inclusive() {
+				val.lte(max.into())
+			} else {
+				val.lt(max.into())
+			},
+			None,
+		);
+	}
+}
+
+pub fn gen_ser(ty: &Ty, from: Var, gen_checks: bool) -> Vec<Stmt> {
+	let mut stmts = Vec::new();
+	let from_expr = Expr::Var(Box::new(from.clone()));
+
+	if gen_checks
+		&& matches!(
+			ty,
+			Ty::F32(..) | Ty::F64(..) | Ty::U8(..) | Ty::U16(..) | Ty::U32(..) | Ty::I8(..) | Ty::I16(..) | Ty::I32(..)
+		) {
+		range_check(
+			&mut stmts,
+			from_expr.clone(),
+			match ty {
+				Ty::F32(range) => range.cast(),
+				Ty::F64(range) => range.cast(),
+
+				Ty::U8(range) => range.cast(),
+				Ty::U16(range) => range.cast(),
+				Ty::U32(range) => range.cast(),
+
+				Ty::I8(range) => range.cast(),
+				Ty::I16(range) => range.cast(),
+				Ty::I32(range) => range.cast(),
+
+				_ => unreachable!(),
+			},
+		);
+	}
+
+	match ty {
+		Ty::Bool => buffer_writeu8(&mut stmts, from_expr.and(1.0.into()).or(0.0.into())),
+
+		Ty::F32(..) => buffer_writef32(&mut stmts, from_expr),
+		Ty::F64(..) => buffer_writef64(&mut stmts, from_expr),
+
+		Ty::U8(..) => buffer_writeu8(&mut stmts, from_expr),
+		Ty::U16(..) => buffer_writeu16(&mut stmts, from_expr),
+		Ty::U32(..) => buffer_writeu32(&mut stmts, from_expr),
+
+		Ty::I8(..) => buffer_writei8(&mut stmts, from_expr),
+		Ty::I16(..) => buffer_writei16(&mut stmts, from_expr),
+		Ty::I32(..) => buffer_writei32(&mut stmts, from_expr),
+
+		Ty::Str { len } => {
+			if let Some(len) = len.exact_f64() {
+				if gen_checks {
+					assert(&mut stmts, from_expr.clone().len().eq(len.into()), None);
+				}
+
+				buffer_writestring(&mut stmts, from_expr, len.into())
+			} else {
+				local(&mut stmts, "len", Some(from_expr.clone().len()));
+
+				if gen_checks {
+					range_check(&mut stmts, "len".into(), len.cast());
+				}
+
+				buffer_writeu16(&mut stmts, "len".into());
+				buffer_writestring(&mut stmts, from_expr, "len".into())
+			}
 		}
-	}
 
-	pub fn output(self) -> Vec<Stmt> {
-		self.stmts
-	}
+		Ty::Arr { ty, len } => {
+			if let Some(len) = len.exact_f64() {
+				if gen_checks {
+					assert(&mut stmts, from_expr.clone().len().eq(len.into()), None);
+				}
 
-	fn emit(&mut self, stmt: Stmt) {
-		self.stmts.push(stmt);
-	}
+				stmts.push(Stmt::NumFor {
+					var: "i",
+					from: 1.0.into(),
+					to: len.into(),
+				});
 
-	fn alloc(&mut self, into: Var, len: Expr) {
-		self.emit(Stmt::Alloc { into, len });
-	}
+				stmts.extend(gen_ser(ty, from.eindex("i".into()), gen_checks));
+				stmts.push(Stmt::End);
+			} else {
+				local(&mut stmts, "len", Some(from_expr.clone().len()));
 
-	fn write_num(&mut self, expr: Expr, ty: NumTy) {
-		self.emit(Stmt::WriteNum { expr, ty, at: None });
-	}
+				if gen_checks {
+					range_check(&mut stmts, "len".into(), len.cast());
+				}
 
-	fn write_num_at(&mut self, expr: Expr, ty: NumTy, at: Expr) {
-		self.emit(Stmt::WriteNum { expr, ty, at: Some(at) });
-	}
+				buffer_writeu16(&mut stmts, "len".into());
 
-	fn write_str(&mut self, expr: Expr, len: Expr) {
-		self.emit(Stmt::WriteStr { expr, len });
-	}
+				stmts.push(Stmt::NumFor {
+					var: "i",
+					from: 1.0.into(),
+					to: "len".into(),
+				});
 
-	fn write_ref(&mut self, expr: Expr, ref_name: String) {
-		self.emit(Stmt::WriteRef { expr, ref_name });
-	}
-
-	fn write_inst(&mut self, expr: Expr) {
-		self.emit(Stmt::WriteInst { expr });
-	}
-
-	fn read_num(&mut self, into: Var, ty: NumTy) {
-		self.emit(Stmt::ReadNum { into, ty });
-	}
-
-	fn read_str(&mut self, into: Var, len: Expr) {
-		self.emit(Stmt::ReadStr { into, len });
-	}
-
-	fn read_ref(&mut self, into: Var, ref_name: String) {
-		self.emit(Stmt::ReadRef { into, ref_name });
-	}
-
-	fn read_inst(&mut self, into: Var) {
-		self.emit(Stmt::ReadInst { into });
-	}
-
-	fn block_start(&mut self) {
-		self.emit(Stmt::BlockStart);
-	}
-
-	fn num_for(&mut self, var: String, start: Expr, end: Expr) {
-		self.emit(Stmt::NumFor { var, start, end });
-	}
-
-	fn gen_for(&mut self, key: String, val: String, expr: Expr) {
-		self.emit(Stmt::GenFor { key, val, expr });
-	}
-
-	fn if_(&mut self, cond: Expr) {
-		self.emit(Stmt::If { cond });
-	}
-
-	fn else_if(&mut self, cond: Expr) {
-		self.emit(Stmt::ElseIf { cond });
-	}
-
-	fn else_(&mut self) {
-		self.emit(Stmt::Else);
-	}
-
-	fn block_end(&mut self) {
-		self.emit(Stmt::BlockEnd);
-	}
-
-	fn local(&mut self, name: &'static str) {
-		self.emit(Stmt::Local { name });
-	}
-
-	fn assign(&mut self, var: Var, val: Expr) {
-		self.emit(Stmt::Assign { var, val });
-	}
-
-	fn throw(&mut self, msg: String) {
-		self.emit(Stmt::Throw { msg });
-	}
-
-	fn assert(&mut self, cond: Expr, msg: String) {
-		self.emit(Stmt::Assert { cond, msg });
-	}
-
-	pub fn ser(&mut self, ty: &Ty, from: &Var) {
-		let from_expr: Expr = from.clone().into();
-
-		if self.ser_checks {
-			self.checks(from, ty);
+				stmts.extend(gen_ser(ty, from.eindex("i".into()), gen_checks));
+				stmts.push(Stmt::End);
+			}
 		}
 
-		match ty {
-			Ty::Bool => {
-				self.if_(from_expr.clone());
-				self.write_num(Expr::Num(1.0), NumTy::U8);
-				self.else_();
-				self.write_num(Expr::Num(0.0), NumTy::U8);
-				self.block_end();
-			}
+		Ty::Map { key, val } => {
+			local(&mut stmts, "len_pos", Some(Var::from("alloc").call(vec![2.0.into()])));
+			local(&mut stmts, "len", Some(0.0.into()));
 
-			Ty::F32(..) => self.write_num(from_expr, NumTy::F32),
-			Ty::F64(..) => self.write_num(from_expr, NumTy::F64),
+			stmts.push(Stmt::GenFor {
+				key: "k",
+				val: "v",
+				obj: from_expr,
+			});
 
-			Ty::U8(..) => self.write_num(from_expr, NumTy::U8),
-			Ty::U16(..) => self.write_num(from_expr, NumTy::U16),
-			Ty::U32(..) => self.write_num(from_expr, NumTy::U32),
+			assign(&mut stmts, "len".into(), Expr::from("len").add(1.0.into()));
+			stmts.extend(gen_ser(key, "k".into(), gen_checks));
+			stmts.extend(gen_ser(val, "v".into(), gen_checks));
 
-			Ty::I8(..) => self.write_num(from_expr, NumTy::I8),
-			Ty::I16(..) => self.write_num(from_expr, NumTy::I16),
-			Ty::I32(..) => self.write_num(from_expr, NumTy::I32),
+			stmts.push(Stmt::End);
 
-			Ty::Str { len } => {
-				if len.is_exact() {
-					self.write_str(from_expr, len.min().unwrap().into());
-				} else {
-					self.block_start();
+			stmts.push(Stmt::Call(
+				Var::from("buffer").nindex("writeu16"),
+				None,
+				vec!["outgoing_buff".into(), "len_pos".into(), "len".into()],
+			));
+		}
 
-					self.local("len");
-					self.assign("len".into(), from_expr.clone().len());
-
-					if self.ser_checks {
-						self.check_range(&"len".into(), len);
-					}
-
-					self.write_num("len".into(), NumTy::U16);
-					self.write_str(from_expr, "len".into());
-
-					self.block_end();
-				}
-			}
-
-			Ty::Arr { len, ty } => {
-				if len.is_exact() {
-					self.num_for("i".into(), 1.into(), len.min().unwrap().into());
-
-					self.ser(ty, &from.clone().expr_index("i".into()));
-
-					self.block_end();
-				} else {
-					self.block_start();
-
-					self.local("len");
-					self.assign("len".into(), from_expr.clone().len());
-
-					if self.ser_checks {
-						self.check_range(&"len".into(), len);
-					}
-
-					self.write_num("len".into(), NumTy::U16);
-
-					self.num_for("i".into(), 1.into(), "len".into());
-
-					self.ser(ty, &from.clone().expr_index("i".into()));
-
-					self.block_end();
-
-					self.block_end();
-				}
-			}
-
-			Ty::Map { key, val } => {
-				self.block_start();
-
-				self.local("len");
-				self.assign("len".into(), 0.into());
-
-				self.local("len_pos");
-				self.alloc("len_pos".into(), 2.into());
-
-				self.gen_for("key".into(), "val".into(), from_expr);
-
-				self.assign("len".into(), Expr::from("len").add(1.into()));
-
-				self.ser(key, &"key".into());
-				self.ser(val, &"val".into());
-
-				self.block_end();
-
-				self.write_num_at("len".into(), NumTy::U16, "len_pos".into());
-			}
-
-			Ty::Struct { fields } => {
-				for (name, ty) in fields {
-					self.ser(ty, &from.clone().name_index(name.clone()));
-				}
-			}
-
-			Ty::Enum { variants } => {
-				let num_ty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
-
-				for (i, variant) in variants.iter().enumerate() {
-					if i == 0 {
-						self.if_(from_expr.clone().eq(variant.clone().into()));
-					} else {
-						self.else_if(from_expr.clone().eq(variant.clone().into()));
-					}
-
-					self.write_num(i.into(), num_ty);
-				}
-
-				self.else_();
-
-				self.throw("Invalid enum variant!".into());
-
-				self.block_end();
-			}
-
-			Ty::Instance(_) => self.write_inst(from_expr),
-
-			Ty::Vector3 => {
-				self.write_num(from.clone().name_index("X".into()).into(), NumTy::F32);
-				self.write_num(from.clone().name_index("Y".into()).into(), NumTy::F32);
-				self.write_num(from.clone().name_index("Z".into()).into(), NumTy::F32);
-			}
-
-			Ty::Ref(name) => self.write_ref(from_expr, name.clone()),
-
-			Ty::Optional(ty) => {
-				self.if_(from_expr.clone().eq(Expr::Nil));
-
-				self.write_num(Expr::Num(0.0), NumTy::U8);
-
-				self.else_();
-
-				self.write_num(Expr::Num(1.0), NumTy::U8);
-
-				self.ser(ty, from);
-
-				self.block_end();
+		Ty::Struct { fields } => {
+			for (name, ty) in fields {
+				stmts.extend(gen_ser(ty, from.clone().nindex(name), gen_checks));
 			}
 		}
-	}
 
-	pub fn des(&mut self, ty: &Ty, into: &Var) {
-		match ty {
-			Ty::Bool => {
-				self.block_start();
+		Ty::Enum { variants } => {
+			let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
 
-				self.local("val");
-				self.read_num("val".into(), NumTy::U8);
-
-				self.if_(Expr::from("val").eq(Expr::Num(0.0)));
-				self.assign(into.clone(), Expr::False);
-				self.else_();
-				self.assign(into.clone(), Expr::True);
-				self.block_end();
-
-				self.block_end();
-			}
-
-			Ty::F32(..) => self.read_num(into.clone(), NumTy::F32),
-			Ty::F64(..) => self.read_num(into.clone(), NumTy::F64),
-
-			Ty::U8(..) => self.read_num(into.clone(), NumTy::U8),
-			Ty::U16(..) => self.read_num(into.clone(), NumTy::U16),
-			Ty::U32(..) => self.read_num(into.clone(), NumTy::U32),
-
-			Ty::I8(..) => self.read_num(into.clone(), NumTy::I8),
-			Ty::I16(..) => self.read_num(into.clone(), NumTy::I16),
-			Ty::I32(..) => self.read_num(into.clone(), NumTy::I32),
-
-			Ty::Str { len } => {
-				if len.is_exact() {
-					self.read_str(into.clone(), len.min().unwrap().into());
+			for (i, name) in variants.iter().enumerate() {
+				if i == 0 {
+					stmts.push(Stmt::If(from_expr.clone().eq(name.clone().into())));
 				} else {
-					self.block_start();
-
-					self.local("len");
-					self.read_num("len".into(), NumTy::U16);
-
-					if self.des_checks {
-						self.check_range(&"len".into(), len);
-					}
-
-					self.read_str(into.clone(), "len".into());
-
-					self.block_end();
-				}
-			}
-
-			Ty::Arr { len, ty } => {
-				self.assign(into.clone(), Expr::EmptyArr);
-
-				if len.is_exact() {
-					self.num_for("i".into(), 1.into(), len.min().unwrap().into());
-
-					self.des(ty, &into.clone().expr_index("i".into()));
-
-					self.block_end();
-				} else {
-					self.block_start();
-
-					self.local("len");
-					self.read_num("len".into(), NumTy::U16);
-
-					if self.des_checks {
-						self.check_range(&"len".into(), len);
-					}
-
-					self.num_for("i".into(), 1.into(), "len".into());
-
-					self.des(ty, &into.clone().expr_index("i".into()));
-
-					self.block_end();
-
-					self.block_end();
-				}
-			}
-
-			Ty::Map { key, val } => {
-				self.assign(into.clone(), Expr::EmptyObj);
-
-				self.block_start();
-
-				self.local("len");
-				self.read_num("len".into(), NumTy::U16);
-
-				self.num_for("i".into(), 1.into(), "len".into());
-
-				self.local("key");
-				self.des(key, &"key".into());
-
-				self.local("val");
-				self.des(val, &"val".into());
-
-				self.assign(into.clone().expr_index("key".into()), "val".into());
-
-				self.block_end();
-
-				self.block_end();
-			}
-
-			Ty::Struct { fields } => {
-				self.assign(into.clone(), Expr::EmptyObj);
-
-				for (name, ty) in fields {
-					self.des(ty, &into.clone().name_index(name.clone()));
-				}
-			}
-
-			Ty::Enum { variants } => {
-				let num_ty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
-
-				self.block_start();
-
-				self.local("val");
-				self.read_num("val".into(), num_ty);
-
-				for (i, variant) in variants.iter().enumerate() {
-					if i == 0 {
-						self.if_(Expr::from("val").eq(i.into()));
-					} else {
-						self.else_if(Expr::from("val").eq(i.into()));
-					}
-
-					self.assign(into.clone(), variant.clone().into());
+					stmts.push(Stmt::ElseIf(from_expr.clone().eq(name.clone().into())));
 				}
 
-				self.else_();
-
-				self.throw("Invalid enum variant!".into());
-
-				self.block_end();
-
-				self.block_end();
+				buffer_writenumty(&mut stmts, (i as f64).into(), numty);
 			}
 
-			Ty::Instance(_) => {
-				self.read_inst(into.clone());
-				self.assert(Expr::from(into.clone()), "Instance could not be found!".into());
-			}
+			stmts.push(Stmt::Else);
+			stmts.push(Stmt::Error("invalid enum variant!".to_string()));
+			stmts.push(Stmt::End);
+		}
 
-			Ty::Vector3 => {
-				self.local("x");
-				self.local("y");
-				self.local("z");
-
-				self.read_num("x".into(), NumTy::F32);
-				self.read_num("y".into(), NumTy::F32);
-				self.read_num("z".into(), NumTy::F32);
-
-				self.assign(
-					into.clone(),
-					Expr::Vector3(Box::new("x".into()), Box::new("y".into()), Box::new("z".into())),
+		Ty::Instance(class) => {
+			if gen_checks && class.is_some() {
+				assert(
+					&mut stmts,
+					Expr::Call(Box::new(from), Some("IsA".into()), vec![class.clone().unwrap().into()]),
+					None,
 				);
 			}
 
-			Ty::Ref(name) => self.read_ref(into.clone(), name.clone()),
-
-			Ty::Optional(ty) => match **ty {
-				Ty::Instance(_) => self.read_inst(into.clone()),
-
-				_ => {
-					self.block_start();
-
-					self.local("val");
-					self.read_num("val".into(), NumTy::U8);
-
-					self.if_(Expr::from("val").eq(0.into()));
-
-					self.assign(into.clone(), Expr::Nil);
-
-					self.else_();
-
-					self.des(ty, into);
-
-					self.block_end();
-
-					self.block_end();
-				}
-			},
+			buffer_writeu16(&mut stmts, Var::from("alloc_inst").call(vec![from_expr]))
 		}
 
-		if self.des_checks {
-			self.checks(into, ty);
+		Ty::Vector3 => {
+			buffer_writef32(&mut stmts, from.clone().nindex("X").into());
+			buffer_writef32(&mut stmts, from.clone().nindex("Y").into());
+			buffer_writef32(&mut stmts, from.clone().nindex("Z").into());
+		}
+
+		Ty::Ref(name) => stmts.push(Stmt::Call(
+			Var::from("types").nindex(format!("write_{name}")),
+			None,
+			vec![from_expr],
+		)),
+
+		Ty::Optional(ty) => {
+			stmts.push(Stmt::If(from_expr.clone().eq(Expr::Nil)));
+
+			buffer_writeu8(&mut stmts, 0.0.into());
+
+			stmts.push(Stmt::Else);
+
+			buffer_writeu8(&mut stmts, 1.0.into());
+			stmts.extend(gen_ser(ty, from, gen_checks));
+
+			stmts.push(Stmt::End);
 		}
 	}
 
-	fn check_range<T: Num + NumCast + Copy + Display + Into<Expr>>(&mut self, var: &Var, range: &Range<T>) {
-		if let Some(min) = range.min() {
-			self.assert(
-				Expr::from(var.clone()).ge(min.into()),
-				format!("Value is less than minimum of {}!", min),
+	stmts
+}
+
+pub fn gen_des(ty: &Ty, to: Var, gen_checks: bool) -> Vec<Stmt> {
+	let mut stmts = Vec::new();
+
+	match ty {
+		Ty::Bool => assign(&mut stmts, to.clone(), buffer_readu8().neq(0.0.into())),
+
+		Ty::F32(..) => assign(&mut stmts, to.clone(), buffer_readf32()),
+		Ty::F64(..) => assign(&mut stmts, to.clone(), buffer_readf64()),
+
+		Ty::U8(..) => assign(&mut stmts, to.clone(), buffer_readu8()),
+		Ty::U16(..) => assign(&mut stmts, to.clone(), buffer_readu16()),
+		Ty::U32(..) => assign(&mut stmts, to.clone(), buffer_readu32()),
+
+		Ty::I8(..) => assign(&mut stmts, to.clone(), buffer_readi8()),
+		Ty::I16(..) => assign(&mut stmts, to.clone(), buffer_readi16()),
+		Ty::I32(..) => assign(&mut stmts, to.clone(), buffer_readi32()),
+
+		Ty::Str { len } => {
+			if let Some(len) = len.exact_f64() {
+				assign(&mut stmts, to.clone(), buffer_readstring(len.into()));
+			} else {
+				local(&mut stmts, "len", Some(buffer_readu16()));
+
+				if gen_checks {
+					range_check(&mut stmts, "len".into(), len.cast());
+				}
+
+				assign(&mut stmts, to.clone(), buffer_readstring("len".into()));
+			}
+		}
+
+		Ty::Arr { len, ty } => {
+			assign(&mut stmts, to.clone(), Expr::EmptyTab);
+
+			if let Some(len) = len.exact_f64() {
+				stmts.push(Stmt::NumFor {
+					var: "i",
+					from: 1.0.into(),
+					to: len.into(),
+				});
+
+				stmts.extend(gen_des(ty, to.clone().eindex("i".into()), gen_checks));
+				stmts.push(Stmt::End);
+			} else {
+				local(&mut stmts, "len", Some(buffer_readu16()));
+
+				if gen_checks {
+					range_check(&mut stmts, "len".into(), len.cast());
+				}
+
+				assign(&mut stmts, to.clone(), Var::from("alloc").call(vec!["len".into()]));
+
+				stmts.push(Stmt::NumFor {
+					var: "i",
+					from: 1.0.into(),
+					to: "len".into(),
+				});
+
+				stmts.extend(gen_des(ty, to.clone().eindex("i".into()), gen_checks));
+				stmts.push(Stmt::End);
+			}
+		}
+
+		Ty::Map { key, val } => {
+			assign(&mut stmts, to.clone(), Expr::EmptyTab);
+
+			stmts.push(Stmt::NumFor {
+				var: "_",
+				from: 0.0.into(),
+				to: buffer_readu16(),
+			});
+
+			local(&mut stmts, "k", None);
+			local(&mut stmts, "v", None);
+
+			stmts.extend(gen_des(key, "k".into(), gen_checks));
+			stmts.extend(gen_des(val, "v".into(), gen_checks));
+
+			assign(&mut stmts, to.clone().eindex("k".into()), "v".into());
+
+			stmts.push(Stmt::End);
+		}
+
+		Ty::Struct { fields } => {
+			assign(&mut stmts, to.clone(), Expr::EmptyTab);
+
+			for (name, ty) in fields {
+				stmts.extend(gen_des(ty, to.clone().nindex(name), gen_checks));
+			}
+		}
+
+		Ty::Enum { variants } => {
+			let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
+
+			assign(&mut stmts, to.clone(), buffer_readnumty(numty));
+
+			for (i, name) in variants.iter().enumerate() {
+				if i == 0 {
+					stmts.push(Stmt::If(Expr::from(to.clone()).eq((i as f64).into())));
+				} else {
+					stmts.push(Stmt::ElseIf(Expr::from(to.clone()).eq((i as f64).into())));
+				}
+
+				assign(&mut stmts, to.clone(), name.clone().into());
+			}
+
+			stmts.push(Stmt::Else);
+			stmts.push(Stmt::Error("invalid enum variant!".to_string()));
+			stmts.push(Stmt::End);
+		}
+
+		Ty::Instance(class) => {
+			assign(
+				&mut stmts,
+				to.clone(),
+				Var::from("incoming_inst").eindex(buffer_readu16()).into(),
+			);
+
+			// Assert that the instance is not nil even if we don't want checks
+			// because roblox cannot ensure the instance's existance at the destination
+			assert(&mut stmts, Expr::from(to.clone()).neq(Expr::Nil), None);
+
+			if gen_checks && class.is_some() {
+				assert(
+					&mut stmts,
+					Expr::Call(
+						to.clone().into(),
+						Some("IsA".into()),
+						vec![class.clone().unwrap().into()],
+					),
+					None,
+				);
+			}
+		}
+
+		Ty::Vector3 => {
+			local(&mut stmts, "X", Some(buffer_readf32()));
+			local(&mut stmts, "Y", Some(buffer_readf32()));
+			local(&mut stmts, "Z", Some(buffer_readf32()));
+
+			assign(
+				&mut stmts,
+				to.clone(),
+				Expr::Vector3(Box::new("X".into()), Box::new("Y".into()), Box::new("Z".into())),
 			);
 		}
 
-		if let Some(max) = range.max() {
-			if range.max_inclusive() {
-				self.assert(
-					Expr::from(var.clone()).le(max.into()),
-					format!("Value is greater than maximum of {}!", max),
-				);
-			} else {
-				self.assert(
-					Expr::from(var.clone()).lt(max.into()),
-					format!("Value is greater than maximum of {}!", max),
-				);
-			}
+		Ty::Ref(name) => assign(
+			&mut stmts,
+			to.clone(),
+			Var::from("types").nindex(format!("read_{name}")).into(),
+		),
+
+		Ty::Optional(ty) => {
+			stmts.push(Stmt::If(buffer_readu8().neq(0.0.into())));
+
+			stmts.extend(gen_des(ty, to.clone(), gen_checks));
+
+			stmts.push(Stmt::Else);
+			assign(&mut stmts, to.clone(), Expr::Nil);
+			stmts.push(Stmt::End);
 		}
 	}
 
-	fn checks(&mut self, var: &Var, ty: &Ty) {
-		match ty {
-			Ty::F32(range) => self.check_range(var, range),
-			Ty::F64(range) => self.check_range(var, range),
+	if gen_checks
+		&& matches!(
+			ty,
+			Ty::F32(..) | Ty::F64(..) | Ty::U8(..) | Ty::U16(..) | Ty::U32(..) | Ty::I8(..) | Ty::I16(..) | Ty::I32(..)
+		) {
+		range_check(
+			&mut stmts,
+			to.into(),
+			match ty {
+				Ty::F32(range) => range.cast(),
+				Ty::F64(range) => range.cast(),
 
-			Ty::U8(range) => self.check_range(var, range),
-			Ty::U16(range) => self.check_range(var, range),
-			Ty::U32(range) => self.check_range(var, range),
+				Ty::U8(range) => range.cast(),
+				Ty::U16(range) => range.cast(),
+				Ty::U32(range) => range.cast(),
 
-			Ty::I8(range) => self.check_range(var, range),
-			Ty::I16(range) => self.check_range(var, range),
-			Ty::I32(range) => self.check_range(var, range),
+				Ty::I8(range) => range.cast(),
+				Ty::I16(range) => range.cast(),
+				Ty::I32(range) => range.cast(),
 
-			// Checks for strings and arrays are done inline in the serializer/deserializer
-			// because we need to check len before deserializing the string.
-			Ty::Str { .. } => {}
-			Ty::Arr { .. } => {}
-
-			Ty::Instance(Some(class)) => {
-				self.assert(
-					Expr::from(var.clone()).is_a(class.clone().into()),
-					format!("Instance is not of class {}!", class),
-				);
-			}
-
-			Ty::Optional(ty) => {
-				if let Ty::Instance(Some(class)) = *ty.clone() {
-					self.assert(
-						Expr::from(var.clone())
-							.eq(Expr::Nil)
-							.or(Expr::from(var.clone()).is_a(class.clone().into())),
-						format!("Instance is not of class {}!", class),
-					)
-				}
-			}
-
-			_ => {}
-		}
+				_ => unreachable!(),
+			},
+		);
 	}
+
+	stmts
 }

@@ -1,42 +1,9 @@
 use std::fmt::Display;
 
-use crate::{
-	irgen::{gen_ser, Expr, Stmt, Var},
-	parser::{Ty, TyDecl},
-	util::NumTy,
-};
+use crate::{parser::Ty, util::NumTy};
 
 pub mod client;
 pub mod server;
-
-impl Display for TyDecl {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let name = &self.name;
-		let ty = &self.ty;
-
-		writeln!(f, "export type {name} = {ty}")?;
-
-		writeln!(f, "function types.write_{name}(value: {name})")?;
-
-		for stmt in gen_ser(ty, "value", false) {
-			writeln!(f, "\t{stmt}")?;
-		}
-
-		writeln!(f, "end;")?;
-
-		writeln!(f, "function types.read_{name}()")?;
-		writeln!(f, "\tlocal value;")?;
-
-		for stmt in gen_ser(ty, "value", true) {
-			writeln!(f, "\t{stmt}")?;
-		}
-
-		writeln!(f, "\treturn value;")?;
-		writeln!(f, "end;")?;
-
-		Ok(())
-	}
-}
 
 impl Display for Ty {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -88,46 +55,6 @@ impl Display for Ty {
 	}
 }
 
-impl Display for Stmt {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Stmt::Local { name } => write!(f, "local {name}"),
-			Stmt::Assign { var, val } => write!(f, "{var} = {val}"),
-			Stmt::Throw { msg } => write!(f, "error(\"{msg}\")"),
-			Stmt::Assert { cond, msg } => write!(f, "assert({cond}, \"{msg}\")"),
-
-			Stmt::BlockStart => write!(f, "do"),
-			Stmt::NumFor { var, start, end } => write!(f, "for {var} = {start}, {end} do"),
-			Stmt::GenFor { key, val, expr } => write!(f, "for {key}, {val} in {expr} do"),
-			Stmt::If { cond } => write!(f, "if {cond} then"),
-			Stmt::ElseIf { cond } => write!(f, "elseif {cond} then"),
-			Stmt::Else => write!(f, "else"),
-
-			Stmt::BlockEnd => write!(f, "end"),
-
-			Stmt::Alloc { into, len } => write!(f, "{into} = alloc({len})"),
-
-			Stmt::WriteNum { expr, ty, at } => match at {
-				Some(at) => write!(f, "buffer.write{ty}(outgoing_buff, {expr}, {at})"),
-				None => write!(f, "buffer.write{ty}(outgoing_buff, {expr}, alloc({}))", ty.size()),
-			},
-
-			Stmt::WriteStr { expr, len } => {
-				write!(f, "buffer.writestring(outgoing_buff, alloc({len}), {expr}, {len})")
-			}
-
-			Stmt::WriteRef { expr, ref_name } => write!(f, "types.write_{ref_name}({expr})"),
-
-			Stmt::WriteInst { expr } => write!(f, "buffer.writeu16(outgoing_buff, alloc(2), alloc_inst({expr}))"),
-
-			Stmt::ReadNum { into, ty } => write!(f, "{into} = buffer.read{ty}(incoming_buff, read({}))", ty.size()),
-			Stmt::ReadStr { into, len } => write!(f, "{into} = buffer.readstring(incoming_buff, read({len}), {len})"),
-			Stmt::ReadRef { into, ref_name } => write!(f, "{into} = types.read_{ref_name}()"),
-			Stmt::ReadInst { into } => write!(f, "{into} = incoming_inst[buffer.readu16(incoming_buff, read(2))]"),
-		}
-	}
-}
-
 impl Display for NumTy {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
@@ -141,49 +68,6 @@ impl Display for NumTy {
 			NumTy::I8 => write!(f, "i8"),
 			NumTy::I16 => write!(f, "i16"),
 			NumTy::I32 => write!(f, "i32"),
-		}
-	}
-}
-
-impl Display for Var {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Var::Name(name) => write!(f, "{}", name),
-
-			Var::NameIndex(prefix, suffix) => write!(f, "{}.{}", prefix, suffix),
-			Var::ExprIndex(prefix, expr) => write!(f, "{}[{}]", prefix, expr),
-		}
-	}
-}
-
-impl Display for Expr {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			Expr::False => write!(f, "false"),
-			Expr::True => write!(f, "true"),
-			Expr::Nil => write!(f, "nil"),
-
-			Expr::Num(num) => write!(f, "{num}"),
-			Expr::Str(string) => write!(f, "\"{string}\""),
-			Expr::Var(var) => write!(f, "{var}"),
-
-			Expr::EmptyArr => write!(f, "{{}}"),
-			Expr::EmptyObj => write!(f, "{{}}"),
-
-			Expr::Vector3(x, y, z) => write!(f, "Vector3.new({x}, {y}, {z})"),
-
-			Expr::InstanceIsA(expr, class) => write!(f, "{expr}:IsA({class})"),
-
-			Expr::Len(expr) => write!(f, "#{expr}"),
-
-			Expr::Lt(left, right) => write!(f, "{left} < {right}"),
-			Expr::Gt(left, right) => write!(f, "{left} > {right}"),
-			Expr::Le(left, right) => write!(f, "{left} <= {right}"),
-			Expr::Ge(left, right) => write!(f, "{left} >= {right}"),
-			Expr::Eq(left, right) => write!(f, "{left} == {right}"),
-			Expr::Or(left, right) => write!(f, "{left} or {right}"),
-
-			Expr::Add(left, right) => write!(f, "{left} + {right}"),
 		}
 	}
 }

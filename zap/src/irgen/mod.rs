@@ -1,34 +1,34 @@
+#![allow(dead_code)]
+use std::fmt::Display;
+
 mod gen;
 
-use crate::{parser::Ty, util::NumTy};
-use gen::Gen;
+pub use gen::{gen_des, gen_ser};
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
-	Local { name: &'static str },
-	Assign { var: Var, val: Expr },
-	Throw { msg: String },
-	Assert { cond: Expr, msg: String },
+	Local(&'static str, Option<Expr>),
+	Assign(Var, Expr),
+	Error(String),
+	Assert(Expr, Option<String>),
 
-	BlockStart,
-	NumFor { var: String, start: Expr, end: Expr },
-	GenFor { key: String, val: String, expr: Expr },
-	If { cond: Expr },
-	ElseIf { cond: Expr },
+	Call(Var, Option<String>, Vec<Expr>),
+
+	NumFor {
+		var: &'static str,
+		from: Expr,
+		to: Expr,
+	},
+	GenFor {
+		key: &'static str,
+		val: &'static str,
+		obj: Expr,
+	},
+	If(Expr),
+	ElseIf(Expr),
 	Else,
 
-	BlockEnd,
-
-	Alloc { into: Var, len: Expr },
-	WriteNum { expr: Expr, ty: NumTy, at: Option<Expr> },
-	WriteStr { expr: Expr, len: Expr },
-	WriteRef { expr: Expr, ref_name: String },
-	WriteInst { expr: Expr },
-
-	ReadNum { into: Var, ty: NumTy },
-	ReadStr { into: Var, len: Expr },
-	ReadRef { into: Var, ref_name: String },
-	ReadInst { into: Var },
+	End,
 }
 
 #[derive(Debug, Clone)]
@@ -40,180 +40,192 @@ pub enum Var {
 }
 
 impl Var {
-	fn name_index(self, index: String) -> Var {
-		Var::NameIndex(Box::new(self), index)
+	pub fn nindex(self, index: impl Into<String>) -> Self {
+		Self::NameIndex(Box::new(self), index.into())
 	}
 
-	fn expr_index(self, index: Expr) -> Var {
-		Var::ExprIndex(Box::new(self), Box::new(index))
+	pub fn eindex(self, index: Expr) -> Self {
+		Self::ExprIndex(Box::new(self), Box::new(index))
+	}
+
+	pub fn call(self, args: Vec<Expr>) -> Expr {
+		Expr::Call(Box::new(self), None, args)
 	}
 }
 
 impl From<&str> for Var {
-	fn from(string: &str) -> Var {
-		Var::Name(string.to_string())
+	fn from(name: &str) -> Self {
+		Self::Name(name.into())
+	}
+}
+
+impl Display for Var {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::Name(name) => write!(f, "{}", name),
+			Self::NameIndex(var, index) => write!(f, "{}.{}", var, index),
+			Self::ExprIndex(var, index) => write!(f, "{}[{}]", var, index),
+		}
 	}
 }
 
 #[derive(Debug, Clone)]
 pub enum Expr {
+	// Keyword Literals
 	False,
 	True,
 	Nil,
 
-	Num(f64),
+	// Literals
 	Str(String),
 	Var(Box<Var>),
+	Num(f64),
 
-	EmptyArr,
-	EmptyObj,
+	// Function Call
+	Call(Box<Var>, Option<String>, Vec<Expr>),
 
+	// Table
+	EmptyTab,
+
+	// Vector3
 	Vector3(Box<Expr>, Box<Expr>, Box<Expr>),
 
-	InstanceIsA(Box<Expr>, Box<Expr>),
-
+	// Unary Operators
 	Len(Box<Expr>),
+	Not(Box<Expr>),
 
-	Lt(Box<Expr>, Box<Expr>),
-	Gt(Box<Expr>, Box<Expr>),
-	Le(Box<Expr>, Box<Expr>),
-	Ge(Box<Expr>, Box<Expr>),
-	Eq(Box<Expr>, Box<Expr>),
+	// Boolean Binary Operators
+	And(Box<Expr>, Box<Expr>),
 	Or(Box<Expr>, Box<Expr>),
 
+	// Comparison Binary Operators
+	Gte(Box<Expr>, Box<Expr>),
+	Lte(Box<Expr>, Box<Expr>),
+	Neq(Box<Expr>, Box<Expr>),
+	Gt(Box<Expr>, Box<Expr>),
+	Lt(Box<Expr>, Box<Expr>),
+	Eq(Box<Expr>, Box<Expr>),
+
+	// Arithmetic Binary Operators
 	Add(Box<Expr>, Box<Expr>),
 }
 
 impl Expr {
-	#[allow(clippy::wrong_self_convention)]
-	pub fn is_a(self, ty: Expr) -> Expr {
-		Expr::InstanceIsA(Box::new(self), Box::new(ty))
+	pub fn len(self) -> Self {
+		Self::Len(Box::new(self))
 	}
 
-	pub fn len(self) -> Expr {
-		Expr::Len(Box::new(self))
+	pub fn not(self) -> Self {
+		Self::Not(Box::new(self))
 	}
 
-	pub fn lt(self, other: Expr) -> Expr {
-		Expr::Lt(Box::new(self), Box::new(other))
+	pub fn and(self, other: Self) -> Self {
+		Self::And(Box::new(self), Box::new(other))
 	}
 
-	#[allow(dead_code)]
-	pub fn gt(self, other: Expr) -> Expr {
-		Expr::Gt(Box::new(self), Box::new(other))
+	pub fn or(self, other: Self) -> Self {
+		Self::Or(Box::new(self), Box::new(other))
 	}
 
-	pub fn le(self, other: Expr) -> Expr {
-		Expr::Le(Box::new(self), Box::new(other))
+	pub fn gte(self, other: Self) -> Self {
+		Self::Gte(Box::new(self), Box::new(other))
 	}
 
-	pub fn ge(self, other: Expr) -> Expr {
-		Expr::Ge(Box::new(self), Box::new(other))
+	pub fn lte(self, other: Self) -> Self {
+		Self::Lte(Box::new(self), Box::new(other))
 	}
 
-	pub fn eq(self, other: Expr) -> Expr {
-		Expr::Eq(Box::new(self), Box::new(other))
+	pub fn neq(self, other: Self) -> Self {
+		Self::Neq(Box::new(self), Box::new(other))
 	}
 
-	pub fn or(self, other: Expr) -> Expr {
-		Expr::Or(Box::new(self), Box::new(other))
+	pub fn gt(self, other: Self) -> Self {
+		Self::Gt(Box::new(self), Box::new(other))
 	}
 
-	pub fn add(self, other: Expr) -> Expr {
-		Expr::Add(Box::new(self), Box::new(other))
+	pub fn lt(self, other: Self) -> Self {
+		Self::Lt(Box::new(self), Box::new(other))
 	}
-}
 
-impl From<Var> for Expr {
-	fn from(var: Var) -> Expr {
-		Expr::Var(Box::new(var))
+	pub fn eq(self, other: Self) -> Self {
+		Self::Eq(Box::new(self), Box::new(other))
 	}
-}
 
-impl From<&str> for Expr {
-	fn from(string: &str) -> Expr {
-		Expr::Var(Box::new(Var::Name(string.to_string())))
+	pub fn add(self, other: Self) -> Self {
+		Self::Add(Box::new(self), Box::new(other))
 	}
 }
 
 impl From<String> for Expr {
-	fn from(string: String) -> Expr {
-		Expr::Str(string)
+	fn from(string: String) -> Self {
+		Self::Str(string)
 	}
 }
 
-impl From<bool> for Expr {
-	fn from(boolean: bool) -> Expr {
-		if boolean {
-			Expr::True
-		} else {
-			Expr::False
-		}
+impl From<Var> for Expr {
+	fn from(var: Var) -> Self {
+		Self::Var(Box::new(var))
+	}
+}
+
+impl From<&str> for Expr {
+	fn from(name: &str) -> Self {
+		Self::Var(Box::new(name.into()))
 	}
 }
 
 impl From<f64> for Expr {
-	fn from(num: f64) -> Expr {
-		Expr::Num(num)
+	fn from(num: f64) -> Self {
+		Self::Num(num)
 	}
 }
 
-impl From<f32> for Expr {
-	fn from(num: f32) -> Expr {
-		Expr::Num(num as f64)
+impl Display for Expr {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::False => write!(f, "false"),
+			Self::True => write!(f, "true"),
+			Self::Nil => write!(f, "nil"),
+
+			Self::Str(string) => write!(f, "\"{}\"", string),
+			Self::Var(var) => write!(f, "{}", var),
+			Self::Num(num) => write!(f, "{}", num),
+
+			Self::Call(var, method, args) => match method {
+				Some(method) => write!(
+					f,
+					"{}:{}({})",
+					var,
+					method,
+					args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>().join(", ")
+				),
+
+				None => write!(
+					f,
+					"{}({})",
+					var,
+					args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>().join(", ")
+				),
+			},
+
+			Self::EmptyTab => write!(f, "{{}}"),
+
+			Self::Vector3(x, y, z) => write!(f, "Vector3.new({}, {}, {})", x, y, z),
+
+			Self::Len(expr) => write!(f, "#{}", expr),
+			Self::Not(expr) => write!(f, "not {}", expr),
+
+			Self::And(lhs, rhs) => write!(f, "{} and {}", lhs, rhs),
+			Self::Or(lhs, rhs) => write!(f, "{} or {}", lhs, rhs),
+
+			Self::Gte(lhs, rhs) => write!(f, "{} >= {}", lhs, rhs),
+			Self::Lte(lhs, rhs) => write!(f, "{} <= {}", lhs, rhs),
+			Self::Neq(lhs, rhs) => write!(f, "{} ~= {}", lhs, rhs),
+			Self::Gt(lhs, rhs) => write!(f, "{} > {}", lhs, rhs),
+			Self::Lt(lhs, rhs) => write!(f, "{} < {}", lhs, rhs),
+			Self::Eq(lhs, rhs) => write!(f, "{} == {}", lhs, rhs),
+
+			Self::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
+		}
 	}
-}
-
-impl From<u8> for Expr {
-	fn from(num: u8) -> Expr {
-		Expr::Num(num as f64)
-	}
-}
-
-impl From<u16> for Expr {
-	fn from(num: u16) -> Expr {
-		Expr::Num(num as f64)
-	}
-}
-
-impl From<u32> for Expr {
-	fn from(num: u32) -> Expr {
-		Expr::Num(num as f64)
-	}
-}
-
-impl From<i8> for Expr {
-	fn from(num: i8) -> Expr {
-		Expr::Num(num as f64)
-	}
-}
-
-impl From<i16> for Expr {
-	fn from(num: i16) -> Expr {
-		Expr::Num(num as f64)
-	}
-}
-
-impl From<i32> for Expr {
-	fn from(num: i32) -> Expr {
-		Expr::Num(num as f64)
-	}
-}
-
-impl From<usize> for Expr {
-	fn from(num: usize) -> Expr {
-		Expr::Num(num as f64)
-	}
-}
-
-pub fn gen_ser(ty: &Ty, from: &str, checks: bool) -> Vec<Stmt> {
-	let mut gen = Gen::new(checks, false);
-	gen.ser(ty, &from.into());
-	gen.output()
-}
-
-pub fn gen_des(ty: &Ty, into: &str, checks: bool) -> Vec<Stmt> {
-	let mut gen = Gen::new(checks, false);
-	gen.des(ty, &into.into());
-	gen.output()
 }
