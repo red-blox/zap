@@ -246,6 +246,14 @@ impl<'a> ServerOutput<'a> {
 		}
 	}
 
+	fn push_write_event_id(&mut self, id: usize) {
+		self.push_line(&format!("local pos = alloc({})", self.file.event_id_ty().size()));
+		self.push_line(&format!(
+			"buffer.write{}(outgoing_buff, pos, {id})",
+			self.file.event_id_ty()
+		));
+	}
+
 	fn push_return_fire(&mut self, ev: &EvDecl, id: usize) {
 		let ty = &ev.data;
 
@@ -259,12 +267,13 @@ impl<'a> ServerOutput<'a> {
 		self.push(")\n");
 		self.indent();
 
+		self.push_write_event_id(id);
+
 		match ev.evty {
 			EvType::Reliable => self.push_line(&format!("load(player_map[{player}])")),
 			EvType::Unreliable => self.push_line("load_empty()"),
 		}
 
-		self.push_line(&format!("buffer.write{}(outgoing_buff, {id})", self.file.event_id_ty()));
 		self.push_stmts(&gen_ser(ty, value.into(), self.file.write_checks));
 
 		match ev.evty {
@@ -294,7 +303,8 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line("load_empty()");
 
-		self.push_line(&format!("buffer.write{}(outgoing_buff, {id})", self.file.event_id_ty()));
+		self.push_write_event_id(id);
+
 		self.push_stmts(&gen_ser(ty, value.into(), self.file.write_checks));
 
 		match ev.evty {
@@ -336,7 +346,8 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line("load_empty()");
 
-		self.push_line(&format!("buffer.write{}(outgoing_buff, {id})", self.file.event_id_ty()));
+		self.push_write_event_id(id);
+
 		self.push_stmts(&gen_ser(ty, value.into(), self.file.write_checks));
 
 		match ev.evty {
@@ -390,7 +401,8 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line("load_empty()");
 
-		self.push_line(&format!("buffer.write{}(outgoing_buff, {id})", self.file.event_id_ty()));
+		self.push_write_event_id(id);
+
 		self.push_stmts(&gen_ser(ty, value.into(), self.file.write_checks));
 
 		match ev.evty {

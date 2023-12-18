@@ -237,6 +237,14 @@ impl<'a> ClientOutput<'a> {
 		}
 	}
 
+	fn push_write_event_id(&mut self, id: usize) {
+		self.push_line(&format!("local pos = alloc({})", self.file.event_id_ty().size()));
+		self.push_line(&format!(
+			"buffer.write{}(outgoing_buff, pos, {id})",
+			self.file.event_id_ty()
+		));
+	}
+
 	fn push_return_fire(&mut self, ev: &EvDecl, id: usize) {
 		let ty = &ev.data;
 
@@ -254,7 +262,8 @@ impl<'a> ClientOutput<'a> {
 			self.push_line("load_empty()");
 		}
 
-		self.push_line(&format!("buffer.write{}(outgoing_buff, {id})", self.file.event_id_ty()));
+		self.push_write_event_id(id);
+
 		self.push_stmts(&gen_ser(ty, value.into(), self.file.write_checks));
 
 		if ev.evty == EvType::Unreliable {
