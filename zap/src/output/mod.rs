@@ -129,7 +129,13 @@ pub trait Output {
 					.to_string(),
 			),
 
-			Ty::Instance(name) => self.push(if let Some(name) = name { name } else { "Instance" }),
+			Ty::Instance(strict, name) => {
+				self.push(if let Some(name) = name { name } else { "Instance" });
+
+				if *strict {
+					self.push("?")
+				}
+			}
 			Ty::Vector3 => self.push("Vector3"),
 
 			Ty::Ref(name) => self.push(&name.to_string()),

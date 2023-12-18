@@ -90,7 +90,7 @@ pub enum Ty {
 	Struct { fields: Vec<(String, Ty)> },
 	Enum { variants: Vec<String> },
 
-	Instance(Option<String>),
+	Instance(bool, Option<String>),
 	Vector3,
 
 	Ref(String),
@@ -142,7 +142,8 @@ impl Ty {
 
 			Ty::Enum { variants } => Some(NumTy::from_f64(0.0, variants.len() as f64).size()),
 
-			Ty::Instance(_) => Some(2),
+			Ty::Instance(_, _) => Some(2),
+
 			Ty::Vector3 => Some(12),
 
 			// At some point this should evaluate the size of the referenced type

@@ -377,7 +377,7 @@ pub fn gen_ser(ty: &Ty, from: Var, gen_checks: bool) -> Vec<Stmt> {
 			}
 		}
 
-		Ty::Instance(class) => {
+		Ty::Instance(strict, class) => {
 			if gen_checks && class.is_some() {
 				assert(
 					&mut stmts,
@@ -529,7 +529,7 @@ pub fn gen_des(ty: &Ty, to: Var, gen_checks: bool) -> Vec<Stmt> {
 			}
 		}
 
-		Ty::Instance(class) => {
+		Ty::Instance(strict, class) => {
 			assign(
 				&mut stmts,
 				to.clone(),
@@ -537,8 +537,11 @@ pub fn gen_des(ty: &Ty, to: Var, gen_checks: bool) -> Vec<Stmt> {
 			);
 
 			// Assert that the instance is not nil even if we don't want checks
-			// because roblox cannot ensure the instance's existance at the destination
-			assert(&mut stmts, Expr::from(to.clone()).neq(Expr::Nil), None);
+			// because roblox cannot ensure the instance's existance at the destination.
+			// Only do this for strict instances, optional instances can be nil.
+			if *strict {
+				assert(&mut stmts, Expr::from(to.clone()).neq(Expr::Nil), None);
+			}
 
 			if gen_checks && class.is_some() {
 				assert(

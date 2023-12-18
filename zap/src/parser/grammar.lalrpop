@@ -135,7 +135,8 @@ Ty: Ty = {
 	"{" <fields:Comma<(<Word> ":" <Ty>)>> "}" => Ty::Struct { fields },
 	"(" <variants:Comma<(<Word>)>> ")" => Ty::Enum { variants },
 
-	"Instance" <class:("(" <Word> ")")?> => Ty::Instance(class),
+	"Instance" <class:("(" <Word> ")")?> => Ty::Instance(false, class),
+
 	"Vector3" => Ty::Vector3,
 
 	<name:Word> => {
@@ -143,7 +144,11 @@ Ty: Ty = {
 		Ty::Ref(name)
 	},
 
-	<ty:Ty> "?" => Ty::Optional(Box::new(ty)),
+	<ty:Ty> "?" => match ty {
+		Ty::Instance(_, class) => Ty::Instance(true, class),
+
+		_ => Ty::Optional(Box::new(ty)),
+	},
 }
 
 Range: Range<f64> = {
