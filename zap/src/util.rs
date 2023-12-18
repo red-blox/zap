@@ -48,7 +48,7 @@ impl<T: Num + NumCast + Copy + Display> Range<T> {
 		self.max_inclusive
 	}
 
-	pub fn into<U: Num + NumCast + Copy + Display>(self) -> Range<U> {
+	pub fn cast<U: Num + NumCast + Copy + Display>(self) -> Range<U> {
 		Range {
 			min: self.min.map(|x| NumCast::from(x).unwrap()),
 			max: self.max.map(|x| NumCast::from(x).unwrap()),
@@ -58,8 +58,20 @@ impl<T: Num + NumCast + Copy + Display> Range<T> {
 }
 
 impl<T: Num + NumCast + Copy + Display + PrimInt> Range<T> {
-	pub fn is_exact(&self) -> bool {
-		self.min == self.max && self.max_inclusive
+	pub fn exact(&self) -> Option<T> {
+		if self.min.is_some() && self.min == self.max {
+			Some(self.min.unwrap())
+		} else {
+			None
+		}
+	}
+
+	pub fn exact_f64(&self) -> Option<f64> {
+		if self.min.is_some() && self.min == self.max {
+			Some(NumCast::from(self.min.unwrap()).unwrap())
+		} else {
+			None
+		}
 	}
 }
 

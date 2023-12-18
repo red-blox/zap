@@ -117,19 +117,19 @@ TyDecl: TyDecl = "type" <name:Word> "=" <ty:Ty> =>? {
 Ty: Ty = {
 	"bool" => Ty::Bool,
 
-	"f32" <r:("(" <Range> ")")?> => Ty::F32(r.unwrap_or_default().into()),
-	"f64" <r:("(" <Range> ")")?> => Ty::F64(r.unwrap_or_default().into()),
+	"f32" <r:("(" <Range> ")")?> => Ty::F32(r.unwrap_or_default().cast()),
+	"f64" <r:("(" <Range> ")")?> => Ty::F64(r.unwrap_or_default().cast()),
 
-	"i8" <r:("(" <Range> ")")?> => Ty::I8(r.unwrap_or_default().into()),
-	"i16" <r:("(" <Range> ")")?> => Ty::I16(r.unwrap_or_default().into()),
-	"i32" <r:("(" <Range> ")")?> => Ty::I32(r.unwrap_or_default().into()),
+	"i8" <r:("(" <Range> ")")?> => Ty::I8(r.unwrap_or_default().cast()),
+	"i16" <r:("(" <Range> ")")?> => Ty::I16(r.unwrap_or_default().cast()),
+	"i32" <r:("(" <Range> ")")?> => Ty::I32(r.unwrap_or_default().cast()),
 
-	"u8" <r:("(" <Range> ")")?> => Ty::U8(r.unwrap_or_default().into()),
-	"u16" <r:("(" <Range> ")")?> => Ty::U16(r.unwrap_or_default().into()),
-	"u32" <r:("(" <Range> ")")?> => Ty::U32(r.unwrap_or_default().into()),
+	"u8" <r:("(" <Range> ")")?> => Ty::U8(r.unwrap_or_default().cast()),
+	"u16" <r:("(" <Range> ")")?> => Ty::U16(r.unwrap_or_default().cast()),
+	"u32" <r:("(" <Range> ")")?> => Ty::U32(r.unwrap_or_default().cast()),
 
-	"String" <r:("(" <Range> ")")?> => Ty::Str { len: r.unwrap_or_default().into() },
-	<ty:Ty> "[" <r:Range?> "]" => Ty::Arr { ty: Box::new(ty), len: r.unwrap_or_default().into() },
+	"String" <r:("(" <Range> ")")?> => Ty::Str { len: r.unwrap_or_default().cast() },
+	<ty:Ty> "[" <r:Range?> "]" => Ty::Arr { ty: Box::new(ty), len: r.unwrap_or_default().cast() },
 	"{" "[" <key:Ty> "]:" <val:Ty> "}" => Ty::Map { key: Box::new(key), val: Box::new(val) },
 	
 	"{" <fields:Comma<(<Word> ":" <Ty>)>> "}" => Ty::Struct { fields },

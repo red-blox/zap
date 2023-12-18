@@ -114,17 +114,11 @@ impl Ty {
 			Ty::U16(_) => Some(2),
 			Ty::U32(_) => Some(4),
 
-			Ty::Str { len } => {
-				if len.is_exact() {
-					Some(len.min().unwrap() as usize)
-				} else {
-					None
-				}
-			}
+			Ty::Str { len } => len.exact().map(|len| len as usize),
 
 			Ty::Arr { len, ty } => {
-				if len.is_exact() && ty.exact_size().is_some() {
-					Some(len.min().unwrap() as usize * ty.exact_size().unwrap())
+				if let Some(len) = len.exact() {
+					ty.exact_size().map(|ty_size| len as usize * ty_size)
 				} else {
 					None
 				}
