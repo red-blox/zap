@@ -1,5 +1,5 @@
 use crate::{
-	irgen::{gen_des, gen_ser, Stmt},
+	irgen::{gen_des, gen_ser},
 	parser::{EvCall, EvDecl, EvSource, EvType, File, TyDecl},
 	util::casing,
 };
