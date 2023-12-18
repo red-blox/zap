@@ -102,7 +102,7 @@ const beforeMount = (monaco: Monaco) => {
 
 	const Calls = ["SingleSync", "SingleAsync", "ManySync", "ManyAsync"] as const;
 
-	const Options = ["typescript", "writechecks", "casing"] as const;
+	const Options = ["write_checks", "casing", "output_server", "output_client"] as const;
 
 	const Casing = ["PascalCase", "camelCase", "snake_case"] as const;
 
@@ -138,8 +138,9 @@ const beforeMount = (monaco: Monaco) => {
 		opt: Options,
 
 		casing: Casing,
-		typescript: Operators,
-		writechecks: Operators,
+		write_checks: Operators,
+		output_server: [],
+		output_client: [],
 	} as const;
 
 	monaco.languages.registerTokensProviderFactory("zapConfig", {
