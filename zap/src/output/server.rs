@@ -440,7 +440,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_return_fire_list(ev, id);
 
 			self.dedent();
-			self.push_line("}},");
+			self.push_line("},");
 		}
 	}
 

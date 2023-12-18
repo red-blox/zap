@@ -284,7 +284,7 @@ impl<'a> ClientOutput<'a> {
 			self.push_return_fire(ev, id);
 
 			self.dedent();
-			self.push_line("}},");
+			self.push_line("},");
 		}
 	}
 
