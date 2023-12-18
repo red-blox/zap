@@ -244,29 +244,21 @@ pub fn gen_ser(ty: &Ty, from: Var, gen_checks: bool) -> Vec<Stmt> {
 	let mut stmts = Vec::new();
 	let from_expr = Expr::Var(Box::new(from.clone()));
 
-	if gen_checks
-		&& matches!(
-			ty,
-			Ty::F32(..) | Ty::F64(..) | Ty::U8(..) | Ty::U16(..) | Ty::U32(..) | Ty::I8(..) | Ty::I16(..) | Ty::I32(..)
-		) {
-		range_check(
-			&mut stmts,
-			from_expr.clone(),
-			match ty {
-				Ty::F32(range) => range.cast(),
-				Ty::F64(range) => range.cast(),
+	if gen_checks {
+		match ty {
+			Ty::F32(range) => range_check(&mut stmts, from_expr.clone(), range.cast()),
+			Ty::F64(range) => range_check(&mut stmts, from_expr.clone(), range.cast()),
 
-				Ty::U8(range) => range.cast(),
-				Ty::U16(range) => range.cast(),
-				Ty::U32(range) => range.cast(),
+			Ty::U8(range) => range_check(&mut stmts, from_expr.clone(), range.cast()),
+			Ty::U16(range) => range_check(&mut stmts, from_expr.clone(), range.cast()),
+			Ty::U32(range) => range_check(&mut stmts, from_expr.clone(), range.cast()),
 
-				Ty::I8(range) => range.cast(),
-				Ty::I16(range) => range.cast(),
-				Ty::I32(range) => range.cast(),
+			Ty::I8(range) => range_check(&mut stmts, from_expr.clone(), range.cast()),
+			Ty::I16(range) => range_check(&mut stmts, from_expr.clone(), range.cast()),
+			Ty::I32(range) => range_check(&mut stmts, from_expr.clone(), range.cast()),
 
-				_ => unreachable!(),
-			},
-		);
+			_ => unreachable!(),
+		};
 	}
 
 	match ty {
@@ -588,29 +580,21 @@ pub fn gen_des(ty: &Ty, to: Var, gen_checks: bool) -> Vec<Stmt> {
 		}
 	}
 
-	if gen_checks
-		&& matches!(
-			ty,
-			Ty::F32(..) | Ty::F64(..) | Ty::U8(..) | Ty::U16(..) | Ty::U32(..) | Ty::I8(..) | Ty::I16(..) | Ty::I32(..)
-		) {
-		range_check(
-			&mut stmts,
-			to.into(),
-			match ty {
-				Ty::F32(range) => range.cast(),
-				Ty::F64(range) => range.cast(),
+	if gen_checks {
+		match ty {
+			Ty::F32(range) => range_check(&mut stmts, to.into(), range.cast()),
+			Ty::F64(range) => range_check(&mut stmts, to.into(), range.cast()),
 
-				Ty::U8(range) => range.cast(),
-				Ty::U16(range) => range.cast(),
-				Ty::U32(range) => range.cast(),
+			Ty::U8(range) => range_check(&mut stmts, to.into(), range.cast()),
+			Ty::U16(range) => range_check(&mut stmts, to.into(), range.cast()),
+			Ty::U32(range) => range_check(&mut stmts, to.into(), range.cast()),
 
-				Ty::I8(range) => range.cast(),
-				Ty::I16(range) => range.cast(),
-				Ty::I32(range) => range.cast(),
+			Ty::I8(range) => range_check(&mut stmts, to.into(), range.cast()),
+			Ty::I16(range) => range_check(&mut stmts, to.into(), range.cast()),
+			Ty::I32(range) => range_check(&mut stmts, to.into(), range.cast()),
 
-				_ => unreachable!(),
-			},
-		);
+			_ => {}
+		};
 	}
 
 	stmts
