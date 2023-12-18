@@ -95,6 +95,9 @@ impl<'a> ClientOutput<'a> {
 			self.push("elseif ");
 		}
 
+		// push_line is not used here as indent was pushed above
+		// and we don't want to push it twice, especially after
+		// the if/elseif
 		self.push(&format!("id == {id} then"));
 		self.push("\n");
 
@@ -169,6 +172,9 @@ impl<'a> ClientOutput<'a> {
 			self.push("elseif ");
 		}
 
+		// push_line is not used here as indent was pushed above
+		// and we don't want to push it twice, especially after
+		// the if/elseif
 		self.push(&format!("id == {id} then"));
 		self.push("\n");
 
