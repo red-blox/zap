@@ -162,15 +162,12 @@ Ty: Ty = {
 Range: Range<f64> = {
 	".." => Range::default(),
 
-	".." <max:Number> => Range::with_max(max, false),
-	"..=" <max:Number> => Range::with_max(max, true),
+	".." <max:Number> => Range::new(None, Some(max)),
 
-	<min:Number> ".." => Range::with_min(min),
+	<min:Number> ".." => Range::new(Some(min), None),
 
-	<min:Number> ".." <max:Number> => Range::new(Some(min), Some(max), false),
-	<min:Number> "..=" <max:Number> => Range::new(Some(min), Some(max), true),
-
-	<num:Number> => Range::new(Some(num), Some(num), true),
+	<num:Number> => Range::new(Some(num), Some(num)),
+	<min:Number> ".." <max:Number> => Range::new(Some(min), Some(max)),
 }
 
 Comma<T>: Vec<T> = {

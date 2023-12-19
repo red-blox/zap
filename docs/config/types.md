@@ -44,10 +44,7 @@ Suppose we are trying to send the health of a player over the remote. We may def
 
 <CodeBlock code="type Health = u8 (0..100)" />
 
-Although, the type assertions will fail if 100 is passed. This is because **only the lower limit is inclusive**. To fix this, we must append a `=` to the end of the upper bound such as
-
-<CodeBlock code="type Data = u8 (0..=100)" />
-
+This works because limits are **inclusive**, and will include 0 and 100.
 ## Strings
 
 Unlike numbers, strings do not have a maximum length across different types. They can be any length unless they are constrained.
