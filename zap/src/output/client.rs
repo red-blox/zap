@@ -228,6 +228,8 @@ impl<'a> ClientOutput<'a> {
 	}
 
 	fn push_callback_lists(&mut self) {
+		self.push_line(&format!("local events = table.create({})", self.file.ev_decls.len()));
+
 		for (i, _) in self.file.ev_decls.iter().enumerate().filter(|(_, ev_decl)| {
 			ev_decl.from == EvSource::Server && matches!(ev_decl.call, EvCall::ManyAsync | EvCall::ManySync)
 		}) {
@@ -374,6 +376,8 @@ impl<'a> ClientOutput<'a> {
 
 		self.push_tydecls();
 
+		self.push_callback_lists();
+
 		if self
 			.file
 			.ev_decls
@@ -391,8 +395,6 @@ impl<'a> ClientOutput<'a> {
 		{
 			self.push_unreliable();
 		}
-
-		self.push_callback_lists();
 
 		self.push_return();
 
