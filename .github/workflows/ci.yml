@@ -6,10 +6,16 @@ on:
   push:
     branches:
       - main
+    paths: 
+      - '**.rs'
+      - Cargo.{lock,toml}
 
   pull_request:
     branches:
       - main
+    paths: 
+      - '**.rs'
+      - Cargo.{lock,toml}
 
 jobs:
   build:

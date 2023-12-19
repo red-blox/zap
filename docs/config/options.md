@@ -4,7 +4,19 @@ Zap has a number of options marked with `opt`, that must be placed at the start 
 
 ## Example Options
 
-<CodeBlock :code="['opt casing = PascalCase', 'opt writechecks = false', 'opt typescript = false'].join('\n')" />
+<CodeBlock :code="['opt output_client = ./src/client/remotes.luau', 'opt output_server = ./src/server/remotes.luau', 'opt casing = PascalCase', 'opt write_checks = false'].join('\n')" />
+
+## Output
+
+The output options allow you to define where zap will output its generated code.
+
+### Default
+
+<CodeBlock :code="['opt output_client = ./network/client.luau', 'opt output_server = ./network/server.luau'].join('\n')" />
+
+### Example
+
+<CodeBlock :code="['opt output_client = ./src/client/remotes.luau', 'opt output_server = ./src/server/remotes.luau'].join('\n')" />
 
 ## Casing
 
@@ -39,21 +51,4 @@ The writechecks option determines if conditional constraints should be valided o
 
 ### Example
 
-<CodeBlock code="opt writechecks = false" />
-
-## TypeScript
-
-The TypeScript option determines if `.d.ts` files should be outputted for support with [roblox-ts](https://roblox-ts.com/).
-
-### Default
-
-`false`
-
-### Options
-
-- `true`
-- `false`
-
-### Example
-
-<CodeBlock code="opt typescript = false" />
+<CodeBlock code="opt write_checks = false" />
