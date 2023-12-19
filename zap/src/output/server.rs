@@ -269,12 +269,12 @@ impl<'a> ServerOutput<'a> {
 		self.push(")\n");
 		self.indent();
 
-		self.push_write_event_id(id);
-
 		match ev.evty {
 			EvType::Reliable => self.push_line(&format!("load(player_map[{player}])")),
 			EvType::Unreliable => self.push_line("load_empty()"),
 		}
+
+		self.push_write_event_id(id);
 
 		self.push_stmts(&gen_ser(ty, value.into(), self.file.write_checks));
 
