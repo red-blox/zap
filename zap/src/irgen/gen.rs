@@ -563,7 +563,7 @@ pub fn gen_des(ty: &Ty, to: Var, gen_checks: bool) -> Vec<Stmt> {
 		Ty::Ref(name) => assign(
 			&mut stmts,
 			to.clone(),
-			Var::from("types").nindex(format!("read_{name}")).into(),
+			Var::from("types").nindex(format!("read_{name}")).call(vec![]),
 		),
 
 		Ty::Optional(ty) => {
