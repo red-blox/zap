@@ -529,7 +529,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	pub fn output(mut self) -> String {
-		self.push_file_header();
+		self.push_file_header("Server");
 
 		self.push(include_str!("server.luau"));
 

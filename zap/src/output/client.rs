@@ -370,7 +370,7 @@ impl<'a> ClientOutput<'a> {
 	}
 
 	pub fn output(mut self) -> String {
-		self.push_file_header();
+		self.push_file_header("Client");
 
 		self.push(include_str!("client.luau"));
 
