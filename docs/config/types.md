@@ -44,6 +44,7 @@ Suppose we are trying to send the health of a player over the remote. We may def
 
 <CodeBlock code="type Health = u8 (0..100)" />
 
+This works because limits are **inclusive**, and will include 0 and 100.
 ## Strings
 
 Unlike numbers, strings do not have a maximum length across different types. They can be any length unless they are constrained.
