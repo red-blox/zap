@@ -228,15 +228,7 @@ fn range_check(stmts: &mut Vec<Stmt>, val: Expr, range: Range<f64>) {
 	}
 
 	if let Some(max) = range.max() {
-		assert(
-			stmts,
-			if range.max_inclusive() {
-				val.lte(max.into())
-			} else {
-				val.lt(max.into())
-			},
-			None,
-		);
+		assert(stmts, val.lte(max.into()), None);
 	}
 }
 
