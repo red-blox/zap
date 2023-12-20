@@ -1,61 +1,36 @@
 use std::fmt::Display;
 
-use num_traits::*;
-
 use crate::parser::Casing;
 
 #[derive(Debug, Clone, Copy)]
-pub struct Range<T: Num + NumCast + Copy + Display> {
-	min: Option<T>,
-	max: Option<T>,
+pub struct Range {
+	min: Option<f64>,
+	max: Option<f64>,
 }
 
-impl<T: Num + NumCast + Copy + Display> Range<T> {
-	pub fn new(min: Option<T>, max: Option<T>) -> Self {
+impl Range {
+	pub fn new(min: Option<f64>, max: Option<f64>) -> Self {
 		Self { min, max }
 	}
 
-	pub fn min(&self) -> Option<T> {
+	pub fn min(&self) -> Option<f64> {
 		self.min
 	}
 
-	pub fn max(&self) -> Option<T> {
+	pub fn max(&self) -> Option<f64> {
 		self.max
 	}
 
-	pub fn cast<U: Num + NumCast + Copy + Display>(self) -> Range<U> {
-		Range {
-			min: self.min.map(|x| NumCast::from(x).unwrap()),
-			max: self.max.map(|x| NumCast::from(x).unwrap()),
-		}
-	}
-}
-
-impl<T: Num + NumCast + Copy + Display + PrimInt> Range<T> {
-	pub fn exact(&self) -> Option<T> {
+	pub fn exact(&self) -> Option<f64> {
 		if self.min.is_some() && self.min == self.max {
 			Some(self.min.unwrap())
 		} else {
 			None
 		}
 	}
-
-	pub fn exact_f64(&self) -> Option<f64> {
-		if self.min.is_some() && self.min == self.max {
-			Some(NumCast::from(self.min.unwrap()).unwrap())
-		} else {
-			None
-		}
-	}
 }
 
-impl<T: Num + NumCast + Copy + Display> Default for Range<T> {
-	fn default() -> Self {
-		Self { min: None, max: None }
-	}
-}
-
-impl<T: Num + NumCast + Copy + Display> Display for Range<T> {
+impl Display for Range {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match (self.min, self.max) {
 			(Some(min), Some(max)) => write!(f, "{}..{}", min, max),
