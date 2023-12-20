@@ -142,10 +142,11 @@ impl<'a> ServerOutput<'a> {
 			EvCall::ManySync | EvCall::ManyAsync => casing(self.file.casing, "On", "on", "on"),
 		};
 		let callback = casing(self.file.casing, "Callback", "callback", "callback");
+		let player = casing(self.file.casing, "Player", "player", "player");
 		let value = casing(self.file.casing, "Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{set_callback}: ({callback}: ({value}: "));
+		self.push(&format!("{set_callback}: ({callback}: ({player}: Player, {value}: "));
 		self.push_ty(ty);
 		self.push(") => void) => void\n");
 	}
