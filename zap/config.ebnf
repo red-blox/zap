@@ -1,0 +1,74 @@
+(* Zap Rules *)
+(* this section has whitespace *)
+
+zap = {opt}, {evdecl | tydecl};
+
+opt = "opt", (
+	"write_checks", ':', ("true" | "false")
+	| "server_output", ':', string
+	| "client_output", ':', string
+	| "typescript", ':', ("true" | "false")
+), [';'];
+
+evdecl = "event", ident, '=', '{',
+	"from", ':', ("Server" | "Client"), ',',
+	"type", ':', ("Reliable" | "Unreliable"), ',',
+	"call", ':', ("SingleSync" | "SingleAsync" | "ManySync" | "ManyAsync"), ',',
+	"data", ':', ty, [','],
+	'}';
+
+tydecl = "type", ident, '=', ty, [';'];
+
+ty = ty-bool | ty-num | ty-str | ty-arr | ty-map | ty-enum | ty-instance | ty-vector3 | ty-ref | ty-opt;
+
+ty-bool = "bool";
+
+ty-num = ("f32" | "f64"), ['(', range-num,')']
+	| ("u8" | "u16" | "u32" | "i8" | "i16" | "i32"), ['(', range-int,')'];
+
+ty-str = "string";
+ty-arr = ty, '[', range-num, ']';
+ty-map = ty, '<', ty, '>';
+
+ty-enum = ty-enum-unit | ty-enum-tagged;
+ty-enum-unit = "enum", '{', ident, {',', ident}, [','], '}';
+ty-enum-tagged = "enum", ident, '{', ident, ty-struct, {',', ident, ty-struct}, [','], '}';
+
+ty-struct = "struct", '{', ty-struct-field, [","], '}';
+ty-struct-field = ident, ':', ty, [',', ty-struct-field];
+
+ty-instance = "Instance", ['(', ident, ')'];
+ty-vector3 = "Vector3";
+
+ty-ref = ident;
+ty-opt = ty, '?';
+
+range-num = ""
+	| num, "..", num
+	| num, ".."
+	| "..", num
+	| ".."
+	| num;
+
+range-int = ""
+	| int, "..", int
+	| int, ".."
+	| "..", int
+	| ".."
+	| int;
+
+
+(* Base Rules *)
+(* this section has no whitespace *)
+
+ident = alpha, {alphanum | '_'};
+
+string = '"', {alphanum}, '"';
+
+num = int, ['.', int];
+int = digit, {digit};
+
+alphanum = alpha | digit;
+
+alpha = 'a'..'z' | 'A'..'Z';
+digit = '0'..'9';
