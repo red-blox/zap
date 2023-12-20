@@ -132,25 +132,6 @@ impl<'a> ServerOutput<'a> {
 		}
 	}
 
-	fn push_return_setcallback(&mut self, ev: &EvDecl) {
-		let ty = &ev.data;
-
-		let set_callback = match ev.call {
-			EvCall::SingleSync | EvCall::SingleAsync => {
-				casing(self.file.casing, "SetCallback", "setCallback", "set_callback")
-			}
-			EvCall::ManySync | EvCall::ManyAsync => casing(self.file.casing, "On", "on", "on"),
-		};
-		let callback = casing(self.file.casing, "Callback", "callback", "callback");
-		let player = casing(self.file.casing, "Player", "player", "player");
-		let value = casing(self.file.casing, "Value", "value", "value");
-
-		self.push_indent();
-		self.push(&format!("{set_callback}: ({callback}: ({player}: Player, {value}: "));
-		self.push_ty(ty);
-		self.push(") => void) => void\n");
-	}
-
 	pub fn push_return_listen(&mut self) {
 		for (_i, ev) in self
 			.file
@@ -162,7 +143,20 @@ impl<'a> ServerOutput<'a> {
 			self.push_line(&format!("export const {name}: {{", name = ev.name));
 			self.indent();
 
-			self.push_return_setcallback(ev);
+			let set_callback = match ev.call {
+				EvCall::SingleSync | EvCall::SingleAsync => {
+					casing(self.file.casing, "SetCallback", "setCallback", "set_callback")
+				}
+				EvCall::ManySync | EvCall::ManyAsync => casing(self.file.casing, "On", "on", "on"),
+			};
+			let callback = casing(self.file.casing, "Callback", "callback", "callback");
+			let player = casing(self.file.casing, "Player", "player", "player");
+			let value = casing(self.file.casing, "Value", "value", "value");
+
+			self.push_indent();
+			self.push(&format!("{set_callback}: ({callback}: ({player}: Player, {value}: "));
+			self.push_ty(&ev.data);
+			self.push(") => void) => void\n");
 
 			self.dedent();
 			self.push_line("};");
