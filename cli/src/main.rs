@@ -20,6 +20,20 @@ fn main() -> Result<()> {
 
 	let code = run(config.as_str())?;
 
+	if let Some(definitions) = code.server.definitions {
+		let mut path = code.server.path.clone();
+		path.set_extension("d.ts");
+
+		std::fs::write(path, definitions)?
+	}
+
+	if let Some(definitions) = code.client.definitions {
+		let mut path = code.client.path.clone();
+		path.set_extension("d.ts");
+
+		std::fs::write(path, definitions)?
+	}
+
 	std::fs::write(code.server.path, code.server.contents)?;
 	std::fs::write(code.client.path, code.client.contents)?;
 
