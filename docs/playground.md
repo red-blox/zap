@@ -31,7 +31,7 @@
 	</PluginTabsTab>
 	<PluginTabsTab label="Client (TS)" v-if="isTypeScript && !compiledResult.error">
 		<CodeBlock
-			:code="compiledResult.server.definitions"
+			:code="compiledResult.client.definitions"
 			lang="typescript"
 			:isCodeBlock="false"
 		/>
@@ -115,7 +115,7 @@ watch(code, (newCode) => {
 	try {
 		compiledResult.value = run(newCode);
 
-		if (!compiledResult.value.client && !compiledResult.value.server) compiledResult.value = {
+		if (!compiledResult.value.client.contents && !compiledResult.value.server.contents) compiledResult.value = {
 			client: {
 				contents: "-- Add an event to see output here!\n",
 				free,

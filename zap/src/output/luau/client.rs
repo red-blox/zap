@@ -370,6 +370,10 @@ impl<'a> ClientOutput<'a> {
 	}
 
 	pub fn output(mut self) -> String {
+		if self.file.ev_decls.is_empty() {
+			return self.buff
+		};
+
 		self.push_file_header("Client");
 
 		self.push(include_str!("client.luau"));
