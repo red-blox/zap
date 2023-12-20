@@ -18,11 +18,15 @@ fn ty<'a>() -> impl Parser<Token<'a>, Ty, Error = Simple<Token<'a>>> {
 		let bool = keyword("boolean").to(Ty::Boolean).boxed();
 
 		let opt_paren_delim_num_range = || {
-			(numrange().delimited_by(just(Token::OpenParen), just(Token::CloseParen))).or(empty().to(Range::default()))
+			(numrange().delimited_by(just(Token::OpenParen), just(Token::CloseParen)))
+				.or_not()
+				.map(|r| r.unwrap_or_default())
 		};
 
 		let opt_paren_delim_int_range = || {
-			(intrange().delimited_by(just(Token::OpenParen), just(Token::CloseParen))).or(empty().to(Range::default()))
+			(intrange().delimited_by(just(Token::OpenParen), just(Token::CloseParen)))
+				.or_not()
+				.map(|r| r.unwrap_or_default())
 		};
 
 		let num = choice::<_, Simple<Token<'a>>>((
@@ -63,63 +67,65 @@ fn ty<'a>() -> impl Parser<Token<'a>, Ty, Error = Simple<Token<'a>>> {
 			.map(|(ty, len)| Ty::Arr { ty: Box::new(ty), len })
 			.boxed();
 
-		let map = keyword("map").then(ty.delimited_by(just(Token::OpenBracket), just(Token::CloseBracket)));
+		let map = keyword("map")
+			.then(ty.delimited_by(just(Token::OpenBracket), just(Token::CloseBracket)))
+			.then_ignore(just(Token::Colon))
+			.then(ty)
+			.map(|((_, key), val)| Ty::Map {
+				key: Box::new(key),
+				val: Box::new(val),
+			});
 
-		let r#struct = |invalid_name: Option<String>| {
-			{
-				((word().then_ignore(just(Token::Colon)).then(ty))
-					.separated_by(just(Token::Comma))
-					.allow_trailing())
-				.delimited_by(just(Token::OpenBrace), just(Token::CloseBrace))
-				.try_map(move |fields, s| {
-					if let Some(invalid_name) = &invalid_name {
-						if fields.iter().any(|(name, _)| *name == invalid_name) {
-							return Err(Simple::custom(s, "invalid struct field name"));
-						}
+		let struct_field = |invalid_name: &'a str| {
+			word()
+				.then_ignore(just(Token::Colon))
+				.then(ty)
+				.try_map(move |(name, ty), s| {
+					if name == invalid_name {
+						Err(Simple::custom(s, "field name cannot be the same as the struct name"))
+					} else {
+						Ok((name.to_string(), ty))
 					}
-
-					Ok(Struct {
-						fields: fields
-							.into_iter()
-							.map(|(name, ty)| (name.to_string(), ty))
-							.collect::<Vec<_>>(),
-					})
 				})
-			}
-			.boxed()
 		};
 
-		let r#enum = keyword("enum")
-			.then(
-				strlit()
-					.then_with(|tag| {
-						// the rust gods have dictated that there is no better way than this:
-						let tag1 = tag.clone();
-						let tag2 = tag.clone();
-
-						word()
-							.then_with(move |variant_name| {
-								r#struct(Some(tag1.to_string()))
-									.map(|variant_ty| (variant_name.to_string(), variant_ty))
-							})
-							.separated_by(just(Token::Comma))
-							.allow_trailing()
-							.at_least(1)
-							.delimited_by(just(Token::OpenBrace), just(Token::CloseBrace))
-							.map(move |variants| Enum::Tagged {
-								tag: tag2.to_string(),
-								variants,
-							})
-					})
-					.or(word()
+		let r#struct = |invalid_name: &'a str| {
+			keyword("struct")
+				.then(
+					struct_field(invalid_name)
 						.separated_by(just(Token::Comma))
 						.allow_trailing()
-						.at_least(1)
-						.delimited_by(just(Token::OpenBrace), just(Token::CloseBrace))
-						.map(|enumerators| Enum::Unit(enumerators.into_iter().map(|s| s.to_string()).collect()))),
+						.delimited_by(just(Token::OpenBrace), just(Token::CloseBrace)),
+				)
+				.map(|(_, fields)| Struct { fields })
+		};
+
+		let enum_unit = keyword("enum")
+			.then(
+				word()
+					.map(|s| s.to_string())
+					.separated_by(just(Token::Comma))
+					.at_least(1)
+					.allow_trailing(),
 			)
-			.map(|(_, e)| Ty::Enum(e))
-			.boxed();
+			.map(|(_, variants)| Enum::Unit(variants));
+
+		let enum_tagged = keyword("enum")
+			.then(strlit().then_with(|tag| {
+				word()
+					.then(r#struct(tag))
+					.map(|(name, s)| (name.to_string(), s))
+					.separated_by(just(Token::Comma))
+					.at_least(1)
+					.allow_trailing()
+					.map(move |variants| Enum::Tagged {
+						tag: tag.to_string(),
+						variants,
+					})
+			}))
+			.map(|(_, e)| e);
+
+		let r#enum = enum_unit.or(enum_tagged).boxed();
 
 		let instance = keyword("Instance")
 			.then(

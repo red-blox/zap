@@ -26,7 +26,7 @@ ty-bool = "bool";
 ty-num = ("f32" | "f64"), ['(', range-num,')']
 	| ("u8" | "u16" | "u32" | "i8" | "i16" | "i32"), ['(', range-int,')'];
 
-ty-str = "string";
+ty-str = "string", ['(', range-int,')'];
 ty-arr = ty, '[', range-num, ']';
 ty-map = "map", '[', ty, ']', ':', ty;
 
