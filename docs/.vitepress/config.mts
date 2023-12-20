@@ -1,5 +1,4 @@
 import { defineConfig } from 'vitepress'
-import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
 
 const nav = [
   { text: 'Home', link: '/' },
@@ -42,11 +41,6 @@ export default defineConfig({
       { icon: 'github', link: 'https://github.com/red-blox/zap' },
       { icon: 'discord', link: 'https://discord.gg/mchCdAFPWU' },
     ]
-  },
-  markdown: {
-    config(md) {
-      md.use(tabsMarkdownPlugin)
-    }
   },
   vite: {
     configFile: "./docs/.vitepress/vite.config.ts"
