@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::parser::Casing;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct Range {
 	min: Option<f64>,
 	max: Option<f64>,

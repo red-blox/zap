@@ -28,14 +28,14 @@ ty-num = ("f32" | "f64"), ['(', range-num,')']
 
 ty-str = "string";
 ty-arr = ty, '[', range-num, ']';
-ty-map = ty, '<', ty, '>';
-
-ty-enum = ty-enum-unit | ty-enum-tagged;
-ty-enum-unit = "enum", '{', ident, {',', ident}, [','], '}';
-ty-enum-tagged = "enum", ident, '{', ident, ty-struct, {',', ident, ty-struct}, [','], '}';
+ty-map = "map", '[', ty, ']', ':', ty;
 
 ty-struct = "struct", '{', ty-struct-field, [","], '}';
 ty-struct-field = ident, ':', ty, [',', ty-struct-field];
+
+ty-enum = ty-enum-unit | ty-enum-tagged;
+ty-enum-unit = "enum", '{', ident, {',', ident}, [','], '}';
+ty-enum-tagged = "enum", string, '{', ident, ty-struct, {',', ident, ty-struct}, [','], '}';
 
 ty-instance = "Instance", ['(', ident, ')'];
 ty-vector3 = "Vector3";

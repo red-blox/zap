@@ -12,6 +12,8 @@ crate-type = ["lib", "cdylib"]
 
 [dependencies]
 ariadne = "0.3.0"
+chumsky = "0.9.3"
+logos = "0.13.0"
 num-traits = "0.2.17"
 thiserror = "1.0"
 wasm-bindgen = "0.2"

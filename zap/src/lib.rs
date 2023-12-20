@@ -1,5 +1,3 @@
-mod irgen;
-mod output;
 mod parser;
 mod util;
 
@@ -50,13 +48,11 @@ pub struct Code {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run(config: &str) -> Result<Code, Error> {
-	let file = parser::parse(config)?;
+	//let file = parser::parse(config)?;
 
-	let server_contents = output::luau::server::code(&file);
-	let server_definitions = output::typescript::server::code(&file);
-
-	let client_contents = output::luau::client::code(&file);
-	let client_definitions = output::typescript::client::code(&file);
+	/*
+	let server_contents = output::server::code(&file);
+	let client_contents = output::client::code(&file);
 
 	Ok(Code {
 		server: Output {
@@ -70,6 +66,9 @@ pub fn run(config: &str) -> Result<Code, Error> {
 			definitions: client_definitions,
 		},
 	})
+	*/
+
+	todo!()
 }
 
 #[cfg(target_arch = "wasm32")]

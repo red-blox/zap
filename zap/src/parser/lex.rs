@@ -1,133 +1,74 @@
-use std::iter::Peekable;
+use logos::{Lexer, Logos, Skip};
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Token {
-	UnknownToken(String),
+fn block_comment<'a>(lexer: &mut Lexer<'a, Token<'a>>) -> Skip {
+	let mut remainder = lexer.remainder().char_indices().peekable();
 
-	Word(String),
+	while let Some((_, c)) = remainder.next() {
+		lexer.bump(1);
 
-	// Literals
-	NumLit(f64),
-	StrLit(String),
-
-	// Symbols
-	ParenOpen,
-	ParenClose,
-	BraceOpen,
-	BraceClose,
-	BracketOpen,
-	BracketClose,
-	AngleOpen,
-	AngleClose,
-	Comma,
-	Colon,
-	Equals,
-}
-
-pub fn lex(input: &str) -> Vec<Token> {
-	let mut tokens = Vec::new();
-	let mut chars = input.chars().peekable();
-
-	let mut unknown_buf = String::new();
-
-	while let Some(c) = chars.next() {
-		match c {
-			c if c.is_whitespace() => continue,
-
-			c if c == '-' && chars.peek() == Some(&'-') => {
-				chars.next();
-
-				if chars.next() == Some('[') && chars.peek() == Some(&'[') {
-					chars.next();
-
-					while let Some(c) = chars.next() {
-						if c == ']' && chars.peek() == Some(&']') {
-							chars.next();
-
-							break;
-						}
-					}
-				} else {
-					for c in chars.by_ref() {
-						if c == '\n' {
-							break;
-						}
-					}
-				}
-			}
-
-			'(' => tokens.push(Token::ParenOpen),
-			')' => tokens.push(Token::ParenClose),
-			'{' => tokens.push(Token::BraceOpen),
-			'}' => tokens.push(Token::BraceClose),
-			'[' => tokens.push(Token::BracketOpen),
-			']' => tokens.push(Token::BracketClose),
-			'<' => tokens.push(Token::AngleOpen),
-			'>' => tokens.push(Token::AngleClose),
-			',' => tokens.push(Token::Comma),
-			':' => tokens.push(Token::Colon),
-			'=' => tokens.push(Token::Equals),
-
-			'0'..='9' => {
-				let mut had_dot = false;
-				let mut num = String::new();
-				num.push(c);
-
-				while let Some(&c) = chars.peek() {
-					if c.is_numeric() {
-						num.push(chars.next().unwrap());
-					} else if c == '.' && !had_dot {
-						had_dot = true;
-						num.push(chars.next().unwrap());
-					} else {
-						break;
-					}
-				}
-
-				tokens.push(Token::NumLit(num.parse().unwrap()));
-			}
-
-			'"' => {
-				let mut string = String::new();
-
-				while let Some(&c) = chars.peek() {
-					if c == '"' {
-						chars.next();
-						break;
-					} else {
-						string.push(chars.next().unwrap());
-					}
-				}
-
-				tokens.push(Token::StrLit(string));
-			}
-
-			'_' | 'a'..='z' | 'A'..='Z' => {
-				let mut word = String::new();
-				word.push(c);
-
-				while let Some(&c) = chars.peek() {
-					if c == '_' || c.is_alphanumeric() {
-						word.push(chars.next().unwrap());
-					} else {
-						break;
-					}
-				}
-
-				tokens.push(Token::Word(word));
-			}
-
-			_ => {
-				unknown_buf.push(c);
-				continue;
-			}
-		}
-
-		if !unknown_buf.is_empty() {
-			tokens.push(Token::UnknownToken(unknown_buf.clone()));
-			unknown_buf.clear();
+		if c == ']' && matches!(remainder.peek(), Some((_, ']'))) {
+			lexer.bump(1);
+			break;
 		}
 	}
 
-	tokens
+	Skip
+}
+
+#[derive(Logos, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Token<'a> {
+	#[regex(r"[ \t\n\f]+", logos::skip)]
+	#[regex(r"--.*", logos::skip)]
+	#[regex(r"--\[\[", block_comment)]
+	Skipped,
+
+	// Values
+	#[regex(r"[_a-zA-Z][_a-zA-Z0-9]*", |lex| lex.slice())]
+	Word(&'a str),
+
+	#[regex(r"[0-9]+(\.[0-9]+)?", |lex| lex.slice())]
+	NumLit(&'a str),
+
+	#[regex(r#""[^"]*""#, |lex| lex.slice())]
+	StrLit(&'a str),
+
+	// Symbols
+	#[token("(")]
+	OpenParen,
+
+	#[token(")")]
+	CloseParen,
+
+	#[token("{")]
+	OpenBrace,
+
+	#[token("}")]
+	CloseBrace,
+
+	#[token("[")]
+	OpenBracket,
+
+	#[token("]")]
+	CloseBracket,
+
+	#[token("<")]
+	OpenAngle,
+
+	#[token(">")]
+	CloseAngle,
+
+	#[token(":")]
+	Colon,
+
+	#[token(";")]
+	Semicolon,
+
+	#[token(",")]
+	Comma,
+
+	#[token("=")]
+	Equals,
+
+	#[token("..")]
+	DotDot,
 }
