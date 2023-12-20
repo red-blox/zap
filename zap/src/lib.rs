@@ -30,39 +30,44 @@ pub enum Error {
 pub struct Output {
 	pub path: PathBuf,
 	pub contents: String,
+	pub definitions: Option<String>,
 }
 
-// wasm_bindgen doesn't support generics, so we must have two different Structs
+#[derive(Debug, Clone)]
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen(getter_with_clone)]
+pub struct Output {
+	pub contents: String,
+	pub definitions: Option<String>,
+}
+
 #[derive(Debug)]
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter_with_clone))]
 pub struct Code {
 	pub server: Output,
 	pub client: Output,
-}
-
-#[derive(Debug)]
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen(getter_with_clone)]
-pub struct Code {
-	pub server: String,
-	pub client: String,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run(config: &str) -> Result<Code, Error> {
 	let file = parser::parse(config)?;
 
-	let server_contents = output::server::code(&file);
-	let client_contents = output::client::code(&file);
+	let server_contents = output::luau::server::code(&file);
+	let server_definitions = output::typescript::server::code(&file);
+
+	let client_contents = output::luau::client::code(&file);
+	let client_definitions = output::typescript::client::code(&file);
 
 	Ok(Code {
 		server: Output {
 			path: file.server_output,
 			contents: server_contents,
+			definitions: server_definitions,
 		},
 		client: Output {
 			path: file.client_output,
 			contents: client_contents,
+			definitions: client_definitions,
 		},
 	})
 }
@@ -72,8 +77,20 @@ pub fn run(config: &str) -> Result<Code, Error> {
 pub fn run(config: &str) -> Result<Code, JsError> {
 	let file = parser::parse(config)?;
 
+	let server_contents = output::luau::server::code(&file);
+	let server_definitions = output::typescript::server::code(&file);
+
+	let client_contents = output::luau::client::code(&file);
+	let client_definitions = output::typescript::client::code(&file);
+
 	Ok(Code {
-		server: output::server::code(&file),
-		client: output::client::code(&file),
+		server: Output {
+			contents: server_contents,
+			definitions: server_definitions,
+		},
+		client: Output {
+			contents: client_contents,
+			definitions: client_definitions,
+		},
 	})
 }

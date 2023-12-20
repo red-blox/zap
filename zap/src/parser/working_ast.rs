@@ -21,5 +21,6 @@ pub enum Opt {
 	ServerOutput(PathBuf),
 	ClientOutput(PathBuf),
 	Casing(Casing),
+	TypeScript(bool),
 	WriteChecks(bool),
 }

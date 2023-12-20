@@ -33,6 +33,7 @@ pub File: File = <opts:Opt*> <decls:Decl*> => {
 	}
 
 	let mut casing = Casing::Pascal;
+	let mut typescript = false;
 	let mut write_checks = false;
 
 	let mut server_output = PathBuf::from("network/server.luau");
@@ -41,19 +42,23 @@ pub File: File = <opts:Opt*> <decls:Decl*> => {
 	for opt in opts {
 		match opt {
 			Opt::Casing(v) => casing = v,
+			Opt::TypeScript(v) => typescript = v,
 			Opt::WriteChecks(v) => write_checks = v,
 			Opt::ServerOutput(v) => server_output = v, 
 			Opt::ClientOutput(v) => client_output = v, 
 		}
 	}
 
-	File { ty_decls, ev_decls, casing, write_checks, server_output, client_output }
+	File { ty_decls, ev_decls, casing, typescript, write_checks, server_output, client_output }
 };
 
 Opt: Opt = {
 	"opt" "casing" "=" "camelCase" => Opt::Casing(Casing::Camel),
 	"opt" "casing" "=" "snake_case" => Opt::Casing(Casing::Snake),
 	"opt" "casing" "=" "PascalCase" => Opt::Casing(Casing::Pascal),
+
+	"opt" "typescript" "=" "true" => Opt::TypeScript(true),
+	"opt" "typescript" "=" "false" => Opt::TypeScript(false),
 
 	"opt" "write_checks" "=" "true" => Opt::WriteChecks(true),
 	"opt" "write_checks" "=" "false" => Opt::WriteChecks(false),

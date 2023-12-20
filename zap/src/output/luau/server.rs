@@ -529,6 +529,10 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	pub fn output(mut self) -> String {
+		if self.file.ev_decls.is_empty() {
+			return self.buff;
+		};
+
 		self.push_file_header("Server");
 
 		self.push(include_str!("server.luau"));

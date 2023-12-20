@@ -119,6 +119,23 @@ impl NumTy {
 	}
 }
 
+impl Display for NumTy {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			NumTy::F32 => write!(f, "f32"),
+			NumTy::F64 => write!(f, "f64"),
+
+			NumTy::U8 => write!(f, "u8"),
+			NumTy::U16 => write!(f, "u16"),
+			NumTy::U32 => write!(f, "u32"),
+
+			NumTy::I8 => write!(f, "i8"),
+			NumTy::I16 => write!(f, "i16"),
+			NumTy::I32 => write!(f, "i32"),
+		}
+	}
+}
+
 pub fn casing(casing: Casing, pascal: &'static str, camel: &'static str, snake: &'static str) -> &'static str {
 	match casing {
 		Casing::Pascal => pascal,

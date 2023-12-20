@@ -14,20 +14,43 @@
 
 **Output:**
 
-:::tabs
-== Client
-<CodeBlock
-	:code="compiledResult.client"
-	language="lua"
-	:isCodeBlock="false"
-/>
-== Server
-<CodeBlock
-	:code="compiledResult.server"
-	language="lua"
-	:isCodeBlock="false"
-/>
-:::
+<PluginTabs sharedStateKey="outputTab">
+	<PluginTabsTab label="Error" v-if="compiledResult.error">
+		<CodeBlock
+			:code="compiledResult.error"
+			lang="lua"
+			:isCodeBlock="false"
+		/>
+	</PluginTabsTab>
+	<PluginTabsTab label="Client" v-if="!compiledResult.error">
+		<CodeBlock
+			:code="compiledResult.client.contents"
+			lang="lua"
+			:isCodeBlock="false"
+		/>
+	</PluginTabsTab>
+	<PluginTabsTab label="Client (TS)" v-if="isTypeScript && !compiledResult.error">
+		<CodeBlock
+			:code="compiledResult.client.definitions"
+			lang="typescript"
+			:isCodeBlock="false"
+		/>
+	</PluginTabsTab>
+	<PluginTabsTab label="Server" v-if="!compiledResult.error">
+		<CodeBlock
+			:code="compiledResult.server.contents"
+			lang="lua"
+			:isCodeBlock="false"
+		/>
+	</PluginTabsTab>
+	<PluginTabsTab label="Server (TS)" v-if="isTypeScript && !compiledResult.error">
+		<CodeBlock
+			:code="compiledResult.server.definitions"
+			lang="typescript"
+			:isCodeBlock="false"
+		/>
+	</PluginTabsTab>
+</PluginTabs>
 
 </ClientOnly>
 
@@ -38,6 +61,10 @@ import { useData, useRouter } from "vitepress";
 import { ref, watch, onMounted } from "vue";
 import { run, Code } from "../zap/package"
 
+type PlaygroundCode = Code | {
+	error?: string
+}
+
 const { isDark } = useData();
 const { go } = useRouter();
 
@@ -47,10 +74,18 @@ const styles = ref({
 	padding: "20px 0px",
 })
 const code = ref("");
-const compiledResult = ref<Code>({
-	client: "-- Write some code to see output here!\n",
-	server: "-- Write some code to see output here!\n",
-	free: () => {}
+const isTypeScript = ref(false)
+const free = () => {};
+const compiledResult = ref<PlaygroundCode>({
+	client: {
+		contents: "-- Write some code to see output here!\n",
+		free,
+	},
+	server: {
+		contents: "-- Write some code to see output here!\n",
+		free,
+	},
+	free,
 })
 
 onMounted(() => {
@@ -80,17 +115,29 @@ watch(code, (newCode) => {
 	try {
 		compiledResult.value = run(newCode);
 
-		if (!compiledResult.value.client && !compiledResult.value.server) compiledResult.value = {
-			client: "-- Add an event to see output here!\n",
-			server: "-- Add an event to see output here!\n",
-			free: () => {}
+		if (!compiledResult.value.client.contents && !compiledResult.value.server.contents) compiledResult.value = {
+			client: {
+				contents: "-- Add an event to see output here!\n",
+				free,
+			},
+			server: {
+				contents: "-- Add an event to see output here!\n",
+				free,
+			},
+			free,
+		}
+
+		if (compiledResult.value.client.definitions && compiledResult.value.server.definitions) {
+			isTypeScript.value = true
+		} else {
+			isTypeScript.value = false
 		}
 	} catch (err) {
 		compiledResult.value = {
-			client: `--[[\n${err.message}\n]]`,
-			server: `--[[\n${err.message}\n]]`,
-			free: () => {}
+			error: `--[[\n${err.message}\n]]`
 		}
+
+		isTypeScript.value = false
 	}
 	
 	styles.value = {

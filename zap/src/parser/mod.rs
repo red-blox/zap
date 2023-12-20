@@ -20,6 +20,7 @@ pub struct File {
 	pub client_output: PathBuf,
 
 	pub casing: Casing,
+	pub typescript: bool,
 	pub write_checks: bool,
 }
 
