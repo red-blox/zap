@@ -1,5 +1,4 @@
-use logos::{Lexer, Logos, Skip};
-
+use logos::{Lexer, Logos, Skip, Span};
 fn block_comment<'a>(lexer: &mut Lexer<'a, Token<'a>>) -> Skip {
 	let mut remainder = lexer.remainder().char_indices().peekable();
 
@@ -31,6 +30,9 @@ pub enum Token<'a> {
 
 	#[regex(r#""[^"]*""#, |lex| lex.slice())]
 	StrLit(&'a str),
+
+	#[token("Vector3")]
+	Vector3,
 
 	// Symbols
 	#[token("(")]

@@ -1,7 +1,5 @@
 use std::fmt::Display;
 
-use crate::parser::Casing;
-
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Range {
 	min: Option<f64>,
@@ -111,10 +109,39 @@ impl Display for NumTy {
 	}
 }
 
-pub fn casing(casing: Casing, pascal: &'static str, camel: &'static str, snake: &'static str) -> &'static str {
-	match casing {
-		Casing::Pascal => pascal,
-		Casing::Camel => camel,
-		Casing::Snake => snake,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EvSource {
+	Server,
+	Client,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EvType {
+	Reliable,
+	Unreliable,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum EvCall {
+	SingleSync,
+	SingleAsync,
+	ManySync,
+	ManyAsync,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Casing {
+	Pascal,
+	Camel,
+	Snake,
+}
+
+impl Casing {
+	pub fn with(&self, pascal: &'static str, camel: &'static str, snake: &'static str) -> &'static str {
+		match self {
+			Self::Pascal => pascal,
+			Self::Camel => camel,
+			Self::Snake => snake,
+		}
 	}
 }

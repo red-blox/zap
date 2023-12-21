@@ -40,8 +40,8 @@ ty-enum-tagged = "enum", string, '{', ident, ty-struct, {',', ident, ty-struct},
 ty-instance = "Instance", ['(', ident, ')'];
 ty-vector3 = "Vector3";
 
-ty-ref = ident;
 ty-opt = ty, '?';
+ty-ref = ident;
 
 range-num = ""
 	| num, "..", num
