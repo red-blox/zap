@@ -1,15 +1,18 @@
 use chumsky::prelude::*;
 
-use crate::util::NumTy;
+use crate::util::{EvCall, EvSource, EvType, NumTy};
 
-use super::{lexer::Token, syntax_tree::*};
+use super::{
+	lexer::{lex, Token},
+	syntax_tree::*,
+};
 
 fn word<'a>() -> impl Parser<Token<'a>, Token<'a>, Error = Simple<Token<'a>>> {
 	filter(|tok: &Token<'a>| matches!(tok, Token::Word(_)))
 }
 
-fn keyword<'a>(kw: &'static str) -> impl Parser<Token<'a>, Token<'a>, Error = Simple<Token<'a>>> {
-	filter(|tok: &Token<'a>| *tok == Token::Word(kw))
+fn keyword<'a>(kw: &'static str) -> impl Parser<Token<'a>, (), Error = Simple<Token<'a>>> {
+	filter(|tok: &Token<'a>| *tok == Token::Word(kw)).to(())
 }
 
 fn numlit<'a>() -> impl Parser<Token<'a>, Token<'a>, Error = Simple<Token<'a>>> {
@@ -27,42 +30,42 @@ fn strlit<'a>() -> impl Parser<Token<'a>, Token<'a>, Error = Simple<Token<'a>>> 
 	filter(|tok: &Token<'a>| matches!(tok, Token::StrLit(..)))
 }
 
-fn parser<'a>() -> impl Parser<Token<'a>, SyntaxConfig<'a>, Error = Simple<Token<'a>>> {
-	let numrange = || {
-		choice((
-			numlit()
-				.then_ignore(just(Token::DotDot))
-				.then(numlit())
-				.map(|(min, max)| SyntaxRange::WithMinMax(min, max)),
-			numlit().then_ignore(just(Token::DotDot)).map(SyntaxRange::WithMin),
-			numlit().map(SyntaxRange::Exact),
-			just(Token::DotDot)
-				.then(numlit())
-				.map(|(_, max)| SyntaxRange::WithMax(max)),
-			just(Token::DotDot).to(SyntaxRange::None),
-			empty().to(SyntaxRange::None),
-		))
-		.boxed()
-	};
+fn numrange<'a>() -> impl Parser<Token<'a>, SyntaxRange<'a>, Error = Simple<Token<'a>>> {
+	choice((
+		numlit()
+			.then_ignore(just(Token::DotDot))
+			.then(numlit())
+			.map(|(min, max)| SyntaxRange::WithMinMax(min, max)),
+		numlit().then_ignore(just(Token::DotDot)).map(SyntaxRange::WithMin),
+		numlit().map(SyntaxRange::Exact),
+		just(Token::DotDot)
+			.then(numlit())
+			.map(|(_, max)| SyntaxRange::WithMax(max)),
+		just(Token::DotDot).to(SyntaxRange::None),
+		empty().to(SyntaxRange::None),
+	))
+	.boxed()
+}
 
-	let intrange = || {
-		choice((
-			intlit()
-				.then_ignore(just(Token::DotDot))
-				.then(intlit())
-				.map(|(min, max)| SyntaxRange::WithMinMax(min, max)),
-			intlit().then_ignore(just(Token::DotDot)).map(SyntaxRange::WithMin),
-			intlit().map(SyntaxRange::Exact),
-			just(Token::DotDot)
-				.then(intlit())
-				.map(|(_, max)| SyntaxRange::WithMax(max)),
-			just(Token::DotDot).to(SyntaxRange::None),
-			empty().to(SyntaxRange::None),
-		))
-		.boxed()
-	};
+fn intrange<'a>() -> impl Parser<Token<'a>, SyntaxRange<'a>, Error = Simple<Token<'a>>> {
+	choice((
+		intlit()
+			.then_ignore(just(Token::DotDot))
+			.then(intlit())
+			.map(|(min, max)| SyntaxRange::WithMinMax(min, max)),
+		intlit().then_ignore(just(Token::DotDot)).map(SyntaxRange::WithMin),
+		intlit().map(SyntaxRange::Exact),
+		just(Token::DotDot)
+			.then(intlit())
+			.map(|(_, max)| SyntaxRange::WithMax(max)),
+		just(Token::DotDot).to(SyntaxRange::None),
+		empty().to(SyntaxRange::None),
+	))
+	.boxed()
+}
 
-	let ty = recursive(|ty| {
+fn ty<'a>() -> impl Parser<Token<'a>, SyntaxTy<'a>, Error = Simple<Token<'a>>> {
+	recursive(|ty| {
 		let fnum = choice((keyword("f32").to(NumTy::F32), keyword("f64").to(NumTy::F64)))
 			.then(
 				numrange()
@@ -94,7 +97,7 @@ fn parser<'a>() -> impl Parser<Token<'a>, SyntaxConfig<'a>, Error = Simple<Token
 					.delimited_by(just(Token::OpenParen), just(Token::CloseParen))
 					.or_not(),
 			)
-			.map(|(ty, range)| SyntaxTy::Str(ty, range))
+			.map(|(_, range)| SyntaxTy::Str(range))
 			.boxed();
 
 		let ty_arr = ty
@@ -160,14 +163,88 @@ fn parser<'a>() -> impl Parser<Token<'a>, SyntaxConfig<'a>, Error = Simple<Token
 		let ty_ref = word().map(SyntaxTy::Ref);
 
 		choice((ty_num, ty_str, ty_arr, ty_map, ty_struct, ty_enum, ty_instance, ty_ref))
-	});
-
-	empty().to(SyntaxConfig {
-		tydecls: todo!(),
-		evdecls: todo!(),
-		server_output: todo!(),
-		client_output: todo!(),
-		write_checks: todo!(),
-		typescript: todo!(),
 	})
+	.boxed()
+}
+
+fn tydecl<'a>() -> impl Parser<Token<'a>, SyntaxTyDecl<'a>, Error = Simple<Token<'a>>> {
+	keyword("type")
+		.then(word())
+		.then_ignore(just(Token::Equals))
+		.then(ty())
+		.then_ignore(just(Token::Semicolon).or_not())
+		.map(|((_, name), ty)| SyntaxTyDecl { name, ty })
+		.boxed()
+}
+
+fn evdecl_field<'a, T>(
+	name: &'static str,
+	value: impl Parser<Token<'a>, T, Error = Simple<Token<'a>>>,
+) -> impl Parser<Token<'a>, T, Error = Simple<Token<'a>>> {
+	keyword(name)
+		.then_ignore(just(Token::Colon))
+		.then(value)
+		.map(|(_, value)| value)
+}
+
+fn evdecl<'a>() -> impl Parser<Token<'a>, SyntaxEvDecl<'a>, Error = Simple<Token<'a>>> {
+	keyword("event")
+		.then(word())
+		.then_ignore(just(Token::Equals))
+		.then(
+			evdecl_field(
+				"from",
+				choice((
+					keyword("Server").to(EvSource::Server),
+					keyword("Client").to(EvSource::Client),
+				)),
+			)
+			.then_ignore(just(Token::Comma))
+			.then(evdecl_field(
+				"type",
+				choice((
+					keyword("Reliable").to(EvType::Reliable),
+					keyword("Unreliable").to(EvType::Unreliable),
+				)),
+			))
+			.then_ignore(just(Token::Comma))
+			.then(evdecl_field(
+				"call",
+				choice((
+					keyword("SingleSync").to(EvCall::SingleSync),
+					keyword("SingleAsync").to(EvCall::SingleAsync),
+					keyword("ManySync").to(EvCall::ManySync),
+					keyword("ManyAsync").to(EvCall::ManyAsync),
+				)),
+			))
+			.then_ignore(just(Token::Comma))
+			.then(evdecl_field("data", ty()))
+			.then_ignore(just(Token::Comma).or_not())
+			.delimited_by(just(Token::OpenBrace), just(Token::CloseBrace)),
+		)
+		.then_ignore(just(Token::Semicolon).or_not())
+		.map(|((_, name), (((from, evty), call), data))| SyntaxEvDecl {
+			name,
+			from,
+			evty,
+			call,
+			data,
+		})
+		.boxed()
+}
+
+fn opt<'a>() -> impl Parser<Token<'a>, SyntaxOpt<'a>, Error = Simple<Token<'a>>> {
+	keyword("opt")
+		.then(word())
+		.then_ignore(just(Token::Equals))
+		.then(word().or(strlit()))
+		.then_ignore(just(Token::Semicolon).or_not())
+		.map(|((_, name), value)| SyntaxOpt { name, value })
+}
+
+pub fn parser<'a>() -> impl Parser<Token<'a>, SyntaxConfig<'a>, Error = Simple<Token<'a>>> {
+	opt()
+		.repeated()
+		.then(choice((evdecl().map(SyntaxDecl::Ev), tydecl().map(SyntaxDecl::Ty))).repeated())
+		.map(|(opts, decls)| SyntaxConfig { opts, decls })
 }

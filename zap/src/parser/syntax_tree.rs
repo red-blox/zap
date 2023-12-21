@@ -4,19 +4,25 @@ use super::lexer::Token;
 
 #[derive(Debug, Clone)]
 pub struct SyntaxConfig<'a> {
-	pub tydecls: Vec<SyntaxTyDecl<'a>>,
-	pub evdecls: Vec<SyntaxEvDecl<'a>>,
+	pub opts: Vec<SyntaxOpt<'a>>,
+	pub decls: Vec<SyntaxDecl<'a>>,
+}
 
-	pub server_output: Option<&'a str>,
-	pub client_output: Option<&'a str>,
+#[derive(Debug, Clone)]
+pub struct SyntaxOpt<'a> {
+	pub name: Token<'a>,
+	pub value: Token<'a>,
+}
 
-	pub write_checks: bool,
-	pub typescript: bool,
+#[derive(Debug, Clone)]
+pub enum SyntaxDecl<'a> {
+	Ev(SyntaxEvDecl<'a>),
+	Ty(SyntaxTyDecl<'a>),
 }
 
 #[derive(Debug, Clone)]
 pub struct SyntaxEvDecl<'a> {
-	pub name: &'a str,
+	pub name: Token<'a>,
 	pub from: EvSource,
 	pub evty: EvType,
 	pub call: EvCall,
@@ -25,7 +31,7 @@ pub struct SyntaxEvDecl<'a> {
 
 #[derive(Debug, Clone)]
 pub struct SyntaxTyDecl<'a> {
-	pub name: &'a str,
+	pub name: Token<'a>,
 	pub ty: SyntaxTy<'a>,
 }
 
@@ -34,8 +40,8 @@ pub enum SyntaxTy<'a> {
 	// 0: NumTy 1: SyntaxRange
 	Num(NumTy, Option<SyntaxRange<'a>>),
 
-	// 0: "string" 1: SyntaxRange
-	Str(Token<'a>, Option<SyntaxRange<'a>>),
+	// 0: SyntaxRange
+	Str(Option<SyntaxRange<'a>>),
 
 	Arr(Box<SyntaxTy<'a>>, SyntaxRange<'a>),
 	Map(Box<SyntaxTy<'a>>, Box<SyntaxTy<'a>>),

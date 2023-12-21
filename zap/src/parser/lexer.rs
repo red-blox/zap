@@ -74,3 +74,7 @@ pub enum Token<'a> {
 	#[token("..")]
 	DotDot,
 }
+
+pub fn lex(input: &str) -> Lexer<Token> {
+	Token::lexer(input)
+}
