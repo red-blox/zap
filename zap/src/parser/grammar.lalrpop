@@ -1,0 +1,139 @@
+use crate::parser::syntax_tree::*;
+use crate::util::{EvCall, EvSource, EvType, NumTy};
+
+grammar<'src>;
+
+match {
+    r"\s*" => { },
+    r"(--\[\[[^(\]\])]*\]\])|(--.*)" => { },
+} else {
+	_
+}
+
+pub Config: Config<'src> = {
+    <start:@L> <opts:Opt*> <decls:Decl*> <end:@R> => Config { start, opts, decls, end }
+}
+
+Opt: SyntaxOpt<'src> = {
+    <start:@L> "opt" <name:Identifier> "=" <value:OptValue> ";"? <end:@R> => SyntaxOpt { start, name, value, end }
+}
+
+OptValue: SyntaxOptValue<'src> = {
+    <start:@L> <kind:OptValueKind> <end:@R> => SyntaxOptValue { start, kind, end }
+}
+
+OptValueKind: SyntaxOptValueKind<'src> = {
+    StrLit => SyntaxOptValueKind::StrLit(<>),
+    NumLit => SyntaxOptValueKind::NumLit(<>),
+    BoolLit => SyntaxOptValueKind::BoolLit(<>),
+}
+
+Decl: SyntaxDecl<'src> = {
+    <decl:EvDecl> => SyntaxDecl::EvDecl(decl),
+    <decl:TyDecl> => SyntaxDecl::TyDecl(decl),
+}
+
+EvDecl: SyntaxEvDecl<'src> = {
+    <start:@L> "event" <name:Identifier> "=" "{"
+        "from" ":" <from:EvSource> ","
+        "type" ":" <evty:EvTy> ","
+        "call" ":" <call:EvCall> ","
+        "data" ":" <data:Ty> ","?
+    "}" ";"? <end:@R> => SyntaxEvDecl { start, name, from, evty, call, data, end }
+}
+
+EvCall: EvCall = {
+    "SingleSync" => EvCall::SingleSync,
+    "SingleAsync" => EvCall::SingleAsync,
+    "ManySync" => EvCall::ManySync,
+    "ManyAsync" => EvCall::ManyAsync,
+}
+
+EvTy: EvType = {
+    "Reliable" => EvType::Reliable,
+    "Unreliable" => EvType::Unreliable,
+}
+
+EvSource: EvSource = {
+    "Server" => EvSource::Server,
+    "Client" => EvSource::Client,
+}
+
+TyDecl: SyntaxTyDecl<'src> = {
+    <start:@L> "type" <name:Identifier> <ty:Ty> ";"? <end:@R> => SyntaxTyDecl { start, name, ty, end }
+}
+
+Ty: SyntaxTy<'src> = {
+    <start:@L> <kind:TyKind> <end:@R> => SyntaxTy { start, kind, end }
+}
+
+TyKind: SyntaxTyKind<'src> = {
+    "f32" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::F32, r),
+    "f64" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::F64, r),
+
+    "i8" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::I8, r),
+    "i16" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::I16, r),
+    "i32" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::I32, r),
+
+    "u8" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::U8, r),
+    "u16" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::U16, r),
+    "u32" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::U32, r),
+
+    "string" <r:("(" <Range> ")")?> => SyntaxTyKind::Str(r),
+
+    <ty:Ty> "[" <r:Range> "]" => SyntaxTyKind::Arr(ty, r),
+    "map" "{" "[" <k:Ty> "]" ":" <v:Ty> "}" => SyntaxTyKind::Map(k, v),
+
+    <e:Enum> => SyntaxTyKind::Enum(e),
+    <s:Struct> => SyntaxTyKind::Struct(s),
+}
+
+Enum: SyntaxEnum<'src> = {
+    <start:@L> "enum" <kind:EnumKind> <end:@R> => SyntaxEnum { start, kind, end }
+}
+
+EnumKind: SyntaxEnumKind<'src> = {
+    "{" <enumerators:Comma<Identifier>> "}" => SyntaxEnumKind::Unit(enumerators),
+
+    <tag:StrLit> "{" <variants:Comma<(<Identifier> <Struct>)>> "}" => SyntaxEnumKind::Tagged(tag, variants),
+}
+
+Struct: SyntaxStruct<'src> = {
+    <start:@L> "struct" "{" <fields:Comma<(Identifier ":" <Ty>)>> "}" <end:@R> => SyntaxStruct { start, fields, end }
+}
+
+Range: SyntaxRange<'src> = {
+    <start:@L> <kind:RangeKind> <end:@R> => SyntaxRange { start, kind, end }
+}
+
+RangeKind: SyntaxRangeKind<'src> = {
+    ".." => SyntaxRangeKind::None,
+    <n:NumLit> => SyntaxRangeKind::Exact(n),
+    <min:NumLit> ".." => SyntaxRangeKind::WithMin(min),
+    ".." <max:NumLit> => SyntaxRangeKind::WithMax(max),
+    <min:NumLit> ".." <max:NumLit> => SyntaxRangeKind::WithMinMax(min, max),
+}
+
+StrLit: SyntaxStrLit<'src> = {
+    <start:@L> <value:r#""[^"]*""#> <end:@R> => SyntaxStrLit { start, value, end }
+}
+
+NumLit: SyntaxNumLit<'src> = {
+    <start:@L> <value:r"\d+(\.\d*)?"> <end:@R> => SyntaxNumLit { start, value, end }
+}
+
+BoolLit: SyntaxBoolLit = {
+    <start:@L> "true" <end:@R> => SyntaxBoolLit { start, true, end }
+    <start:@L> "false" <end:@R> => SyntaxBoolLit { start, false, end }
+}
+
+Identifier: SyntaxIdentifier<'src> = {
+    <start:@L> <name:r"[a-zA-Z_][a-zA-Z0-9_]*"> <end:@R> => SyntaxIdentifier { start, name, end }
+}
+
+Comma<T>: Vec<T> = {
+    <mut v:(<T> ",")*> <e:T?> => match e {
+        Some(e) => { v.push(e); v },
+        None => v,
+    }
+}

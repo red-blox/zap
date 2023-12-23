@@ -10,9 +10,12 @@ edition = "2021"
 [lib]
 crate-type = ["lib", "cdylib"]
 
+[build-dependencies]
+lalrpop = "0.20.0"
+
 [dependencies]
+lalrpop-util = "0.20.0"
 ariadne = "0.3.0"
-chumsky = "0.9.3"
 logos = "0.13.0"
 num-traits = "0.2.17"
 thiserror = "1.0"

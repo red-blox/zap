@@ -1,84 +1,226 @@
 use crate::util::{EvCall, EvSource, EvType, NumTy};
 
-use super::lexer::Token;
+trait Spanned {
+	fn span(&self) -> core::ops::Range<usize>;
 
-#[derive(Debug, Clone)]
-pub struct SyntaxConfig<'a> {
-	pub opts: Vec<SyntaxOpt<'a>>,
-	pub decls: Vec<SyntaxDecl<'a>>,
+	fn start(&self) -> usize {
+		self.span().start
+	}
+
+	fn end(&self) -> usize {
+		self.span().end
+	}
+
+	fn len(&self) -> usize {
+		self.end() - self.start()
+	}
 }
 
-#[derive(Debug, Clone)]
-pub struct SyntaxOpt<'a> {
-	pub name: Token<'a>,
-	pub value: Token<'a>,
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyntaxConfig<'src> {
+	pub start: usize,
+	pub opts: Vec<SyntaxOpt<'src>>,
+	pub decls: Vec<SyntaxDecl<'src>>,
+	pub end: usize,
 }
 
-#[derive(Debug, Clone)]
-pub enum SyntaxDecl<'a> {
-	Ev(SyntaxEvDecl<'a>),
-	Ty(SyntaxTyDecl<'a>),
+impl<'src> Spanned for SyntaxConfig<'src> {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
 }
 
-#[derive(Debug, Clone)]
-pub struct SyntaxEvDecl<'a> {
-	pub name: Token<'a>,
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyntaxOpt<'src> {
+	pub start: usize,
+	pub name: SyntaxIdentifier<'src>,
+	pub value: SyntaxOptValue<'src>,
+	pub end: usize,
+}
+
+impl<'src> Spanned for SyntaxOpt<'src> {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyntaxOptValue<'src> {
+	pub start: usize,
+	pub kind: SyntaxOptValueKind<'src>,
+	pub end: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SyntaxOptValueKind<'src> {
+	Str(SyntaxStrLit<'src>),
+	Num(SyntaxNumLit<'src>),
+	Bool(SyntaxBoolLit),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SyntaxDecl<'src> {
+	Ev(SyntaxEvDecl<'src>),
+	Ty(SyntaxTyDecl<'src>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyntaxEvDecl<'src> {
+	pub start: usize,
+	pub name: SyntaxIdentifier<'src>,
 	pub from: EvSource,
 	pub evty: EvType,
 	pub call: EvCall,
-	pub data: SyntaxTy<'a>,
+	pub data: SyntaxTy<'src>,
+	pub end: usize,
 }
 
-#[derive(Debug, Clone)]
-pub struct SyntaxTyDecl<'a> {
-	pub name: Token<'a>,
-	pub ty: SyntaxTy<'a>,
+impl<'src> Spanned for SyntaxEvDecl<'src> {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
 }
 
-#[derive(Debug, Clone)]
-pub enum SyntaxTy<'a> {
-	// 0: NumTy 1: SyntaxRange
-	Num(NumTy, Option<SyntaxRange<'a>>),
-
-	// 0: SyntaxRange
-	Str(Option<SyntaxRange<'a>>),
-
-	Arr(Box<SyntaxTy<'a>>, SyntaxRange<'a>),
-	Map(Box<SyntaxTy<'a>>, Box<SyntaxTy<'a>>),
-
-	Struct(SyntaxStruct<'a>),
-	Enum(SyntaxEnum<'a>),
-
-	Opt(Box<SyntaxTy<'a>>),
-	Ref(Token<'a>),
-
-	Instance { class: Option<Token<'a>>, strict: bool },
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyntaxTyDecl<'src> {
+	pub start: usize,
+	pub name: SyntaxIdentifier<'src>,
+	pub ty: SyntaxTy<'src>,
+	pub end: usize,
 }
 
-#[derive(Debug, Clone)]
-pub enum SyntaxEnum<'a> {
-	Unit(Vec<Token<'a>>),
+impl<'src> Spanned for SyntaxTyDecl<'src> {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyntaxTy<'src> {
+	pub start: usize,
+	pub kind: SyntaxTyKind<'src>,
+	pub end: usize,
+}
+
+impl<'src> Spanned for SyntaxTy<'src> {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SyntaxTyKind<'src> {
+	Num(NumTy, Option<SyntaxRange<'src>>),
+	Str(Option<SyntaxRange<'src>>),
+	Arr(Box<SyntaxTy<'src>>, Option<SyntaxRange<'src>>),
+	Map(Box<SyntaxTy<'src>>, Box<SyntaxTy<'src>>),
+	Opt(Box<SyntaxTy<'src>>),
+	Ref(SyntaxIdentifier<'src>),
+
+	Enum(SyntaxEnum<'src>),
+	Struct(SyntaxStruct<'src>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyntaxEnum<'src> {
+	pub start: usize,
+	pub kind: SyntaxEnumKind<'src>,
+	pub end: usize,
+}
+
+impl<'src> Spanned for SyntaxEnum<'src> {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SyntaxEnumKind<'src> {
+	Unit(Vec<SyntaxIdentifier<'src>>),
 
 	Tagged {
-		tag: Token<'a>,
-		variants: Vec<(Token<'a>, SyntaxStruct<'a>)>,
+		tag: SyntaxIdentifier<'src>,
+		variants: Vec<(SyntaxIdentifier<'src>, SyntaxStruct<'src>)>,
 	},
 }
 
-#[derive(Debug, Clone)]
-pub struct SyntaxStruct<'a>(pub Vec<(Token<'a>, SyntaxTy<'a>)>);
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyntaxStruct<'src> {
+	pub start: usize,
+	pub fields: Vec<(SyntaxIdentifier<'src>, SyntaxTy<'src>)>,
+	pub end: usize,
+}
 
-#[derive(Debug, Clone)]
-pub enum SyntaxRange<'a> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SyntaxRange<'src> {
+	pub start: usize,
+	pub kind: SyntaxRangeKind<'src>,
+	pub end: usize,
+}
+
+impl<'src> Spanned for SyntaxRange<'src> {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyntaxRangeKind<'src> {
 	None,
+	Exact(SyntaxNumLit<'src>),
+	WithMin(SyntaxNumLit<'src>),
+	WithMax(SyntaxNumLit<'src>),
+	WithMinMax(SyntaxNumLit<'src>, SyntaxNumLit<'src>),
+}
 
-	// 0: numlit
-	WithMin(Token<'a>),
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SyntaxStrLit<'src> {
+	pub start: usize,
+	pub value: &'src str,
+	pub end: usize,
+}
 
-	// 0: numlit
-	WithMax(Token<'a>),
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct SyntaxNumLit<'src> {
+	pub start: usize,
+	pub value: &'src str,
+	pub end: usize,
+}
 
-	// 0: numlit 1: numlit
-	WithMinMax(Token<'a>, Token<'a>),
-	Exact(Token<'a>),
+impl<'src> SyntaxNumLit<'src> {
+	pub fn parse(&self) -> f64 {
+		self.value.parse().unwrap()
+	}
+}
+
+impl<'src> Spanned for SyntaxNumLit<'src> {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SyntaxBoolLit {
+	pub start: usize,
+	pub value: bool,
+	pub end: usize,
+}
+
+impl Spanned for SyntaxBoolLit {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SyntaxIdentifier<'src> {
+	pub start: usize,
+	pub name: &'src str,
+	pub end: usize,
+}
+
+impl<'src> Spanned for SyntaxIdentifier<'src> {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
 }

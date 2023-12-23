@@ -39,7 +39,7 @@ impl Display for Range {
 	}
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NumTy {
 	F32,
 	F64,
