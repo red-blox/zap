@@ -1,27 +1,15 @@
+mod config;
+mod irgen;
+mod output;
 mod parser;
-mod util;
 
-use thiserror::Error;
+use codespan_reporting::diagnostic::Diagnostic;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
-
-#[derive(Error, Debug)]
-pub enum Error {
-	#[error("Unable to parse config file: {0}")]
-	ParseError(String),
-	#[error("File System error: {0}")]
-	FSError(#[from] std::io::Error),
-	#[error("Unknown type referenced: `{0}`")]
-	UnknownTypeRef(String),
-	#[error("Duplicate type declared: `{0}`")]
-	DuplicateType(String),
-	#[error("Duplicate event declared: `{0}`")]
-	DuplicateEvent(String),
-}
 
 #[derive(Debug)]
 #[cfg(not(target_arch = "wasm32"))]
@@ -47,7 +35,7 @@ pub struct Code {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run(config: &str) -> Result<Code, Error> {
+pub fn run(input: &str) -> (Option<Code>, Vec<Diagnostic<()>>) {
 	//let file = parser::parse(config)?;
 
 	/*
@@ -67,6 +55,10 @@ pub fn run(config: &str) -> Result<Code, Error> {
 		},
 	})
 	*/
+
+	let (config, errors) = parser::parse(input);
+
+	if config.is_none() {}
 
 	todo!()
 }

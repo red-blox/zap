@@ -1,6 +1,6 @@
-use crate::util::{EvCall, EvSource, EvType, NumTy};
+use crate::config::{EvCall, EvSource, EvType, NumTy};
 
-trait Spanned {
+pub trait Spanned {
 	fn span(&self) -> core::ops::Range<usize>;
 
 	fn start(&self) -> usize {
@@ -49,6 +49,12 @@ pub struct SyntaxOptValue<'src> {
 	pub start: usize,
 	pub kind: SyntaxOptValueKind<'src>,
 	pub end: usize,
+}
+
+impl<'src> Spanned for SyntaxOptValue<'src> {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -119,6 +125,7 @@ pub enum SyntaxTyKind<'src> {
 
 	Enum(SyntaxEnum<'src>),
 	Struct(SyntaxStruct<'src>),
+	Instance(Option<SyntaxIdentifier<'src>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -139,7 +146,7 @@ pub enum SyntaxEnumKind<'src> {
 	Unit(Vec<SyntaxIdentifier<'src>>),
 
 	Tagged {
-		tag: SyntaxIdentifier<'src>,
+		tag: SyntaxStrLit<'src>,
 		variants: Vec<(SyntaxIdentifier<'src>, SyntaxStruct<'src>)>,
 	},
 }
@@ -180,17 +187,17 @@ pub struct SyntaxStrLit<'src> {
 	pub end: usize,
 }
 
+impl<'src> Spanned for SyntaxStrLit<'src> {
+	fn span(&self) -> core::ops::Range<usize> {
+		self.start..self.end
+	}
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct SyntaxNumLit<'src> {
+pub struct SyntaxNumLit<'src> {
 	pub start: usize,
 	pub value: &'src str,
 	pub end: usize,
-}
-
-impl<'src> SyntaxNumLit<'src> {
-	pub fn parse(&self) -> f64 {
-		self.value.parse().unwrap()
-	}
 }
 
 impl<'src> Spanned for SyntaxNumLit<'src> {

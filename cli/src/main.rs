@@ -2,6 +2,13 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::Parser;
+use codespan_reporting::{
+	files::SimpleFile,
+	term::{
+		self,
+		termcolor::{ColorChoice, StandardStream},
+	},
+};
 use zap::run;
 
 #[derive(Parser, Debug)]
@@ -16,26 +23,41 @@ fn main() -> Result<()> {
 
 	let config_path = args.config.unwrap();
 
-	let config = std::fs::read_to_string(config_path)?;
+	let config = std::fs::read_to_string(&config_path)?;
 
-	let code = run(config.as_str())?;
+	let (code, diagnostics) = run(config.as_str());
 
-	if let Some(definitions) = code.server.definitions {
-		let mut path = code.server.path.clone();
-		path.set_extension("d.ts");
+	if let Some(code) = code {
+		if let Some(definitions) = code.server.definitions {
+			let mut path = code.server.path.clone();
+			path.set_extension("d.ts");
 
-		std::fs::write(path, definitions)?
+			std::fs::write(path, definitions)?
+		}
+
+		if let Some(definitions) = code.client.definitions {
+			let mut path = code.client.path.clone();
+			path.set_extension("d.ts");
+
+			std::fs::write(path, definitions)?
+		}
+
+		std::fs::write(code.server.path, code.server.contents)?;
+		std::fs::write(code.client.path, code.client.contents)?;
 	}
 
-	if let Some(definitions) = code.client.definitions {
-		let mut path = code.client.path.clone();
-		path.set_extension("d.ts");
-
-		std::fs::write(path, definitions)?
+	if diagnostics.is_empty() {
+		return Ok(());
 	}
 
-	std::fs::write(code.server.path, code.server.contents)?;
-	std::fs::write(code.client.path, code.client.contents)?;
+	let file = SimpleFile::new(config_path.to_str().unwrap(), config);
 
-	Ok(())
+	let writer = StandardStream::stderr(ColorChoice::Always);
+	let config_term = codespan_reporting::term::Config::default();
+
+	for diagnostic in diagnostics {
+		term::emit(&mut writer.lock(), &config_term, &file, &diagnostic)?;
+	}
+
+	todo!()
 }
