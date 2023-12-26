@@ -59,5 +59,5 @@ fn main() -> Result<()> {
 		term::emit(&mut writer.lock(), &config_term, &file, &diagnostic)?;
 	}
 
-	todo!()
+	Ok(())
 }
