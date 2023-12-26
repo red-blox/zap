@@ -1,19 +1,16 @@
-use crate::{
-	parser::{EvCall, EvSource, File, TyDecl},
-	util::casing,
-};
+use crate::config::{Config, EvCall, EvSource, TyDecl};
 
 use super::Output;
 
-struct ClientOutput<'a> {
-	file: &'a File,
-	buff: String,
+struct ClientOutput<'src> {
+	config: &'src Config<'src>,
 	tabs: u32,
+	buf: String,
 }
 
 impl<'a> Output for ClientOutput<'a> {
 	fn push(&mut self, s: &str) {
-		self.buff.push_str(s);
+		self.buf.push_str(s);
 	}
 
 	fn indent(&mut self) {
@@ -31,11 +28,11 @@ impl<'a> Output for ClientOutput<'a> {
 	}
 }
 
-impl<'a> ClientOutput<'a> {
-	pub fn new(file: &'a File) -> Self {
+impl<'src> ClientOutput<'src> {
+	pub fn new(config: &'src Config<'src>) -> Self {
 		Self {
-			file,
-			buff: String::new(),
+			config,
+			buf: String::new(),
 			tabs: 0,
 		}
 	}
@@ -51,25 +48,25 @@ impl<'a> ClientOutput<'a> {
 	}
 
 	fn push_tydecls(&mut self) {
-		for tydecl in self.file.ty_decls.iter() {
+		for tydecl in &self.config.tydecls {
 			self.push_tydecl(tydecl);
 		}
 
-		if !self.file.ty_decls.is_empty() {
+		if !self.config.tydecls.is_empty() {
 			self.push("\n")
 		}
 	}
 
 	fn push_return_outgoing(&mut self) {
 		for (_i, ev) in self
-			.file
-			.ev_decls
+			.config
+			.evdecls
 			.iter()
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client)
 		{
-			let fire = casing(self.file.casing, "Fire", "fire", "fire");
-			let value = casing(self.file.casing, "Value", "value", "value");
+			let fire = self.config.casing.with("Fire", "fire", "fire");
+			let value = self.config.casing.with("Value", "value", "value");
 
 			self.push_line(&format!("export const {name}: {{", name = ev.name));
 			self.indent();
@@ -86,20 +83,20 @@ impl<'a> ClientOutput<'a> {
 
 	pub fn push_return_listen(&mut self) {
 		for (_i, ev) in self
-			.file
-			.ev_decls
+			.config
+			.evdecls
 			.iter()
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server)
 		{
 			let set_callback = match ev.call {
 				EvCall::SingleSync | EvCall::SingleAsync => {
-					casing(self.file.casing, "SetCallback", "setCallback", "set_callback")
+					self.config.casing.with("SetCallback", "setCallback", "set_callback")
 				}
-				EvCall::ManySync | EvCall::ManyAsync => casing(self.file.casing, "On", "on", "on"),
+				EvCall::ManySync | EvCall::ManyAsync => self.config.casing.with("On", "on", "on"),
 			};
-			let callback = casing(self.file.casing, "Callback", "callback", "callback");
-			let value = casing(self.file.casing, "Value", "value", "value");
+			let callback = self.config.casing.with("Callback", "callback", "callback");
+			let value = self.config.casing.with("Value", "value", "value");
 
 			self.push_line(&format!("export const {name}: {{", name = ev.name));
 			self.indent();
@@ -120,8 +117,8 @@ impl<'a> ClientOutput<'a> {
 	}
 
 	pub fn output(mut self) -> String {
-		if self.file.ev_decls.is_empty() {
-			return self.buff;
+		if self.config.evdecls.is_empty() {
+			return self.buf;
 		};
 
 		self.push_file_header("Client");
@@ -130,14 +127,14 @@ impl<'a> ClientOutput<'a> {
 
 		self.push_return();
 
-		self.buff
+		self.buf
 	}
 }
 
-pub fn code(file: &File) -> Option<String> {
-	if !file.typescript {
+pub fn code(config: &Config) -> Option<String> {
+	if !config.typescript {
 		return None;
 	}
 
-	Some(ClientOutput::new(file).output())
+	Some(ClientOutput::new(config).output())
 }

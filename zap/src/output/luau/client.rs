@@ -65,8 +65,8 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_tydecls(&mut self) {
-		for tydecl in self.config.tydecls {
-			self.push_tydecl(&tydecl);
+		for tydecl in &self.config.tydecls {
+			self.push_tydecl(tydecl);
 		}
 	}
 
@@ -405,6 +405,6 @@ impl<'src> ClientOutput<'src> {
 	}
 }
 
-pub fn code(file: &Config) -> String {
-	ClientOutput::new(file).output()
+pub fn code(config: &Config) -> String {
+	ClientOutput::new(config).output()
 }
