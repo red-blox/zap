@@ -15,37 +15,37 @@
 **Output:**
 
 <PluginTabs sharedStateKey="outputTab">
-	<PluginTabsTab label="Error" v-if="compiledResult.error">
+	<PluginTabsTab :label="!compiledResult.code ? 'Errors' : 'Warnings'" v-if="compiledResult.diagnostics">
 		<CodeBlock
-			:code="compiledResult.error"
+			:code="compiledResult.diagnostics"
+			lang="text"
+			:isCodeBlock="false"
+		/>
+	</PluginTabsTab>
+	<PluginTabsTab label="Client" v-if="compiledResult.code">
+		<CodeBlock
+			:code="compiledResult.code!.client.code"
 			lang="lua"
 			:isCodeBlock="false"
 		/>
 	</PluginTabsTab>
-	<PluginTabsTab label="Client" v-if="!compiledResult.error">
+	<PluginTabsTab label="Client (TS)" v-if="isTypeScript && compiledResult.code">
 		<CodeBlock
-			:code="compiledResult.client.contents"
-			lang="lua"
-			:isCodeBlock="false"
-		/>
-	</PluginTabsTab>
-	<PluginTabsTab label="Client (TS)" v-if="isTypeScript && !compiledResult.error">
-		<CodeBlock
-			:code="compiledResult.client.definitions"
+			:code="compiledResult.code!.client.defs"
 			lang="typescript"
 			:isCodeBlock="false"
 		/>
 	</PluginTabsTab>
-	<PluginTabsTab label="Server" v-if="!compiledResult.error">
+	<PluginTabsTab label="Server" v-if="compiledResult.code">
 		<CodeBlock
-			:code="compiledResult.server.contents"
+			:code="compiledResult.code!.server.code"
 			lang="lua"
 			:isCodeBlock="false"
 		/>
 	</PluginTabsTab>
-	<PluginTabsTab label="Server (TS)" v-if="isTypeScript && !compiledResult.error">
+	<PluginTabsTab label="Server (TS)" v-if="isTypeScript && compiledResult.code">
 		<CodeBlock
-			:code="compiledResult.server.definitions"
+			:code="compiledResult.code!.server.defs"
 			lang="typescript"
 			:isCodeBlock="false"
 		/>
@@ -59,7 +59,7 @@ import MonacoEditor from "@guolao/vue-monaco-editor";
 import type { Monaco } from "@monaco-editor/loader";
 import { useData, useRouter } from "vitepress";
 import { ref, watch, onMounted } from "vue";
-import { run, Code } from "../zap/package"
+import { run, Return as Code } from "../zap/package"
 
 type PlaygroundCode = Code | {
 	error?: string
@@ -77,14 +77,7 @@ const code = ref("");
 const isTypeScript = ref(false)
 const free = () => {};
 const compiledResult = ref<PlaygroundCode>({
-	client: {
-		contents: "-- Write some code to see output here!\n",
-		free,
-	},
-	server: {
-		contents: "-- Write some code to see output here!\n",
-		free,
-	},
+	diagnostics: "Write some code to see output here!\n",
 	free,
 })
 
@@ -115,26 +108,15 @@ watch(code, (newCode) => {
 	try {
 		compiledResult.value = run(newCode);
 
-		if (!compiledResult.value.client.contents && !compiledResult.value.server.contents) compiledResult.value = {
-			client: {
-				contents: "-- Add an event to see output here!\n",
-				free,
-			},
-			server: {
-				contents: "-- Add an event to see output here!\n",
-				free,
-			},
-			free,
-		}
-
-		if (compiledResult.value.client.definitions && compiledResult.value.server.definitions) {
+		if (compiledResult.value.code?.client.defs && compiledResult.value.code?.server.defs) {
 			isTypeScript.value = true
 		} else {
 			isTypeScript.value = false
 		}
 	} catch (err) {
 		compiledResult.value = {
-			error: `--[[\n${err.message}\n]]`
+			diagnostics: `--[[\n${err.message}\n]]`,
+			free
 		}
 
 		isTypeScript.value = false
