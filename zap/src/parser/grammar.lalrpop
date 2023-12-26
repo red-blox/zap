@@ -123,7 +123,7 @@ StrLit: SyntaxStrLit<'input> = {
 }
 
 NumLit: SyntaxNumLit<'input> = {
-    <start:@L> <value:r"\d+(\.\d*)?"> <end:@R> => SyntaxNumLit { start, value, end },
+    <start:@L> <value:r"-?\d+(\.\d+)?"> <end:@R> => SyntaxNumLit { start, value, end },
 }
 
 BoolLit: SyntaxBoolLit = {
