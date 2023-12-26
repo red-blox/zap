@@ -61,42 +61,42 @@ pub fn parse(input: &str) -> (Option<Config<'_>>, Vec<Diagnostic<()>>) {
 			}
 		}
 	} else {
-		(
-			None,
-			vec![match parse_result.unwrap_err() {
-				ParseError::InvalidToken { location } => Diagnostic::error()
-					.with_code("E0:001")
-					.with_message("invalid token")
-					.with_labels(vec![
-						Label::primary((), location..location).with_message("invalid token")
-					]),
+		let diagnostic = match parse_result.unwrap_err() {
+			ParseError::InvalidToken { location } => Diagnostic::error()
+				.with_code("E0:001")
+				.with_message("invalid token")
+				.with_labels(vec![
+					Label::primary((), location..location).with_message("invalid token")
+				]),
 
-				ParseError::UnrecognizedEof { location, expected } => Diagnostic::error()
-					.with_code("E0:002")
-					.with_message(format!("expected one of: {} but found EOF", expected.join(", ")))
-					.with_labels(vec![Label::primary((), location..location)
-						.with_message(format!("expected one of: {}", expected.join(", ")))]),
+			ParseError::UnrecognizedEof { location, expected } => Diagnostic::error()
+				.with_code("E0:002")
+				.with_message(format!("expected one of: {} but found EOF", expected.join(", ")))
+				.with_labels(vec![Label::primary((), location..location)
+					.with_message(format!("expected one of: {}", expected.join(", ")))]),
 
-				ParseError::UnrecognizedToken {
-					token: (start, token, end),
-					expected,
-				} => Diagnostic::error()
-					.with_code("E0:003")
-					.with_message(format!("expected one of: {} but found {}", expected.join(", "), token))
-					.with_labels(vec![Label::primary((), start..end)
-						.with_message(format!("expected one of: {}", expected.join(", ")))]),
+			ParseError::UnrecognizedToken {
+				token: (start, token, end),
+				expected,
+			} => Diagnostic::error()
+				.with_code("E0:003")
+				.with_message(format!("expected one of: {} but found {}", expected.join(", "), token))
+				.with_labels(vec![
+					Label::primary((), start..end).with_message(format!("expected one of: {}", expected.join(", ")))
+				]),
 
-				ParseError::ExtraToken {
-					token: (start, token, end),
-				} => Diagnostic::error()
-					.with_code("E0:004")
-					.with_message(format!("unexpected token {}", token))
-					.with_labels(vec![
-						Label::primary((), start..end).with_message(format!("unexpected token {}", token))
-					]),
+			ParseError::ExtraToken {
+				token: (start, token, end),
+			} => Diagnostic::error()
+				.with_code("E0:004")
+				.with_message(format!("unexpected token {}", token))
+				.with_labels(vec![
+					Label::primary((), start..end).with_message(format!("unexpected token {}", token))
+				]),
 
-				ParseError::User { .. } => unimplemented!("zap doesn't throw user errors, this is a bug!"),
-			}],
-		)
+			ParseError::User { .. } => unimplemented!("zap doesn't throw user errors, this is a bug!"),
+		};
+
+		(None, vec![diagnostic])
 	}
 }
