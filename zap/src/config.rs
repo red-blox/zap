@@ -18,7 +18,7 @@ impl<'src> Config<'src> {
 	}
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy)]
 pub enum Casing {
 	Pascal,
 	Camel,
