@@ -25,25 +25,33 @@ fn main() -> Result<()> {
 
 	let config = std::fs::read_to_string(&config_path)?;
 
-	let (code, diagnostics) = run(config.as_str());
+	let ret = run(config.as_str());
+
+	let code = ret.code;
+	let diagnostics = ret.diagnostics;
 
 	if let Some(code) = code {
-		if let Some(definitions) = code.server.definitions {
-			let mut path = code.server.path.clone();
-			path.set_extension("d.ts");
+		let server_path = code.server.path.unwrap_or(PathBuf::from("net/server.lua"));
+		let client_path = code.client.path.unwrap_or(PathBuf::from("net/client.lua"));
 
-			std::fs::write(path, definitions)?
+		if let Some(parent) = server_path.parent() {
+			std::fs::create_dir_all(parent)?;
 		}
 
-		if let Some(definitions) = code.client.definitions {
-			let mut path = code.client.path.clone();
-			path.set_extension("d.ts");
-
-			std::fs::write(path, definitions)?
+		if let Some(parent) = client_path.parent() {
+			std::fs::create_dir_all(parent)?;
 		}
 
-		std::fs::write(code.server.path, code.server.contents)?;
-		std::fs::write(code.client.path, code.client.contents)?;
+		std::fs::write(server_path.clone(), code.server.code)?;
+		std::fs::write(client_path.clone(), code.client.code)?;
+
+		if let Some(defs) = code.server.defs {
+			std::fs::write(server_path.with_extension("d.ts"), defs)?;
+		}
+
+		if let Some(defs) = code.client.defs {
+			std::fs::write(client_path.with_extension("d.ts"), defs)?;
+		}
 	}
 
 	if diagnostics.is_empty() {
