@@ -1,3 +1,5 @@
+use std::{collections::HashSet, fmt::Display};
+
 #[derive(Debug, Clone)]
 pub struct Config<'src> {
 	pub tydecls: Vec<TyDecl<'src>>,
@@ -170,8 +172,6 @@ impl<'src> Struct<'src> {
 		Some(size)
 	}
 }
-
-use std::{collections::HashSet, fmt::Display};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Range {
