@@ -9,7 +9,10 @@ use wasm_bindgen::prelude::*;
 #[cfg(not(target_arch = "wasm32"))]
 use codespan_reporting::diagnostic::Diagnostic;
 #[cfg(target_arch = "wasm32")]
-use codespan_reporting::{term::{termcolor::NoColor, self}, files::SimpleFile};
+use codespan_reporting::{
+	files::SimpleFile,
+	term::{self, termcolor::NoColor},
+};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
@@ -87,14 +90,14 @@ pub fn run(input: &str) -> Return {
 
 	let mut writer = NoColor::new(Vec::new());
 
-    let file = SimpleFile::new("input.zap", input);
-    let term_config = term::Config::default();
+	let file = SimpleFile::new("input.zap", input);
+	let term_config = term::Config::default();
 
-    for diagnostic in diagnostics {
-        term::emit(&mut writer, &term_config, &file, &diagnostic).unwrap();
-    }
+	for diagnostic in diagnostics {
+		term::emit(&mut writer, &term_config, &file, &diagnostic).unwrap();
+	}
 
-    let diagnostics = String::from_utf8(writer.into_inner()).unwrap();
+	let diagnostics = String::from_utf8(writer.into_inner()).unwrap();
 
 	if let Some(config) = config {
 		Return {
