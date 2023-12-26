@@ -25,28 +25,28 @@ pub fn convert(syntax_config: SyntaxConfig<'_>) -> (Config<'_>, Vec<Diagnostic<(
 
 	let config = syntax_config.into_config(&mut state);
 
-	(config, state.into_daigs())
+	(config, state.into_diagnostics())
 }
 
 struct ConvertState<'src> {
-	daigs: Vec<Diagnostic<()>>,
+	diagnostics: Vec<Diagnostic<()>>,
 	tydecls: HashSet<&'src str>,
 }
 
 impl<'src> ConvertState<'src> {
 	fn new(tydecls: HashSet<&'src str>) -> Self {
 		Self {
-			daigs: Vec::new(),
+			diagnostics: Vec::new(),
 			tydecls,
 		}
 	}
 
 	fn push_diag(&mut self, diag: Diagnostic<()>) {
-		self.daigs.push(diag);
+		self.diagnostics.push(diag);
 	}
 
-	fn into_daigs(self) -> Vec<Diagnostic<()>> {
-		self.daigs
+	fn into_diagnostics(self) -> Vec<Diagnostic<()>> {
+		self.diagnostics
 	}
 
 	fn tydecl_exists(&self, name: &'src str) -> bool {
