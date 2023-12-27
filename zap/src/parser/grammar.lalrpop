@@ -1,7 +1,13 @@
-use crate::parser::syntax_tree::*;
+use crate::parser::{reports::Report, syntax_tree::*};
 use crate::config::{EvCall, EvSource, EvType, NumTy};
 
+use lalrpop_util::ParseError;
+
 grammar;
+
+extern {
+    type Error = Report<'input>;
+}
 
 match {
     r"\s*" => { },
@@ -68,20 +74,20 @@ Ty: SyntaxTy<'input> = {
 }
 
 TyKind: SyntaxTyKind<'input> = {
-    "f32" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::F32, r),
-    "f64" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::F64, r),
+    "f32" <r:("(" <NumRange> ")")?> => SyntaxTyKind::Num(NumTy::F32, r),
+    "f64" <r:("(" <NumRange> ")")?> => SyntaxTyKind::Num(NumTy::F64, r),
 
-    "i8" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::I8, r),
-    "i16" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::I16, r),
-    "i32" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::I32, r),
+    "i8" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::I8, r),
+    "i16" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::I16, r),
+    "i32" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::I32, r),
 
-    "u8" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::U8, r),
-    "u16" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::U16, r),
-    "u32" <r:("(" <Range> ")")?> => SyntaxTyKind::Num(NumTy::U32, r),
+    "u8" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U8, r),
+    "u16" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U16, r),
+    "u32" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U32, r),
 
-    "string" <r:("(" <Range> ")")?> => SyntaxTyKind::Str(r),
+    "string" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Str(r),
 
-    <ty:Ty> "[" <r:Range?> "]" => SyntaxTyKind::Arr(Box::new(ty), r),
+    <ty:Ty> "[" <r:IntRange?> "]" => SyntaxTyKind::Arr(Box::new(ty), r),
     "map" "{" "[" <k:Ty> "]" ":" <v:Ty> "}" => SyntaxTyKind::Map(Box::new(k), Box::new(v)),
 
     <ty:Ty> "?" => SyntaxTyKind::Opt(Box::new(ty)),
@@ -106,11 +112,23 @@ Struct: SyntaxStruct<'input> = {
     <start:@L> "{" <fields:Comma<(<Identifier> ":" <Ty>)>> "}" <end:@R> => SyntaxStruct { start, fields, end },
 }
 
-Range: SyntaxRange<'input> = {
-    <start:@L> <kind:RangeKind> <end:@R> => SyntaxRange { start, kind, end },
+IntRange: SyntaxRange<'input> = {
+    <start:@L> <kind:IntRangeKind> <end:@R> => SyntaxRange { start, kind, end },
 }
 
-RangeKind: SyntaxRangeKind<'input> = {
+IntRangeKind: SyntaxRangeKind<'input> = {
+    ".." => SyntaxRangeKind::None,
+    <n:IntLit> => SyntaxRangeKind::Exact(n),
+    <min:IntLit> ".." => SyntaxRangeKind::WithMin(min),
+    ".." <max:IntLit> => SyntaxRangeKind::WithMax(max),
+    <min:IntLit> ".." <max:IntLit> => SyntaxRangeKind::WithMinMax(min, max),
+}
+
+NumRange: SyntaxRange<'input> = {
+    <start:@L> <kind:NumRangeKind> <end:@R> => SyntaxRange { start, kind, end },
+}
+
+NumRangeKind: SyntaxRangeKind<'input> = {
     ".." => SyntaxRangeKind::None,
     <n:NumLit> => SyntaxRangeKind::Exact(n),
     <min:NumLit> ".." => SyntaxRangeKind::WithMin(min),
@@ -120,6 +138,18 @@ RangeKind: SyntaxRangeKind<'input> = {
 
 StrLit: SyntaxStrLit<'input> = {
     <start:@L> <value:r#""[^"]*""#> <end:@R> => SyntaxStrLit { start, value, end },
+}
+
+IntLit: SyntaxNumLit<'input> = {
+    <n:NumLit> =>? {
+        if n.value.contains('.') {
+            Err(ParseError::User {
+                error: Report::ParserExpectedInt { span: n.span() }
+            })
+        } else {
+            Ok(n)
+        }
+    }
 }
 
 NumLit: SyntaxNumLit<'input> = {

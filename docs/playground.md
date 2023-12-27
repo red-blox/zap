@@ -24,28 +24,28 @@
 	</PluginTabsTab>
 	<PluginTabsTab label="Client" v-if="compiledResult.code">
 		<CodeBlock
-			:code="compiledResult.code!.client.code"
+			:code="compiledResult.code.client.code"
 			lang="lua"
 			:isCodeBlock="false"
 		/>
 	</PluginTabsTab>
 	<PluginTabsTab label="Client (TS)" v-if="isTypeScript && compiledResult.code">
 		<CodeBlock
-			:code="compiledResult.code!.client.defs"
+			:code="compiledResult.code.client.defs"
 			lang="typescript"
 			:isCodeBlock="false"
 		/>
 	</PluginTabsTab>
 	<PluginTabsTab label="Server" v-if="compiledResult.code">
 		<CodeBlock
-			:code="compiledResult.code!.server.code"
+			:code="compiledResult.code.server.code"
 			lang="lua"
 			:isCodeBlock="false"
 		/>
 	</PluginTabsTab>
 	<PluginTabsTab label="Server (TS)" v-if="isTypeScript && compiledResult.code">
 		<CodeBlock
-			:code="compiledResult.code!.server.defs"
+			:code="compiledResult.code.server.defs"
 			lang="typescript"
 			:isCodeBlock="false"
 		/>
@@ -59,11 +59,8 @@ import MonacoEditor from "@guolao/vue-monaco-editor";
 import type { Monaco } from "@monaco-editor/loader";
 import { useData, useRouter } from "vitepress";
 import { ref, watch, onMounted } from "vue";
-import { run, Return as Code } from "../zap/package"
-
-type PlaygroundCode = Code | {
-	error?: string
-}
+import { run } from "../zap/package";
+import type { Return as PlaygroundCode } from "../zap/package";
 
 const { isDark } = useData();
 const { go } = useRouter();

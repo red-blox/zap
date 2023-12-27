@@ -57,7 +57,7 @@ pub struct Return {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn run(input: &str) -> Return {
-	let (config, diagnostics) = parser::parse(input);
+	let (config, reports) = parser::parse(input);
 
 	if let Some(config) = config {
 		Return {
@@ -73,12 +73,12 @@ pub fn run(input: &str) -> Return {
 					defs: output::typescript::client::code(&config),
 				},
 			}),
-			diagnostics,
+			diagnostics: reports.into_iter().map(|report| report.into()).collect(),
 		}
 	} else {
 		Return {
 			code: None,
-			diagnostics,
+			diagnostics: reports.into_iter().map(|report| report.into()).collect(),
 		}
 	}
 }
@@ -86,15 +86,15 @@ pub fn run(input: &str) -> Return {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn run(input: &str) -> Return {
-	let (config, diagnostics) = parser::parse(input);
+	let (config, reports) = parser::parse(input);
 
 	let mut writer = NoColor::new(Vec::new());
 
 	let file = SimpleFile::new("input.zap", input);
 	let term_config = term::Config::default();
 
-	for diagnostic in diagnostics {
-		term::emit(&mut writer, &term_config, &file, &diagnostic).unwrap();
+	for report in reports {
+		term::emit(&mut writer, &term_config, &file, &report.into()).unwrap();
 	}
 
 	let diagnostics = String::from_utf8(writer.into_inner()).unwrap();

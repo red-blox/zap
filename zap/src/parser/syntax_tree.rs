@@ -1,7 +1,9 @@
 use crate::config::{EvCall, EvSource, EvType, NumTy};
 
+use super::reports::Span;
+
 pub trait Spanned {
-	fn span(&self) -> core::ops::Range<usize>;
+	fn span(&self) -> Span;
 
 	fn start(&self) -> usize {
 		self.span().start
@@ -25,7 +27,7 @@ pub struct SyntaxConfig<'src> {
 }
 
 impl<'src> Spanned for SyntaxConfig<'src> {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
@@ -39,7 +41,7 @@ pub struct SyntaxOpt<'src> {
 }
 
 impl<'src> Spanned for SyntaxOpt<'src> {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
@@ -52,7 +54,7 @@ pub struct SyntaxOptValue<'src> {
 }
 
 impl<'src> Spanned for SyntaxOptValue<'src> {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
@@ -82,7 +84,7 @@ pub struct SyntaxEvDecl<'src> {
 }
 
 impl<'src> Spanned for SyntaxEvDecl<'src> {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
@@ -96,7 +98,7 @@ pub struct SyntaxTyDecl<'src> {
 }
 
 impl<'src> Spanned for SyntaxTyDecl<'src> {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
@@ -109,7 +111,7 @@ pub struct SyntaxTy<'src> {
 }
 
 impl<'src> Spanned for SyntaxTy<'src> {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
@@ -136,7 +138,7 @@ pub struct SyntaxEnum<'src> {
 }
 
 impl<'src> Spanned for SyntaxEnum<'src> {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
@@ -166,7 +168,7 @@ pub struct SyntaxRange<'src> {
 }
 
 impl<'src> Spanned for SyntaxRange<'src> {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
@@ -188,7 +190,7 @@ pub struct SyntaxStrLit<'src> {
 }
 
 impl<'src> Spanned for SyntaxStrLit<'src> {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
@@ -201,7 +203,7 @@ pub struct SyntaxNumLit<'src> {
 }
 
 impl<'src> Spanned for SyntaxNumLit<'src> {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
@@ -214,7 +216,7 @@ pub struct SyntaxBoolLit {
 }
 
 impl Spanned for SyntaxBoolLit {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
@@ -227,7 +229,7 @@ pub struct SyntaxIdentifier<'src> {
 }
 
 impl<'src> Spanned for SyntaxIdentifier<'src> {
-	fn span(&self) -> core::ops::Range<usize> {
+	fn span(&self) -> Span {
 		self.start..self.end
 	}
 }
