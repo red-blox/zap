@@ -15,10 +15,10 @@ pub fn convert(syntax_config: SyntaxConfig<'_>) -> (Config<'_>, Vec<Diagnostic<(
 		syntax_config
 			.decls
 			.iter()
-			.filter(|decl| matches!(decl, SyntaxDecl::Ty(_)))
-			.map(|decl| match decl {
-				SyntaxDecl::Ty(tydecl) => tydecl.name.name,
-				_ => unreachable!(),
+			.filter_map(|decl| match decl {
+				SyntaxDecl::Ty(tydecl) => Some(tydecl.name.name),
+
+				_ => None,
 			})
 			.collect(),
 	);
