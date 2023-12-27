@@ -145,7 +145,7 @@ impl<'src> Spanned for SyntaxEnum<'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SyntaxEnumKind<'src> {
-	Unit(Vec<SyntaxIdentifier<'src>>),
+	Unit(Vec<SyntaxStrLit<'src>>),
 
 	Tagged {
 		tag: SyntaxStrLit<'src>,
