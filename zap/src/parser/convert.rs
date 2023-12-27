@@ -105,19 +105,19 @@ impl<'src> SyntaxConfig<'src> {
 
 				"casing" => match opt.value.kind {
 					SyntaxOptValueKind::Str(value) => match value.into_config() {
-						"pascal" => casing = Casing::Pascal,
-						"camel" => casing = Casing::Camel,
-						"snake" => casing = Casing::Snake,
+						"PascalCase" => casing = Casing::Pascal,
+						"camelCase" => casing = Casing::Camel,
+						"snake_case" => casing = Casing::Snake,
 
 						_ => state.push_report(Report::SemanticInvalidOptValue {
 							span: opt.value.span(),
-							expected: "`pascal`, `camel`, or `snake`",
+							expected: "`PascalCase`, `camelCase`, or `snake_case`",
 						}),
 					},
 
 					_ => state.push_report(Report::SemanticInvalidOptValue {
 						span: opt.value.span(),
-						expected: "`pascal`, `camel`, or `snake`",
+						expected: "`PascalCase`, `camelCase`, or `snake_case`",
 					}),
 				},
 
