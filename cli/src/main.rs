@@ -60,7 +60,7 @@ fn main() -> Result<()> {
 
 	let file = SimpleFile::new(config_path.to_str().unwrap(), config);
 
-	let writer = StandardStream::stderr(ColorChoice::Always);
+	let writer = StandardStream::stderr(ColorChoice::Auto);
 	let config_term = codespan_reporting::term::Config::default();
 
 	for diagnostic in diagnostics {
