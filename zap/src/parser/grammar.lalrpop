@@ -87,13 +87,13 @@ TyKind: SyntaxTyKind<'input> = {
     <ty:Ty> "?" => SyntaxTyKind::Opt(Box::new(ty)),
     <name:Identifier> => SyntaxTyKind::Ref(name),
 
-    <e:Enum> => SyntaxTyKind::Enum(e),
-    <s:Struct> => SyntaxTyKind::Struct(s),
+    "enum" <e:Enum> => SyntaxTyKind::Enum(e),
+    "struct" <s:Struct> => SyntaxTyKind::Struct(s),
     "Instance" <c:("(" <Identifier> ")")?> => SyntaxTyKind::Instance(c),
 }
 
 Enum: SyntaxEnum<'input> = {
-    <start:@L> "enum" <kind:EnumKind> <end:@R> => SyntaxEnum { start, kind, end },
+    <start:@L> <kind:EnumKind> <end:@R> => SyntaxEnum { start, kind, end },
 }
 
 EnumKind: SyntaxEnumKind<'input> = {
@@ -103,7 +103,7 @@ EnumKind: SyntaxEnumKind<'input> = {
 }
 
 Struct: SyntaxStruct<'input> = {
-    <start:@L> "struct" "{" <fields:Comma<(<Identifier> ":" <Ty>)>> "}" <end:@R> => SyntaxStruct { start, fields, end },
+    <start:@L> "{" <fields:Comma<(<Identifier> ":" <Ty>)>> "}" <end:@R> => SyntaxStruct { start, fields, end },
 }
 
 Range: SyntaxRange<'input> = {
