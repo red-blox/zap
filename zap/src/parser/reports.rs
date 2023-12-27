@@ -124,22 +124,22 @@ impl<'src> Report<'src> {
 
 	fn code(&self) -> &str {
 		match self {
-			Self::LexerInvalidToken { .. } => "lex:001",
+			Self::LexerInvalidToken { .. } => "1001",
 
-			Self::ParserUnexpectedEOF { .. } => "parse:002",
-			Self::ParserUnexpectedToken { .. } => "parse:003",
-			Self::ParserExtraToken { .. } => "parse:004",
-			Self::ParserExpectedInt { .. } => "parse:005",
+			Self::ParserUnexpectedEOF { .. } => "2001",
+			Self::ParserUnexpectedToken { .. } => "2002",
+			Self::ParserExtraToken { .. } => "2003",
+			Self::ParserExpectedInt { .. } => "2004",
 
-			Self::SemanticOversizeUnreliable { .. } => "analyze:006",
-			Self::SemanticPotentiallyOversizeUnreliable { .. } => "analyze:007",
-			Self::SemanticInvalidRange { .. } => "analyze:008",
-			Self::SemanticEmptyEnum { .. } => "analyze:009",
-			Self::SemanticEnumTagUsed { .. } => "analyze:010",
-			Self::SemanticInvalidOptValue { .. } => "analyze:011",
-			Self::SemanticUnknownOptName { .. } => "analyze:012",
-			Self::SemanticUnknownTypeRef { .. } => "analyze:013",
-			Self::SemanticNumOutsideRange { .. } => "analyze:014",
+			Self::SemanticOversizeUnreliable { .. } => "3001",
+			Self::SemanticPotentiallyOversizeUnreliable { .. } => "3002",
+			Self::SemanticInvalidRange { .. } => "3003",
+			Self::SemanticEmptyEnum { .. } => "3004",
+			Self::SemanticEnumTagUsed { .. } => "3005",
+			Self::SemanticInvalidOptValue { .. } => "3006",
+			Self::SemanticUnknownOptName { .. } => "3007",
+			Self::SemanticUnknownTypeRef { .. } => "3008",
+			Self::SemanticNumOutsideRange { .. } => "3009",
 		}
 	}
 
