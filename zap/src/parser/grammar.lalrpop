@@ -1,17 +1,12 @@
-use std::collections::HashSet;
-use std::str::FromStr;
-
-use crate::Error;
-use crate::util::Range;
-use crate::parser::*;
-use crate::parser::working_ast::*;
+use crate::parser::{reports::Report, syntax_tree::*};
+use crate::config::{EvCall, EvSource, EvType, NumTy};
 
 use lalrpop_util::ParseError;
 
-grammar(ref_decl: &mut HashSet<String>, ref_used: &mut HashSet<String>, ev_names: &mut HashSet<String>);
+grammar;
 
 extern {
-	type Error = Error;
+    type Error = Report<'input>;
 }
 
 match {
@@ -21,169 +16,158 @@ match {
 	_
 }
 
-pub File: File = <opts:Opt*> <decls:Decl*> => {
-	let mut ty_decls = Vec::new();
-	let mut ev_decls = Vec::new();
-
-	for decl in decls {
-		match decl {
-			Decl::Ty(decl) => ty_decls.push(decl),
-			Decl::Ev(decl) => ev_decls.push(decl),
-		}
-	}
-
-	let mut casing = Casing::Pascal;
-	let mut typescript = false;
-	let mut write_checks = false;
-
-	let mut server_output = PathBuf::from("network/server.luau");
-	let mut client_output = PathBuf::from("network/client.luau");
-
-	for opt in opts {
-		match opt {
-			Opt::Casing(v) => casing = v,
-			Opt::TypeScript(v) => typescript = v,
-			Opt::WriteChecks(v) => write_checks = v,
-			Opt::ServerOutput(v) => server_output = v, 
-			Opt::ClientOutput(v) => client_output = v, 
-		}
-	}
-
-	File { ty_decls, ev_decls, casing, typescript, write_checks, server_output, client_output }
-};
-
-Opt: Opt = {
-	"opt" "casing" "=" "camelCase" => Opt::Casing(Casing::Camel),
-	"opt" "casing" "=" "snake_case" => Opt::Casing(Casing::Snake),
-	"opt" "casing" "=" "PascalCase" => Opt::Casing(Casing::Pascal),
-
-	"opt" "typescript" "=" "true" => Opt::TypeScript(true),
-	"opt" "typescript" "=" "false" => Opt::TypeScript(false),
-
-	"opt" "write_checks" "=" "true" => Opt::WriteChecks(true),
-	"opt" "write_checks" "=" "false" => Opt::WriteChecks(false),
-
-	"opt" "output_server" "=" <r"[^\s]+\.luau?"> => Opt::ServerOutput(PathBuf::from(<>)),
-	"opt" "output_client" "=" <r"[^\s]+\.luau?"> => Opt::ClientOutput(PathBuf::from(<>)),
+pub Config: SyntaxConfig<'input> = {
+    <start:@L> <opts:Opt*> <decls:Decl*> <end:@R> => SyntaxConfig { start, opts, decls, end },
 }
 
-Decl: Decl = {
-	<decl:TyDecl> => Decl::Ty(decl),
-	<decl:EvDecl> => Decl::Ev(decl),
+Opt: SyntaxOpt<'input> = {
+    <start:@L> "opt" <name:Identifier> "=" <value:OptValue> ";"? <end:@R> => SyntaxOpt { start, name, value, end },
 }
 
-EvDecl: EvDecl = "event" <name:Word> "=" "{" <fields:Comma<EvField>> "}" =>? {
-	if !ev_names.insert(name.clone()) {
-		return Err(ParseError::User {
-			error: Error::DuplicateEvent(name),
-		})
-	}
-
-	let mut from = EvSource::Server;
-	let mut evty = EvType::Reliable;
-	let mut call = EvCall::SingleSync;
-	let mut data = Ty::Bool;
-
-	for field in fields {
-		match field {
-			EvField::From(v) => from = v,
-			EvField::Type(v) => evty = v,
-			EvField::Call(v) => call = v,
-			EvField::Data(v) => data = v,
-		}
-	}
-
-	Ok(EvDecl {
-		name,
-		from,
-		evty,
-		call,
-		data,
-	})
-};
-
-EvField: EvField = {
-	"from" ":" "Server" => EvField::From(EvSource::Server),
-	"from" ":" "Client" => EvField::From(EvSource::Client),
-
-	"type" ":" "Reliable" => EvField::Type(EvType::Reliable),
-	"type" ":" "Unreliable" => EvField::Type(EvType::Unreliable),
-
-	"data" ":" <ty:Ty> => EvField::Data(ty),
-
-	"call" ":" "SingleSync" => EvField::Call(EvCall::SingleSync),
-	"call" ":" "SingleAsync" => EvField::Call(EvCall::SingleAsync),
-	"call" ":" "ManySync" => EvField::Call(EvCall::ManySync),
-	"call" ":" "ManyAsync" => EvField::Call(EvCall::ManyAsync),
+OptValue: SyntaxOptValue<'input> = {
+    <start:@L> <kind:OptValueKind> <end:@R> => SyntaxOptValue { start, kind, end },
 }
 
-TyDecl: TyDecl = "type" <name:Word> "=" <ty:Ty> =>? {
-	if !ref_decl.insert(name.clone()) {
-		Err(ParseError::User {
-			error: Error::DuplicateType(name),
-		})
-	} else {
-		Ok(TyDecl { name, ty })
-	}
-};
-
-Ty: Ty = {
-	"bool" => Ty::Bool,
-
-	"f32" <r:("(" <Range> ")")?> => Ty::F32(r.unwrap_or_default().cast()),
-	"f64" <r:("(" <Range> ")")?> => Ty::F64(r.unwrap_or_default().cast()),
-
-	"i8" <r:("(" <Range> ")")?> => Ty::I8(r.unwrap_or_default().cast()),
-	"i16" <r:("(" <Range> ")")?> => Ty::I16(r.unwrap_or_default().cast()),
-	"i32" <r:("(" <Range> ")")?> => Ty::I32(r.unwrap_or_default().cast()),
-
-	"u8" <r:("(" <Range> ")")?> => Ty::U8(r.unwrap_or_default().cast()),
-	"u16" <r:("(" <Range> ")")?> => Ty::U16(r.unwrap_or_default().cast()),
-	"u32" <r:("(" <Range> ")")?> => Ty::U32(r.unwrap_or_default().cast()),
-
-	"String" <r:("(" <Range> ")")?> => Ty::Str { len: r.unwrap_or_default().cast() },
-	<ty:Ty> "[" <r:Range?> "]" => Ty::Arr { ty: Box::new(ty), len: r.unwrap_or_default().cast() },
-	"{" "[" <key:Ty> "]:" <val:Ty> "}" => Ty::Map { key: Box::new(key), val: Box::new(val) },
-	
-	"{" <fields:Comma<(<Word> ":" <Ty>)>> "}" => Ty::Struct { fields },
-	"(" <variants:Comma<(<Word>)>> ")" => Ty::Enum { variants },
-
-	"Instance" <class:("(" <Word> ")")?> => Ty::Instance(false, class),
-
-	"Vector3" => Ty::Vector3,
-
-	<name:Word> => {
-		ref_used.insert(name.clone());
-		Ty::Ref(name)
-	},
-
-	<ty:Ty> "?" => match ty {
-		Ty::Instance(_, class) => Ty::Instance(true, class),
-
-		_ => Ty::Optional(Box::new(ty)),
-	},
+OptValueKind: SyntaxOptValueKind<'input> = {
+    StrLit => SyntaxOptValueKind::Str(<>),
+    NumLit => SyntaxOptValueKind::Num(<>),
+    BoolLit => SyntaxOptValueKind::Bool(<>),
 }
 
-Range: Range<f64> = {
-	".." => Range::default(),
+Decl: SyntaxDecl<'input> = {
+    <decl:EvDecl> => SyntaxDecl::Ev(decl),
+    <decl:TyDecl> => SyntaxDecl::Ty(decl),
+}
 
-	".." <max:Number> => Range::new(None, Some(max)),
+EvDecl: SyntaxEvDecl<'input> = {
+    <start:@L> "event" <name:Identifier> "=" "{"
+        "from" ":" <from:EvSource> ","
+        "type" ":" <evty:EvTy> ","
+        "call" ":" <call:EvCall> ","
+        "data" ":" <data:Ty> ","?
+    "}" ";"? <end:@R> => SyntaxEvDecl { start, name, from, evty, call, data, end },
+}
 
-	<min:Number> ".." => Range::new(Some(min), None),
+EvCall: EvCall = {
+    "SingleSync" => EvCall::SingleSync,
+    "SingleAsync" => EvCall::SingleAsync,
+    "ManySync" => EvCall::ManySync,
+    "ManyAsync" => EvCall::ManyAsync,
+}
 
-	<num:Number> => Range::new(Some(num), Some(num)),
-	<min:Number> ".." <max:Number> => Range::new(Some(min), Some(max)),
+EvTy: EvType = {
+    "Reliable" => EvType::Reliable,
+    "Unreliable" => EvType::Unreliable,
+}
+
+EvSource: EvSource = {
+    "Server" => EvSource::Server,
+    "Client" => EvSource::Client,
+}
+
+TyDecl: SyntaxTyDecl<'input> = {
+    <start:@L> "type" <name:Identifier> "=" <ty:Ty> ";"? <end:@R> => SyntaxTyDecl { start, name, ty, end },
+}
+
+Ty: SyntaxTy<'input> = {
+    <start:@L> <kind:TyKind> <end:@R> => SyntaxTy { start, kind, end },
+}
+
+TyKind: SyntaxTyKind<'input> = {
+    "f32" <r:("(" <NumRange> ")")?> => SyntaxTyKind::Num(NumTy::F32, r),
+    "f64" <r:("(" <NumRange> ")")?> => SyntaxTyKind::Num(NumTy::F64, r),
+
+    "i8" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::I8, r),
+    "i16" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::I16, r),
+    "i32" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::I32, r),
+
+    "u8" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U8, r),
+    "u16" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U16, r),
+    "u32" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U32, r),
+
+    "string" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Str(r),
+
+    <ty:Ty> "[" <r:IntRange?> "]" => SyntaxTyKind::Arr(Box::new(ty), r),
+    "map" "{" "[" <k:Ty> "]" ":" <v:Ty> "}" => SyntaxTyKind::Map(Box::new(k), Box::new(v)),
+
+    <ty:Ty> "?" => SyntaxTyKind::Opt(Box::new(ty)),
+    <name:Identifier> => SyntaxTyKind::Ref(name),
+
+    "enum" <e:Enum> => SyntaxTyKind::Enum(e),
+    "struct" <s:Struct> => SyntaxTyKind::Struct(s),
+    "Instance" <c:("(" <Identifier> ")")?> => SyntaxTyKind::Instance(c),
+}
+
+Enum: SyntaxEnum<'input> = {
+    <start:@L> <kind:EnumKind> <end:@R> => SyntaxEnum { start, kind, end },
+}
+
+EnumKind: SyntaxEnumKind<'input> = {
+    "{" <enumerators:Comma<Identifier>> "}" => SyntaxEnumKind::Unit(enumerators),
+
+    <tag:StrLit> "{" <variants:Comma<(<Identifier> <Struct>)>> "}" => SyntaxEnumKind::Tagged { tag, variants },
+}
+
+Struct: SyntaxStruct<'input> = {
+    <start:@L> "{" <fields:Comma<(<Identifier> ":" <Ty>)>> "}" <end:@R> => SyntaxStruct { start, fields, end },
+}
+
+IntRange: SyntaxRange<'input> = {
+    <start:@L> <kind:IntRangeKind> <end:@R> => SyntaxRange { start, kind, end },
+}
+
+IntRangeKind: SyntaxRangeKind<'input> = {
+    ".." => SyntaxRangeKind::None,
+    <n:IntLit> => SyntaxRangeKind::Exact(n),
+    <min:IntLit> ".." => SyntaxRangeKind::WithMin(min),
+    ".." <max:IntLit> => SyntaxRangeKind::WithMax(max),
+    <min:IntLit> ".." <max:IntLit> => SyntaxRangeKind::WithMinMax(min, max),
+}
+
+NumRange: SyntaxRange<'input> = {
+    <start:@L> <kind:NumRangeKind> <end:@R> => SyntaxRange { start, kind, end },
+}
+
+NumRangeKind: SyntaxRangeKind<'input> = {
+    ".." => SyntaxRangeKind::None,
+    <n:NumLit> => SyntaxRangeKind::Exact(n),
+    <min:NumLit> ".." => SyntaxRangeKind::WithMin(min),
+    ".." <max:NumLit> => SyntaxRangeKind::WithMax(max),
+    <min:NumLit> ".." <max:NumLit> => SyntaxRangeKind::WithMinMax(min, max),
+}
+
+StrLit: SyntaxStrLit<'input> = {
+    <start:@L> <value:r#""[^"]*""#> <end:@R> => SyntaxStrLit { start, value, end },
+}
+
+IntLit: SyntaxNumLit<'input> = {
+    <n:NumLit> =>? {
+        if n.value.contains('.') {
+            Err(ParseError::User {
+                error: Report::ParserExpectedInt { span: n.span() }
+            })
+        } else {
+            Ok(n)
+        }
+    }
+}
+
+NumLit: SyntaxNumLit<'input> = {
+    <start:@L> <value:r"-?\d+(\.\d+)?"> <end:@R> => SyntaxNumLit { start, value, end },
+}
+
+BoolLit: SyntaxBoolLit = {
+    <start:@L> "true" <end:@R> => SyntaxBoolLit { start, value: true, end },
+    <start:@L> "false" <end:@R> => SyntaxBoolLit { start, value: false, end },
+}
+
+Identifier: SyntaxIdentifier<'input> = {
+    <start:@L> <name:r"[a-zA-Z_][a-zA-Z0-9_]*"> <end:@R> => SyntaxIdentifier { start, name, end },
 }
 
 Comma<T>: Vec<T> = {
-	<mut v:(<T> ",")*> <e:T?> => match e {
-		None => v,
-		Some(e) => {
-			v.push(e);
-			v
-		}
-	}
+    <mut v:(<T> ",")*> <e:T?> => match e {
+        Some(e) => { v.push(e); v },
+        None => v,
+    }
 }
-
-Number: f64 = r"[-+]?[0-9]*\.?[0-9]+" => f64::from_str(<>).unwrap();
-Word: String = r"[a-zA-Z_][a-zA-Z0-9_]*" => <>.to_string();

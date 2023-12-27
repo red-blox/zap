@@ -1,9 +1,209 @@
 #![allow(dead_code)]
-use std::fmt::Display;
+use std::{fmt::Display, vec};
 
-mod gen;
+use crate::config::{NumTy, Range, Ty};
 
-pub use gen::{gen_des, gen_ser};
+pub mod des;
+pub mod ser;
+
+pub trait Gen {
+	fn push_stmt(&mut self, stmt: Stmt);
+	fn gen(self, var: Var, ty: &Ty<'_>) -> Vec<Stmt>;
+
+	fn push_local(&mut self, name: &'static str, expr: Option<Expr>) {
+		self.push_stmt(Stmt::Local(name, expr))
+	}
+
+	fn push_assign(&mut self, var: Var, expr: Expr) {
+		self.push_stmt(Stmt::Assign(var, expr))
+	}
+
+	fn push_assert(&mut self, expr: Expr, msg: Option<String>) {
+		self.push_stmt(Stmt::Assert(expr, msg))
+	}
+
+	fn push_writef32(&mut self, expr: Expr) {
+		self.push_local("pos", Some(Var::from("alloc").call(vec![4.0.into()])));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("writef32"),
+			None,
+			vec!["outgoing_buff".into(), "pos".into(), expr],
+		));
+	}
+
+	fn push_writef64(&mut self, expr: Expr) {
+		self.push_local("pos", Some(Var::from("alloc").call(vec![8.0.into()])));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("writef64"),
+			None,
+			vec!["outgoing_buff".into(), "pos".into(), expr],
+		));
+	}
+
+	fn push_writeu8(&mut self, expr: Expr) {
+		self.push_local("pos", Some(Var::from("alloc").call(vec![1.0.into()])));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("writeu8"),
+			None,
+			vec!["outgoing_buff".into(), "pos".into(), expr],
+		));
+	}
+
+	fn push_writeu16(&mut self, expr: Expr) {
+		self.push_local("pos", Some(Var::from("alloc").call(vec![2.0.into()])));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("writeu16"),
+			None,
+			vec!["outgoing_buff".into(), "pos".into(), expr],
+		));
+	}
+
+	fn push_writeu32(&mut self, expr: Expr) {
+		self.push_local("pos", Some(Var::from("alloc").call(vec![4.0.into()])));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("writeu32"),
+			None,
+			vec!["outgoing_buff".into(), "pos".into(), expr],
+		));
+	}
+
+	fn push_writei8(&mut self, expr: Expr) {
+		self.push_local("pos", Some(Var::from("alloc").call(vec![1.0.into()])));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("writei8"),
+			None,
+			vec!["outgoing_buff".into(), "pos".into(), expr],
+		));
+	}
+
+	fn push_writei16(&mut self, expr: Expr) {
+		self.push_local("pos", Some(Var::from("alloc").call(vec![2.0.into()])));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("writei16"),
+			None,
+			vec!["outgoing_buff".into(), "pos".into(), expr],
+		));
+	}
+
+	fn push_writei32(&mut self, expr: Expr) {
+		self.push_local("pos", Some(Var::from("alloc").call(vec![4.0.into()])));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("writei32"),
+			None,
+			vec!["outgoing_buff".into(), "pos".into(), expr],
+		));
+	}
+
+	fn push_writenumty(&mut self, expr: Expr, numty: NumTy) {
+		match numty {
+			NumTy::F32 => self.push_writef32(expr),
+			NumTy::F64 => self.push_writef64(expr),
+			NumTy::U8 => self.push_writeu8(expr),
+			NumTy::U16 => self.push_writeu16(expr),
+			NumTy::U32 => self.push_writeu32(expr),
+			NumTy::I8 => self.push_writei8(expr),
+			NumTy::I16 => self.push_writei16(expr),
+			NumTy::I32 => self.push_writei32(expr),
+		}
+	}
+
+	fn push_writestring(&mut self, expr: Expr, count: Expr) {
+		self.push_local("pos", Some(Var::from("alloc").call(vec![count.clone()])));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("writestring"),
+			None,
+			vec!["outgoing_buff".into(), "pos".into(), expr, count],
+		));
+	}
+
+	fn readf32(&self) -> Expr {
+		Var::from("buffer")
+			.nindex("readf32")
+			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![4.0.into()])])
+	}
+
+	fn readf64(&self) -> Expr {
+		Var::from("buffer")
+			.nindex("readf64")
+			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![8.0.into()])])
+	}
+
+	fn readu8(&self) -> Expr {
+		Var::from("buffer")
+			.nindex("readu8")
+			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![1.0.into()])])
+	}
+
+	fn readu16(&self) -> Expr {
+		Var::from("buffer")
+			.nindex("readu16")
+			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![2.0.into()])])
+	}
+
+	fn readu32(&self) -> Expr {
+		Var::from("buffer")
+			.nindex("readu32")
+			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![4.0.into()])])
+	}
+
+	fn readi8(&self) -> Expr {
+		Var::from("buffer")
+			.nindex("readi8")
+			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![1.0.into()])])
+	}
+
+	fn readi16(&self) -> Expr {
+		Var::from("buffer")
+			.nindex("readi16")
+			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![2.0.into()])])
+	}
+
+	fn readi32(&self) -> Expr {
+		Var::from("buffer")
+			.nindex("readi32")
+			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![4.0.into()])])
+	}
+
+	fn readnumty(&self, numty: NumTy) -> Expr {
+		match numty {
+			NumTy::F32 => self.readf32(),
+			NumTy::F64 => self.readf64(),
+			NumTy::U8 => self.readu8(),
+			NumTy::U16 => self.readu16(),
+			NumTy::U32 => self.readu32(),
+			NumTy::I8 => self.readi8(),
+			NumTy::I16 => self.readi16(),
+			NumTy::I32 => self.readi32(),
+		}
+	}
+
+	fn readstring(&self, count: Expr) -> Expr {
+		Var::from("buffer").nindex("readstring").call(vec![
+			"incoming_buff".into(),
+			Var::from("read").call(vec![count.clone()]),
+			count,
+		])
+	}
+
+	fn push_range_check(&mut self, expr: Expr, range: Range) {
+		if let Some(min) = range.min() {
+			self.push_assert(expr.clone().gte(min.into()), None)
+		}
+
+		if let Some(max) = range.max() {
+			self.push_assert(expr.clone().lte(max.into()), None)
+		}
+	}
+}
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
@@ -85,7 +285,7 @@ pub enum Expr {
 	Call(Box<Var>, Option<String>, Vec<Expr>),
 
 	// Table
-	EmptyTab,
+	EmptyTable,
 
 	// Vector3
 	Vector3(Box<Expr>, Box<Expr>, Box<Expr>),
@@ -208,7 +408,7 @@ impl Display for Expr {
 				),
 			},
 
-			Self::EmptyTab => write!(f, "{{}}"),
+			Self::EmptyTable => write!(f, "{{}}"),
 
 			Self::Vector3(x, y, z) => write!(f, "Vector3.new({}, {}, {})", x, y, z),
 

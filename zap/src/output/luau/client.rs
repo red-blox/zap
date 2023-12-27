@@ -1,20 +1,19 @@
 use crate::{
-	irgen::{gen_des, gen_ser},
-	parser::{EvCall, EvDecl, EvSource, EvType, File, TyDecl},
-	util::casing,
+	config::{Config, EvCall, EvDecl, EvSource, EvType, TyDecl},
+	irgen::{des, ser},
 };
 
 use super::Output;
 
-struct ClientOutput<'a> {
-	file: &'a File,
-	buff: String,
+struct ClientOutput<'src> {
+	config: &'src Config<'src>,
 	tabs: u32,
+	buf: String,
 }
 
 impl<'a> Output for ClientOutput<'a> {
 	fn push(&mut self, s: &str) {
-		self.buff.push_str(s);
+		self.buf.push_str(s);
 	}
 
 	fn indent(&mut self) {
@@ -32,12 +31,12 @@ impl<'a> Output for ClientOutput<'a> {
 	}
 }
 
-impl<'a> ClientOutput<'a> {
-	pub fn new(file: &'a File) -> Self {
+impl<'src> ClientOutput<'src> {
+	pub fn new(config: &'src Config<'src>) -> Self {
 		Self {
-			file,
-			buff: String::new(),
+			config,
 			tabs: 0,
+			buf: String::new(),
 		}
 	}
 
@@ -52,21 +51,21 @@ impl<'a> ClientOutput<'a> {
 
 		self.push_line(&format!("function types.write_{name}(value: {name})"));
 		self.indent();
-		self.push_stmts(&gen_ser(ty, "value".into(), self.file.write_checks));
+		self.push_stmts(&ser::gen(ty, "value", self.config.write_checks));
 		self.dedent();
 		self.push_line("end");
 
 		self.push_line(&format!("function types.read_{name}()"));
 		self.indent();
 		self.push_line("local value;");
-		self.push_stmts(&gen_des(ty, "value".into(), false));
+		self.push_stmts(&des::gen(ty, "value", false));
 		self.push_line("return value");
 		self.dedent();
 		self.push_line("end");
 	}
 
 	fn push_tydecls(&mut self) {
-		for tydecl in self.file.ty_decls.iter() {
+		for tydecl in &self.config.tydecls {
 			self.push_tydecl(tydecl);
 		}
 	}
@@ -85,8 +84,8 @@ impl<'a> ClientOutput<'a> {
 
 		self.push_line(&format!(
 			"local id = buffer.read{}(buff, read({}))",
-			self.file.event_id_ty(),
-			self.file.event_id_ty().size()
+			self.config.event_id_ty(),
+			self.config.event_id_ty().size()
 		));
 	}
 	fn push_reliable_callback(&mut self, first: bool, ev: &EvDecl, id: usize) {
@@ -107,7 +106,7 @@ impl<'a> ClientOutput<'a> {
 		self.indent();
 
 		self.push_line("local value");
-		self.push_stmts(&gen_des(&ev.data, "value".into(), false));
+		self.push_stmts(&des::gen(&ev.data, "value", true));
 
 		match ev.call {
 			EvCall::SingleSync => self.push_line(&format!("if events[{id}] then events[{id}](value) end")),
@@ -137,8 +136,8 @@ impl<'a> ClientOutput<'a> {
 		let mut first = true;
 
 		for (i, ev) in self
-			.file
-			.ev_decls
+			.config
+			.evdecls
 			.iter()
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server && ev_decl.evty == EvType::Reliable)
@@ -161,8 +160,8 @@ impl<'a> ClientOutput<'a> {
 
 		self.push_line(&format!(
 			"local id = buffer.read{}(buff, read({}))",
-			self.file.event_id_ty(),
-			self.file.event_id_ty().size()
+			self.config.event_id_ty(),
+			self.config.event_id_ty().size()
 		));
 	}
 
@@ -184,7 +183,7 @@ impl<'a> ClientOutput<'a> {
 		self.indent();
 
 		self.push_line("local value");
-		self.push_stmts(&gen_des(&ev.data, "value".into(), true));
+		self.push_stmts(&des::gen(&ev.data, "value", self.config.write_checks));
 
 		match ev.call {
 			EvCall::SingleSync => self.push_line(&format!("if events[{id}] then events[{id}](value) end")),
@@ -212,8 +211,8 @@ impl<'a> ClientOutput<'a> {
 		let mut first = true;
 
 		for (i, ev) in self
-			.file
-			.ev_decls
+			.config
+			.evdecls
 			.iter()
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server && ev_decl.evty == EvType::Unreliable)
@@ -228,9 +227,9 @@ impl<'a> ClientOutput<'a> {
 	}
 
 	fn push_callback_lists(&mut self) {
-		self.push_line(&format!("local events = table.create({})", self.file.ev_decls.len()));
+		self.push_line(&format!("local events = table.create({})", self.config.evdecls.len()));
 
-		for (i, _) in self.file.ev_decls.iter().enumerate().filter(|(_, ev_decl)| {
+		for (i, _) in self.config.evdecls.iter().enumerate().filter(|(_, ev_decl)| {
 			ev_decl.from == EvSource::Server && matches!(ev_decl.call, EvCall::ManyAsync | EvCall::ManySync)
 		}) {
 			let id = i + 1;
@@ -240,18 +239,18 @@ impl<'a> ClientOutput<'a> {
 	}
 
 	fn push_write_event_id(&mut self, id: usize) {
-		self.push_line(&format!("local pos = alloc({})", self.file.event_id_ty().size()));
+		self.push_line(&format!("local pos = alloc({})", self.config.event_id_ty().size()));
 		self.push_line(&format!(
 			"buffer.write{}(outgoing_buff, pos, {id})",
-			self.file.event_id_ty()
+			self.config.event_id_ty()
 		));
 	}
 
 	fn push_return_fire(&mut self, ev: &EvDecl, id: usize) {
 		let ty = &ev.data;
 
-		let fire = casing(self.file.casing, "Fire", "fire", "fire");
-		let value = casing(self.file.casing, "Value", "value", "value");
+		let fire = self.config.casing.with("Fire", "fire", "fire");
+		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
 		self.push(&format!("{fire} = function({value}: "));
@@ -266,7 +265,7 @@ impl<'a> ClientOutput<'a> {
 
 		self.push_write_event_id(id);
 
-		self.push_stmts(&gen_ser(ty, value.into(), self.file.write_checks));
+		self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
 
 		if ev.evty == EvType::Unreliable {
 			self.push_line("local buff = buffer.create(outgoing_used)");
@@ -281,8 +280,8 @@ impl<'a> ClientOutput<'a> {
 
 	fn push_return_outgoing(&mut self) {
 		for (i, ev) in self
-			.file
-			.ev_decls
+			.config
+			.evdecls
 			.iter()
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client)
@@ -302,8 +301,8 @@ impl<'a> ClientOutput<'a> {
 	fn push_return_setcallback(&mut self, ev: &EvDecl, id: usize) {
 		let ty = &ev.data;
 
-		let set_callback = casing(self.file.casing, "SetCallback", "setCallback", "set_callback");
-		let callback = casing(self.file.casing, "Callback", "callback", "callback");
+		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
+		let callback = self.config.casing.with("Callback", "callback", "callback");
 
 		self.push_indent();
 		self.push(&format!("{set_callback} = function({callback}: ("));
@@ -320,8 +319,8 @@ impl<'a> ClientOutput<'a> {
 	fn push_return_on(&mut self, ev: &EvDecl, id: usize) {
 		let ty = &ev.data;
 
-		let on = casing(self.file.casing, "On", "on", "on");
-		let callback = casing(self.file.casing, "Callback", "callback", "callback");
+		let on = self.config.casing.with("On", "on", "on");
+		let callback = self.config.casing.with("Callback", "callback", "callback");
 
 		self.push_indent();
 		self.push(&format!("{on} = function({callback}: ("));
@@ -337,8 +336,8 @@ impl<'a> ClientOutput<'a> {
 
 	pub fn push_return_listen(&mut self) {
 		for (i, ev) in self
-			.file
-			.ev_decls
+			.config
+			.evdecls
 			.iter()
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server)
@@ -370,12 +369,13 @@ impl<'a> ClientOutput<'a> {
 	}
 
 	pub fn output(mut self) -> String {
-		if self.file.ev_decls.is_empty() {
-			return self.buff;
-		};
-
 		self.push_file_header("Client");
 
+		if self.config.evdecls.is_empty() {
+			return self.buf;
+		};
+
+		self.push(include_str!("base.luau"));
 		self.push(include_str!("client.luau"));
 
 		self.push_tydecls();
@@ -383,8 +383,8 @@ impl<'a> ClientOutput<'a> {
 		self.push_callback_lists();
 
 		if self
-			.file
-			.ev_decls
+			.config
+			.evdecls
 			.iter()
 			.any(|ev| ev.evty == EvType::Reliable && ev.from == EvSource::Server)
 		{
@@ -392,8 +392,8 @@ impl<'a> ClientOutput<'a> {
 		}
 
 		if self
-			.file
-			.ev_decls
+			.config
+			.evdecls
 			.iter()
 			.any(|ev| ev.evty == EvType::Unreliable && ev.from == EvSource::Server)
 		{
@@ -402,10 +402,10 @@ impl<'a> ClientOutput<'a> {
 
 		self.push_return();
 
-		self.buff
+		self.buf
 	}
 }
 
-pub fn code(file: &File) -> String {
-	ClientOutput::new(file).output()
+pub fn code(config: &Config) -> String {
+	ClientOutput::new(config).output()
 }

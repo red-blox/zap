@@ -1,4 +1,4 @@
-use crate::parser::Ty;
+use crate::config::{Enum, Ty};
 
 pub mod client;
 pub mod server;
@@ -17,27 +17,15 @@ pub trait Output {
 
 	fn push_ty(&mut self, ty: &Ty) {
 		match ty {
-			Ty::Bool => self.push("boolean"),
-
-			Ty::F32(_) => self.push("number"),
-			Ty::F64(_) => self.push("number"),
-
-			Ty::U8(_) => self.push("number"),
-			Ty::U16(_) => self.push("number"),
-			Ty::U32(_) => self.push("number"),
-
-			Ty::I8(_) => self.push("number"),
-			Ty::I16(_) => self.push("number"),
-			Ty::I32(_) => self.push("number"),
-
+			Ty::Num(..) => self.push("number"),
 			Ty::Str { .. } => self.push("string"),
 
-			Ty::Arr { ty, .. } => {
+			Ty::Arr(ty, ..) => {
 				self.push_ty(ty);
 				self.push("[]");
 			}
 
-			Ty::Map { key, val } => {
+			Ty::Map(key, val) => {
 				self.push("{ [index: ");
 				self.push_ty(key);
 				self.push("]: ");
@@ -45,11 +33,56 @@ pub trait Output {
 				self.push(" }");
 			}
 
-			Ty::Struct { fields } => {
+			Ty::Opt(ty) => {
+				self.push_ty(ty);
+				self.push(" | undefined");
+			}
+
+			Ty::Ref(name) => self.push(name),
+
+			Ty::Enum(enum_ty) => match enum_ty {
+				Enum::Unit(enumerators) => self.push(
+					&enumerators
+						.iter()
+						.map(|v| format!("\"{}\"", v))
+						.collect::<Vec<_>>()
+						.join(" | ")
+						.to_string(),
+				),
+
+				Enum::Tagged { tag, variants } => {
+					for (i, (name, struct_ty)) in variants.iter().enumerate() {
+						if i != 0 {
+							self.push(" | ");
+						}
+
+						self.push("{\n");
+						self.indent();
+
+						self.push_indent();
+
+						self.push(&format!("{tag}: \"{name}\",\n"));
+
+						for (name, ty) in struct_ty.fields.iter() {
+							self.push_indent();
+							self.push(&format!("{name}: "));
+							self.push_ty(ty);
+							self.push(",\n");
+						}
+
+						self.dedent();
+
+						self.push_indent();
+						self.push("}");
+					}
+				}
+			},
+
+			Ty::Struct(struct_ty) => {
 				self.push("{\n");
 				self.indent();
 
-				for (name, ty) in fields.iter() {
+				for (name, ty) in struct_ty.fields.iter() {
 					self.push_indent();
 					self.push(&format!("{name}: "));
 					self.push_ty(ty);
@@ -61,30 +94,10 @@ pub trait Output {
 				self.push("}");
 			}
 
-			Ty::Enum { variants } => self.push(
-				&variants
-					.iter()
-					.map(|v| format!("\"{}\"", v))
-					.collect::<Vec<_>>()
-					.join(" | ")
-					.to_string(),
-			),
+			Ty::Instance(name) => self.push(name.unwrap_or("Instance")),
 
-			Ty::Instance(strict, name) => {
-				self.push(if let Some(name) = name { name } else { "Instance" });
-
-				if *strict {
-					self.push(" | undefined")
-				}
-			}
+			Ty::Boolean => self.push("boolean"),
 			Ty::Vector3 => self.push("Vector3"),
-
-			Ty::Ref(name) => self.push(&name.to_string()),
-
-			Ty::Optional(ty) => {
-				self.push_ty(ty);
-				self.push(" | undefined");
-			}
 		}
 	}
 

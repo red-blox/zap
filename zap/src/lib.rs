@@ -1,96 +1,122 @@
+mod config;
 mod irgen;
 mod output;
 mod parser;
-mod util;
-
-use thiserror::Error;
-
-#[cfg(not(target_arch = "wasm32"))]
-use std::path::PathBuf;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-#[derive(Error, Debug)]
-pub enum Error {
-	#[error("Unable to parse config file: {0}")]
-	ParseError(String),
-	#[error("File System error: {0}")]
-	FSError(#[from] std::io::Error),
-	#[error("Unknown type referenced: `{0}`")]
-	UnknownTypeRef(String),
-	#[error("Duplicate type declared: `{0}`")]
-	DuplicateType(String),
-	#[error("Duplicate event declared: `{0}`")]
-	DuplicateEvent(String),
-}
+#[cfg(not(target_arch = "wasm32"))]
+use codespan_reporting::diagnostic::Diagnostic;
+#[cfg(target_arch = "wasm32")]
+use codespan_reporting::{
+	files::SimpleFile,
+	term::{self, termcolor::NoColor},
+};
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
 
 #[derive(Debug)]
 #[cfg(not(target_arch = "wasm32"))]
 pub struct Output {
-	pub path: PathBuf,
-	pub contents: String,
-	pub definitions: Option<String>,
+	pub path: Option<PathBuf>,
+	pub code: String,
+	pub defs: Option<String>,
 }
 
-#[derive(Debug, Clone)]
 #[cfg(target_arch = "wasm32")]
+#[derive(Debug, Clone)]
 #[wasm_bindgen(getter_with_clone)]
 pub struct Output {
-	pub contents: String,
-	pub definitions: Option<String>,
+	pub code: String,
+	pub defs: Option<String>,
 }
 
 #[derive(Debug)]
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter_with_clone))]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter_with_clone), derive(Clone))]
 pub struct Code {
 	pub server: Output,
 	pub client: Output,
 }
 
+#[derive(Debug)]
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run(config: &str) -> Result<Code, Error> {
-	let file = parser::parse(config)?;
+pub struct Return {
+	pub code: Option<Code>,
+	pub diagnostics: Vec<Diagnostic<()>>,
+}
 
-	let server_contents = output::luau::server::code(&file);
-	let server_definitions = output::typescript::server::code(&file);
+#[cfg(target_arch = "wasm32")]
+#[derive(Debug)]
+#[wasm_bindgen(getter_with_clone)]
+pub struct Return {
+	pub code: Option<Code>,
+	pub diagnostics: String,
+}
 
-	let client_contents = output::luau::client::code(&file);
-	let client_definitions = output::typescript::client::code(&file);
+#[cfg(not(target_arch = "wasm32"))]
+pub fn run(input: &str) -> Return {
+	let (config, reports) = parser::parse(input);
 
-	Ok(Code {
-		server: Output {
-			path: file.server_output,
-			contents: server_contents,
-			definitions: server_definitions,
-		},
-		client: Output {
-			path: file.client_output,
-			contents: client_contents,
-			definitions: client_definitions,
-		},
-	})
+	if let Some(config) = config {
+		Return {
+			code: Some(Code {
+				server: Output {
+					path: config.server_output.map(|p| p.into()),
+					code: output::luau::server::code(&config),
+					defs: output::typescript::server::code(&config),
+				},
+				client: Output {
+					path: config.client_output.map(|p| p.into()),
+					code: output::luau::client::code(&config),
+					defs: output::typescript::client::code(&config),
+				},
+			}),
+			diagnostics: reports.into_iter().map(|report| report.into()).collect(),
+		}
+	} else {
+		Return {
+			code: None,
+			diagnostics: reports.into_iter().map(|report| report.into()).collect(),
+		}
+	}
 }
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn run(config: &str) -> Result<Code, JsError> {
-	let file = parser::parse(config)?;
+pub fn run(input: &str) -> Return {
+	let (config, reports) = parser::parse(input);
 
-	let server_contents = output::luau::server::code(&file);
-	let server_definitions = output::typescript::server::code(&file);
+	let mut writer = NoColor::new(Vec::new());
 
-	let client_contents = output::luau::client::code(&file);
-	let client_definitions = output::typescript::client::code(&file);
+	let file = SimpleFile::new("input.zap", input);
+	let term_config = term::Config::default();
 
-	Ok(Code {
-		server: Output {
-			contents: server_contents,
-			definitions: server_definitions,
-		},
-		client: Output {
-			contents: client_contents,
-			definitions: client_definitions,
-		},
-	})
+	for report in reports {
+		term::emit(&mut writer, &term_config, &file, &report.into()).unwrap();
+	}
+
+	let diagnostics = String::from_utf8(writer.into_inner()).unwrap();
+
+	if let Some(config) = config {
+		Return {
+			code: Some(Code {
+				server: Output {
+					code: output::luau::server::code(&config),
+					defs: output::typescript::server::code(&config),
+				},
+				client: Output {
+					code: output::luau::client::code(&config),
+					defs: output::typescript::client::code(&config),
+				},
+			}),
+			diagnostics,
+		}
+	} else {
+		Return {
+			code: None,
+			diagnostics,
+		}
+	}
 }

@@ -84,15 +84,19 @@ const beforeMount = (monaco: Monaco) => {
 			{ open: "{", close: "}" },
 			{ open: "[", close: "]" },
 			{ open: "(", close: ")" },
+			{ open: '"', close: '"' },
 		],
 		surroundingPairs: [
 			{ open: "{", close: "}" },
 			{ open: "[", close: "]" },
 			{ open: "(", close: ")" },
+			{ open: '"', close: '"' },
 		],
 	});
 
 	const Keywords = ["event", "opt", "type"] as const;
+
+	const TypeKeywords = ["enum", "struct", "map"] as const;
 
 	const Operators = ["true", "false"] as const;
 
@@ -102,7 +106,7 @@ const beforeMount = (monaco: Monaco) => {
 
 	const Calls = ["SingleSync", "SingleAsync", "ManySync", "ManyAsync"] as const;
 
-	const Options = ["typescript", "write_checks", "casing", "output_server", "output_client"] as const;
+	const Options = ["typescript", "write_checks", "casing", "server_output", "client_output"] as const;
 
 	const Casing = ["PascalCase", "camelCase", "snake_case"] as const;
 
@@ -119,10 +123,10 @@ const beforeMount = (monaco: Monaco) => {
 		"i64",
 		"f32",
 		"f64",
-		"bool",
+		"boolean",
 		"string",
 		"Instance",
-		"Vector3"
+		"Vector3",
 	] as const;
 
 	const EventParamToArray = {
@@ -148,7 +152,7 @@ const beforeMount = (monaco: Monaco) => {
 		create: () => ({
 			defaultToken: "",
 
-			keywords: [...Keywords, ...Operators],
+			keywords: [...Keywords, ...TypeKeywords, ...Operators],
 
 			brackets: [
 				{ token: "delimiter.bracket", open: "{", close: "}" },
@@ -191,6 +195,9 @@ const beforeMount = (monaco: Monaco) => {
 							},
 						},
 					],
+
+					// "str" identifiers
+					[/\"\w+\"/, "regexp"],
 
 					// identifiers and keywords
 					[/(\w+):/, "identifier"],
@@ -312,6 +319,33 @@ const beforeMount = (monaco: Monaco) => {
 					range,
 				}));
 
+				if (wordBefore && !WordToArray[wordBefore.word]) {
+					identifiers.push(
+						{
+							label: "enum",
+							kind: monaco.languages.CompletionItemKind.Variable,
+							insertText: "enum ",
+							range: range,
+						},
+						{
+							label: "map",
+							kind: monaco.languages.CompletionItemKind.Snippet,
+							insertText: "map { [${1}]: ${2} }\n",
+							insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+							documentation: "Map",
+							range: range,
+						},
+						{
+							label: "struct",
+							kind: monaco.languages.CompletionItemKind.Snippet,
+							insertText: ["struct {", "\t${1}: ${2},", "}"].join("\n"),
+							insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+							documentation: "Struct",
+							range: range,
+						}
+					);
+				}
+
 				return { suggestions: identifiers };
 			}
 		},
@@ -325,4 +359,3 @@ const beforeMount = (monaco: Monaco) => {
 	width: 100%;
 }
 </style>
-

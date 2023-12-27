@@ -1,7 +1,7 @@
-/target
+target
 
 # Zap Input & Output
-/network
+network
 net.zap
 
 # Docs
@@ -14,3 +14,6 @@ zap/package
 
 # Mac Moment
 .DS_Store
+
+# Editor Stuff
+.vscode/

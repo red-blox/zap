@@ -66,4 +66,6 @@ local function load_empty()
 	outgoing_inst = {}
 end
 
+load_empty()
+
 local types = {}
