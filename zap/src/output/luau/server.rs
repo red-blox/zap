@@ -77,13 +77,13 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
 
-		self.push_line("local len = bufer.len(buf)");
+		self.push_line("local len = buffer.len(buf)");
 		self.push_line("while incoming_read < len do");
 
 		self.indent();
 
 		self.push_line(&format!(
-			"local id = bufer.read{}(buf, read({}))",
+			"local id = buffer.read{}(buf, read({}))",
 			self.config.event_id_ty(),
 			self.config.event_id_ty().size()
 		));
@@ -164,7 +164,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("incoming_read = 0");
 
 		self.push_line(&format!(
-			"local id = bufer.read{}(buf, read({}))",
+			"local id = buffer.read{}(buf, read({}))",
 			self.config.event_id_ty(),
 			self.config.event_id_ty().size()
 		));
@@ -250,7 +250,7 @@ impl<'a> ServerOutput<'a> {
 	fn push_write_event_id(&mut self, id: usize) {
 		self.push_line(&format!("local pos = alloc({})", self.config.event_id_ty().size()));
 		self.push_line(&format!(
-			"bufer.write{}(outgoing_buf, pos, {id})",
+			"buffer.write{}(outgoing_buf, pos, {id})",
 			self.config.event_id_ty()
 		));
 	}
@@ -280,8 +280,8 @@ impl<'a> ServerOutput<'a> {
 		match ev.evty {
 			EvType::Reliable => self.push_line(&format!("player_map[{player}] = save()")),
 			EvType::Unreliable => {
-				self.push_line("local buf = bufer.create(outgoing_used)");
-				self.push_line("bufer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
+				self.push_line("local buf = buffer.create(outgoing_used)");
+				self.push_line("buffer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
 				self.push_line(&format!("unreliable:FireClient({player}, buf, outgoing_inst)"));
 			}
 		}
@@ -315,15 +315,15 @@ impl<'a> ServerOutput<'a> {
 				self.indent();
 				self.push_line("load(outgoing)");
 				self.push_line("local pos = alloc(used)");
-				self.push_line("bufer.copy(outgoing_buf, pos, buf, 0, used)");
+				self.push_line("buffer.copy(outgoing_buf, pos, buf, 0, used)");
 				self.push_line("player_map[player] = save()");
 				self.dedent();
 				self.push_line("end");
 			}
 
 			EvType::Unreliable => {
-				self.push_line("local buf = bufer.create(outgoing_used)");
-				self.push_line("bufer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
+				self.push_line("local buf = buffer.create(outgoing_used)");
+				self.push_line("buffer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
 				self.push_line("unreliable:FireAllClients(buf, outgoing_inst)")
 			}
 		}
@@ -360,7 +360,7 @@ impl<'a> ServerOutput<'a> {
 				self.indent();
 				self.push_line("load(outgoing)");
 				self.push_line("local pos = alloc(used)");
-				self.push_line("bufer.copy(outgoing_buf, pos, buf, 0, used)");
+				self.push_line("buffer.copy(outgoing_buf, pos, buf, 0, used)");
 				self.push_line("player_map[player] = save()");
 				self.dedent();
 				self.push_line("end");
@@ -369,8 +369,8 @@ impl<'a> ServerOutput<'a> {
 			}
 
 			EvType::Unreliable => {
-				self.push_line("local buf = bufer.create(outgoing_used)");
-				self.push_line("bufer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
+				self.push_line("local buf = buffer.create(outgoing_used)");
+				self.push_line("buffer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
 				self.push_line("for player in player_map do");
 				self.indent();
 				self.push_line(&format!("if player ~= {except} then"));
@@ -413,15 +413,15 @@ impl<'a> ServerOutput<'a> {
 				self.indent();
 				self.push_line("load(player_map[player])");
 				self.push_line("local pos = alloc(used)");
-				self.push_line("bufer.copy(outgoing_buf, pos, buf, 0, used)");
+				self.push_line("buffer.copy(outgoing_buf, pos, buf, 0, used)");
 				self.push_line("player_map[player] = save()");
 				self.dedent();
 				self.push_line("end");
 			}
 
 			EvType::Unreliable => {
-				self.push_line("local buf = bufer.create(outgoing_used)");
-				self.push_line("bufer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
+				self.push_line("local buf = buffer.create(outgoing_used)");
+				self.push_line("buffer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
 				self.push_line(&format!("for _, player in {list} do"));
 				self.indent();
 				self.push_line("unreliable:FireClient(player, buf, outgoing_inst)");
