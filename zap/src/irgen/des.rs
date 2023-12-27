@@ -20,8 +20,6 @@ impl Gen for Des {
 
 impl Des {
 	fn push_struct(&mut self, struct_ty: &Struct, into: Var) {
-		self.push_assign(into.clone(), Expr::EmptyTab);
-
 		for (name, ty) in struct_ty.fields.iter() {
 			self.push_ty(ty, into.clone().nindex(*name))
 		}
@@ -52,7 +50,6 @@ impl Des {
 			Enum::Tagged { tag, variants } => {
 				let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
 
-				self.push_assign(into.clone(), Expr::EmptyTab);
 				self.push_local("enum_value", Some(self.readnumty(numty)));
 
 				for (i, (name, struct_ty)) in variants.iter().enumerate() {
@@ -187,8 +184,15 @@ impl Des {
 				);
 			}
 
-			Ty::Enum(enum_ty) => self.push_enum(enum_ty, into),
-			Ty::Struct(struct_ty) => self.push_struct(struct_ty, into),
+			Ty::Enum(enum_ty) => {
+				self.push_assign(into.clone(), Expr::EmptyTab);
+				self.push_enum(enum_ty, into)
+			}
+
+			Ty::Struct(struct_ty) => {
+				self.push_assign(into.clone(), Expr::EmptyTab);
+				self.push_struct(struct_ty, into)
+			}
 
 			Ty::Instance(class) => {
 				self.push_assign(into.clone(), Var::from("incoming_inst").eindex(self.readu16()).into());

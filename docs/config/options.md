@@ -4,7 +4,7 @@ Zap has a number of options marked with `opt`, that must be placed at the start 
 
 ## Example Options
 
-<CodeBlock :code="['opt output_client = ./src/client/remotes.luau', 'opt output_server = ./src/server/remotes.luau', 'opt casing = PascalCase', 'opt write_checks = false'].join('\n')" />
+<CodeBlock :code="['opt client_output = ./src/client/remotes.luau', 'opt server_output = ./src/server/remotes.luau', 'opt casing = PascalCase', 'opt write_checks = false'].join('\n')" />
 
 ## Output
 
@@ -12,11 +12,11 @@ The output options allow you to define where zap will output its generated code.
 
 ### Default
 
-<CodeBlock :code="['opt output_client = ./network/client.luau', 'opt output_server = ./network/server.luau'].join('\n')" />
+<CodeBlock :code="['opt client_output = ./network/client.luau', 'opt server_output = ./network/server.luau'].join('\n')" />
 
 ### Example
 
-<CodeBlock :code="['opt output_client = ./src/client/remotes.luau', 'opt output_server = ./src/server/remotes.luau'].join('\n')" />
+<CodeBlock :code="['opt client_output = ./src/client/remotes.luau', 'opt server_output = ./src/server/remotes.luau'].join('\n')" />
 
 ## Casing
 
@@ -52,3 +52,20 @@ The writechecks option determines if conditional constraints should be valided o
 ### Example
 
 <CodeBlock code="opt write_checks = false" />
+
+## Typescript
+
+The typescript option determines if Zap should output typescript definitions for the generated code.
+
+### Default
+
+`false`
+
+### Options
+
+- `true`
+- `false`
+
+### Example
+
+<CodeBlock code="opt typescript = false" />

@@ -369,12 +369,13 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	pub fn output(mut self) -> String {
+		self.push_file_header("Client");
+
 		if self.config.evdecls.is_empty() {
 			return self.buf;
 		};
 
-		self.push_file_header("Client");
-
+		self.push(include_str!("base.luau"));
 		self.push(include_str!("client.luau"));
 
 		self.push_tydecls();

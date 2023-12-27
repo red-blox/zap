@@ -112,7 +112,7 @@ watch(code, (newCode) => {
 		}
 	} catch (err) {
 		compiledResult.value = {
-			diagnostics: `--[[\n${err.message}\n]]`,
+			diagnostics: `Unable to compile code: ${err.message}`,
 			free
 		}
 

@@ -32,6 +32,10 @@ pub fn parse(input: &str) -> (Option<Config<'_>>, Vec<Report>) {
 		let (config, mut reports) = convert::convert(syntax_config);
 		let max_unreliable_size = 900 - config.event_id_ty().size();
 
+		if config.evdecls.is_empty() {
+			reports.push(Report::AnalyzeEmptyEvDecls);
+		}
+
 		for ev in config.evdecls.iter().filter(|ev| ev.evty == EvType::Unreliable) {
 			let max_size = ev.data.max_size(&config, &mut HashSet::new());
 
@@ -39,7 +43,7 @@ pub fn parse(input: &str) -> (Option<Config<'_>>, Vec<Report>) {
 				if max_size > max_unreliable_size {
 					let evdecl = evdecls.iter().find(|evdecl| evdecl.name.name == ev.name).unwrap();
 
-					reports.push(Report::SemanticOversizeUnreliable {
+					reports.push(Report::AnalyzeOversizeUnreliable {
 						ev_span: evdecl.span(),
 						ty_span: evdecl.data.span(),
 						max_size: max_unreliable_size,
@@ -49,7 +53,7 @@ pub fn parse(input: &str) -> (Option<Config<'_>>, Vec<Report>) {
 			} else {
 				let evdecl = evdecls.iter().find(|evdecl| evdecl.name.name == ev.name).unwrap();
 
-				reports.push(Report::SemanticPotentiallyOversizeUnreliable {
+				reports.push(Report::AnalyzePotentiallyOversizeUnreliable {
 					ev_span: evdecl.span(),
 					ty_span: evdecl.data.span(),
 					max_size: max_unreliable_size,

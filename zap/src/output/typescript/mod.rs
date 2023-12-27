@@ -61,7 +61,7 @@ pub trait Output {
 
 						self.push_indent();
 
-						self.push(&format!("{tag} = \"{name}\",\n"));
+						self.push(&format!("{tag}: \"{name}\",\n"));
 
 						for (name, ty) in struct_ty.fields.iter() {
 							self.push_indent();

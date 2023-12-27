@@ -70,7 +70,7 @@ impl<'src> SyntaxConfig<'src> {
 				"write_checks" => match opt.value.kind {
 					SyntaxOptValueKind::Bool(value) => write_checks = value.into_config(),
 
-					_ => state.push_report(Report::SemanticInvalidOptValue {
+					_ => state.push_report(Report::AnalyzeInvalidOptValue {
 						span: opt.value.span(),
 						expected: "boolean",
 					}),
@@ -79,7 +79,7 @@ impl<'src> SyntaxConfig<'src> {
 				"typescript" => match opt.value.kind {
 					SyntaxOptValueKind::Bool(value) => typescript = value.into_config(),
 
-					_ => state.push_report(Report::SemanticInvalidOptValue {
+					_ => state.push_report(Report::AnalyzeInvalidOptValue {
 						span: opt.value.span(),
 						expected: "boolean",
 					}),
@@ -88,7 +88,7 @@ impl<'src> SyntaxConfig<'src> {
 				"server_output" => match opt.value.kind {
 					SyntaxOptValueKind::Str(value) => server_output = Some(value.into_config()),
 
-					_ => state.push_report(Report::SemanticInvalidOptValue {
+					_ => state.push_report(Report::AnalyzeInvalidOptValue {
 						span: opt.value.span(),
 						expected: "string",
 					}),
@@ -97,7 +97,7 @@ impl<'src> SyntaxConfig<'src> {
 				"client_output" => match opt.value.kind {
 					SyntaxOptValueKind::Str(value) => client_output = Some(value.into_config()),
 
-					_ => state.push_report(Report::SemanticInvalidOptValue {
+					_ => state.push_report(Report::AnalyzeInvalidOptValue {
 						span: opt.value.span(),
 						expected: "string",
 					}),
@@ -109,19 +109,19 @@ impl<'src> SyntaxConfig<'src> {
 						"camelCase" => casing = Casing::Camel,
 						"snake_case" => casing = Casing::Snake,
 
-						_ => state.push_report(Report::SemanticInvalidOptValue {
+						_ => state.push_report(Report::AnalyzeInvalidOptValue {
 							span: opt.value.span(),
 							expected: "`PascalCase`, `camelCase`, or `snake_case`",
 						}),
 					},
 
-					_ => state.push_report(Report::SemanticInvalidOptValue {
+					_ => state.push_report(Report::AnalyzeInvalidOptValue {
 						span: opt.value.span(),
 						expected: "`PascalCase`, `camelCase`, or `snake_case`",
 					}),
 				},
 
-				_ => state.push_report(Report::SemanticUnknownOptName { span: opt.name.span() }),
+				_ => state.push_report(Report::AnalyzeUnknownOptName { span: opt.name.span() }),
 			}
 		}
 
@@ -221,7 +221,7 @@ impl<'src> SyntaxTy<'src> {
 					let name = name.into_config();
 
 					if !state.tydecl_exists(name) {
-						state.push_report(Report::SemanticUnknownTypeRef {
+						state.push_report(Report::AnalyzeUnknownTypeRef {
 							span: self.span(),
 							name,
 						});
@@ -245,7 +245,7 @@ impl<'src> SyntaxEnum<'src> {
 		match self.kind {
 			SyntaxEnumKind::Unit(enumerators) => {
 				if enumerators.is_empty() {
-					state.push_report(Report::SemanticEmptyEnum { span })
+					state.push_report(Report::AnalyzeEmptyEnum { span })
 				}
 
 				Enum::Unit(enumerators.into_iter().map(|v| v.into_config()).collect())
@@ -253,7 +253,7 @@ impl<'src> SyntaxEnum<'src> {
 
 			SyntaxEnumKind::Tagged { tag, variants } => {
 				if variants.is_empty() {
-					state.push_report(Report::SemanticEmptyEnum { span })
+					state.push_report(Report::AnalyzeEmptyEnum { span })
 				}
 
 				let tag_name = tag.into_config();
@@ -264,7 +264,7 @@ impl<'src> SyntaxEnum<'src> {
 						.into_iter()
 						.map(|(name, value)| {
 							if let Some(field) = value.fields.iter().find(|field| field.0.name == tag_name) {
-								state.push_report(Report::SemanticEnumTagUsed {
+								state.push_report(Report::AnalyzeEnumTagUsed {
 									tag_span: tag.span(),
 									used_span: field.0.span(),
 									tag: tag_name,
@@ -303,7 +303,7 @@ impl<'src> SyntaxRange<'src> {
 		};
 
 		if range.min().is_some() && range.max().is_some() && range.min().unwrap() > range.max().unwrap() {
-			state.push_report(Report::SemanticInvalidRange { span: self.span() });
+			state.push_report(Report::AnalyzeInvalidRange { span: self.span() });
 		}
 
 		range
@@ -325,7 +325,7 @@ impl<'src> SyntaxRange<'src> {
 		};
 
 		if range.min().is_some() && range.max().is_some() && range.min().unwrap() > range.max().unwrap() {
-			state.push_report(Report::SemanticInvalidRange { span: self.span() });
+			state.push_report(Report::AnalyzeInvalidRange { span: self.span() });
 		}
 
 		range
@@ -347,7 +347,7 @@ impl<'src> SyntaxNumLit<'src> {
 		let value = self.into_config();
 
 		if value < min || value > max {
-			state.push_report(Report::SemanticNumOutsideRange {
+			state.push_report(Report::AnalyzeNumOutsideRange {
 				span: self.span(),
 				min,
 				max,

@@ -28,48 +28,50 @@ pub enum Report<'src> {
 		span: Span,
 	},
 
-	SemanticOversizeUnreliable {
+	AnalyzeEmptyEvDecls,
+
+	AnalyzeOversizeUnreliable {
 		ev_span: Span,
 		ty_span: Span,
 		max_size: usize,
 		size: usize,
 	},
 
-	SemanticPotentiallyOversizeUnreliable {
+	AnalyzePotentiallyOversizeUnreliable {
 		ev_span: Span,
 		ty_span: Span,
 		max_size: usize,
 	},
 
-	SemanticInvalidRange {
+	AnalyzeInvalidRange {
 		span: Span,
 	},
 
-	SemanticEmptyEnum {
+	AnalyzeEmptyEnum {
 		span: Span,
 	},
 
-	SemanticEnumTagUsed {
+	AnalyzeEnumTagUsed {
 		tag_span: Span,
 		used_span: Span,
 		tag: &'src str,
 	},
 
-	SemanticInvalidOptValue {
+	AnalyzeInvalidOptValue {
 		span: Span,
 		expected: &'static str,
 	},
 
-	SemanticUnknownOptName {
+	AnalyzeUnknownOptName {
 		span: Span,
 	},
 
-	SemanticUnknownTypeRef {
+	AnalyzeUnknownTypeRef {
 		span: Span,
 		name: &'src str,
 	},
 
-	SemanticNumOutsideRange {
+	AnalyzeNumOutsideRange {
 		span: Span,
 		min: f64,
 		max: f64,
@@ -86,15 +88,16 @@ impl<'src> Report<'src> {
 			Self::ParserExtraToken { .. } => Severity::Error,
 			Self::ParserExpectedInt { .. } => Severity::Error,
 
-			Self::SemanticOversizeUnreliable { .. } => Severity::Error,
-			Self::SemanticPotentiallyOversizeUnreliable { .. } => Severity::Warning,
-			Self::SemanticInvalidRange { .. } => Severity::Error,
-			Self::SemanticEmptyEnum { .. } => Severity::Error,
-			Self::SemanticEnumTagUsed { .. } => Severity::Error,
-			Self::SemanticInvalidOptValue { .. } => Severity::Error,
-			Self::SemanticUnknownOptName { .. } => Severity::Warning,
-			Self::SemanticUnknownTypeRef { .. } => Severity::Error,
-			Self::SemanticNumOutsideRange { .. } => Severity::Error,
+			Self::AnalyzeEmptyEvDecls => Severity::Warning,
+			Self::AnalyzeOversizeUnreliable { .. } => Severity::Error,
+			Self::AnalyzePotentiallyOversizeUnreliable { .. } => Severity::Warning,
+			Self::AnalyzeInvalidRange { .. } => Severity::Error,
+			Self::AnalyzeEmptyEnum { .. } => Severity::Error,
+			Self::AnalyzeEnumTagUsed { .. } => Severity::Error,
+			Self::AnalyzeInvalidOptValue { .. } => Severity::Error,
+			Self::AnalyzeUnknownOptName { .. } => Severity::Warning,
+			Self::AnalyzeUnknownTypeRef { .. } => Severity::Error,
+			Self::AnalyzeNumOutsideRange { .. } => Severity::Error,
 		}
 	}
 
@@ -110,15 +113,16 @@ impl<'src> Report<'src> {
 			Self::ParserExtraToken { .. } => "extra token".to_string(),
 			Self::ParserExpectedInt { .. } => "expected integer".to_string(),
 
-			Self::SemanticOversizeUnreliable { .. } => "oversize unreliable".to_string(),
-			Self::SemanticPotentiallyOversizeUnreliable { .. } => "potentially oversize unreliable".to_string(),
-			Self::SemanticInvalidRange { .. } => "invalid range".to_string(),
-			Self::SemanticEmptyEnum { .. } => "empty enum".to_string(),
-			Self::SemanticEnumTagUsed { .. } => "enum tag used in variant".to_string(),
-			Self::SemanticInvalidOptValue { expected, .. } => format!("invalid opt value, expected {}", expected),
-			Self::SemanticUnknownOptName { .. } => "unknown opt name".to_string(),
-			Self::SemanticUnknownTypeRef { name, .. } => format!("unknown type reference '{}'", name),
-			Self::SemanticNumOutsideRange { .. } => "number outside range".to_string(),
+			Self::AnalyzeEmptyEvDecls => "no event declarations".to_string(),
+			Self::AnalyzeOversizeUnreliable { .. } => "oversize unreliable".to_string(),
+			Self::AnalyzePotentiallyOversizeUnreliable { .. } => "potentially oversize unreliable".to_string(),
+			Self::AnalyzeInvalidRange { .. } => "invalid range".to_string(),
+			Self::AnalyzeEmptyEnum { .. } => "empty enum".to_string(),
+			Self::AnalyzeEnumTagUsed { .. } => "enum tag used in variant".to_string(),
+			Self::AnalyzeInvalidOptValue { expected, .. } => format!("invalid opt value, expected {}", expected),
+			Self::AnalyzeUnknownOptName { .. } => "unknown opt name".to_string(),
+			Self::AnalyzeUnknownTypeRef { name, .. } => format!("unknown type reference '{}'", name),
+			Self::AnalyzeNumOutsideRange { .. } => "number outside range".to_string(),
 		}
 	}
 
@@ -131,15 +135,16 @@ impl<'src> Report<'src> {
 			Self::ParserExtraToken { .. } => "2003",
 			Self::ParserExpectedInt { .. } => "2004",
 
-			Self::SemanticOversizeUnreliable { .. } => "3001",
-			Self::SemanticPotentiallyOversizeUnreliable { .. } => "3002",
-			Self::SemanticInvalidRange { .. } => "3003",
-			Self::SemanticEmptyEnum { .. } => "3004",
-			Self::SemanticEnumTagUsed { .. } => "3005",
-			Self::SemanticInvalidOptValue { .. } => "3006",
-			Self::SemanticUnknownOptName { .. } => "3007",
-			Self::SemanticUnknownTypeRef { .. } => "3008",
-			Self::SemanticNumOutsideRange { .. } => "3009",
+			Self::AnalyzeEmptyEvDecls { .. } => "3001",
+			Self::AnalyzeOversizeUnreliable { .. } => "3002",
+			Self::AnalyzePotentiallyOversizeUnreliable { .. } => "3003",
+			Self::AnalyzeInvalidRange { .. } => "3004",
+			Self::AnalyzeEmptyEnum { .. } => "3005",
+			Self::AnalyzeEnumTagUsed { .. } => "3006",
+			Self::AnalyzeInvalidOptValue { .. } => "3007",
+			Self::AnalyzeUnknownOptName { .. } => "3008",
+			Self::AnalyzeUnknownTypeRef { .. } => "3009",
+			Self::AnalyzeNumOutsideRange { .. } => "3010",
 		}
 	}
 
@@ -163,29 +168,31 @@ impl<'src> Report<'src> {
 				vec![Label::primary((), span.clone()).with_message("expected integer")]
 			}
 
-			Self::SemanticOversizeUnreliable { ev_span, ty_span, .. } => {
+			Self::AnalyzeEmptyEvDecls => vec![],
+
+			Self::AnalyzeOversizeUnreliable { ev_span, ty_span, .. } => {
 				vec![
 					Label::primary((), ev_span.clone()).with_message("event is unreliable"),
 					Label::secondary((), ty_span.clone()).with_message("type is too large"),
 				]
 			}
 
-			Self::SemanticPotentiallyOversizeUnreliable { ev_span, ty_span, .. } => {
+			Self::AnalyzePotentiallyOversizeUnreliable { ev_span, ty_span, .. } => {
 				vec![
 					Label::primary((), ev_span.clone()).with_message("event is unreliable"),
 					Label::secondary((), ty_span.clone()).with_message("type may be too large"),
 				]
 			}
 
-			Self::SemanticInvalidRange { span } => {
+			Self::AnalyzeInvalidRange { span } => {
 				vec![Label::primary((), span.clone()).with_message("invalid range")]
 			}
 
-			Self::SemanticEmptyEnum { span } => {
+			Self::AnalyzeEmptyEnum { span } => {
 				vec![Label::primary((), span.clone()).with_message("empty enum")]
 			}
 
-			Self::SemanticEnumTagUsed {
+			Self::AnalyzeEnumTagUsed {
 				tag_span, used_span, ..
 			} => {
 				vec![
@@ -194,19 +201,19 @@ impl<'src> Report<'src> {
 				]
 			}
 
-			Self::SemanticInvalidOptValue { span, .. } => {
+			Self::AnalyzeInvalidOptValue { span, .. } => {
 				vec![Label::primary((), span.clone()).with_message("invalid opt value")]
 			}
 
-			Self::SemanticUnknownOptName { span } => {
+			Self::AnalyzeUnknownOptName { span } => {
 				vec![Label::primary((), span.clone()).with_message("unknown opt name")]
 			}
 
-			Self::SemanticUnknownTypeRef { span, .. } => {
+			Self::AnalyzeUnknownTypeRef { span, .. } => {
 				vec![Label::primary((), span.clone()).with_message("unknown type reference")]
 			}
 
-			Self::SemanticNumOutsideRange { span, .. } => {
+			Self::AnalyzeNumOutsideRange { span, .. } => {
 				vec![Label::primary((), span.clone()).with_message("number outside range")]
 			}
 		}
@@ -221,35 +228,36 @@ impl<'src> Report<'src> {
 			Self::ParserExtraToken { .. } => None,
 			Self::ParserExpectedInt { .. } => None,
 
-			Self::SemanticOversizeUnreliable { max_size, .. } => Some(vec![
+			Self::AnalyzeEmptyEvDecls => Some(vec!["add an event declaration to allow zap to output code".to_string()]),
+			Self::AnalyzeOversizeUnreliable { max_size, .. } => Some(vec![
 				format!("all unreliable events must be under {max_size} bytes in size"),
 				"consider adding a upper limit to any arrays or strings".to_string(),
 				"upper limits can be added for arrays by doing `[..10]`".to_string(),
 				"upper limits can be added for strings by doing `[..10]`".to_string(),
 			]),
-			Self::SemanticPotentiallyOversizeUnreliable { max_size, .. } => Some(vec![
+			Self::AnalyzePotentiallyOversizeUnreliable { max_size, .. } => Some(vec![
 				format!("all unreliable events must be under {max_size} bytes in size"),
 				"consider adding a upper limit to any arrays or strings".to_string(),
 				"upper limits can be added for arrays by doing `[..10]`".to_string(),
 				"upper limits can be added for strings by doing `(..10)`".to_string(),
 			]),
-			Self::SemanticInvalidRange { .. } => Some(vec![
+			Self::AnalyzeInvalidRange { .. } => Some(vec![
 				"ranges must be in the form `min..max`".to_string(),
 				"ranges can be invalid if `min` is greater than `max`".to_string(),
 			]),
-			Self::SemanticEmptyEnum { .. } => Some(vec![
+			Self::AnalyzeEmptyEnum { .. } => Some(vec![
 				"enums cannot be empty".to_string(),
 				"if you're looking to create an empty type, use a struct with no fields".to_string(),
 				"a struct with no fields can be created by doing `struct {}`".to_string(),
 			]),
-			Self::SemanticEnumTagUsed { .. } => Some(vec![
+			Self::AnalyzeEnumTagUsed { .. } => Some(vec![
 				"tagged enums use the tag field in passed structs to determine what variant to use".to_string(),
 				"you cannot override this tag field in a variant as that would break this behavior".to_string(),
 			]),
-			Self::SemanticInvalidOptValue { .. } => None,
-			Self::SemanticUnknownOptName { .. } => None,
-			Self::SemanticUnknownTypeRef { .. } => None,
-			Self::SemanticNumOutsideRange { min, max, .. } => Some(vec![
+			Self::AnalyzeInvalidOptValue { .. } => None,
+			Self::AnalyzeUnknownOptName { .. } => None,
+			Self::AnalyzeUnknownTypeRef { .. } => None,
+			Self::AnalyzeNumOutsideRange { min, max, .. } => Some(vec![
 				format!("(inclusive) min: {}", min),
 				format!("(inclusive) max: {}", max),
 			]),

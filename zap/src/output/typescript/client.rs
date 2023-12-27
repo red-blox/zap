@@ -117,11 +117,11 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	pub fn output(mut self) -> String {
+		self.push_file_header("Client");
+
 		if self.config.evdecls.is_empty() {
 			return self.buf;
 		};
-
-		self.push_file_header("Client");
 
 		self.push_tydecls();
 

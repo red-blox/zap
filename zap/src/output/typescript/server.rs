@@ -166,11 +166,11 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	pub fn output(mut self) -> String {
+		self.push_file_header("Server");
+
 		if self.config.evdecls.is_empty() {
 			return self.buf;
 		};
-
-		self.push_file_header("Server");
 
 		self.push_tydecls();
 
