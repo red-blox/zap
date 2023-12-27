@@ -103,7 +103,7 @@ Enum: SyntaxEnum<'input> = {
 }
 
 EnumKind: SyntaxEnumKind<'input> = {
-    "{" <enumerators:Comma<Identifier>> "}" => SyntaxEnumKind::Unit(enumerators),
+    "{" <enumerators:Comma<StrLit>> "}" => SyntaxEnumKind::Unit(enumerators),
 
     <tag:StrLit> "{" <variants:Comma<(<Identifier> <Struct>)>> "}" => SyntaxEnumKind::Tagged { tag, variants },
 }
