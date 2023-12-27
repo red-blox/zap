@@ -97,7 +97,7 @@ impl Des {
 			}
 
 			Ty::Arr(ty, range) => {
-				self.push_assign(into.clone(), Expr::EmptyTab);
+				self.push_assign(into.clone(), Expr::EmptyTable);
 
 				if let Some(len) = range.exact() {
 					self.push_stmt(Stmt::NumFor {
@@ -127,7 +127,7 @@ impl Des {
 			}
 
 			Ty::Map(key, val) => {
-				self.push_assign(into.clone(), Expr::EmptyTab);
+				self.push_assign(into.clone(), Expr::EmptyTable);
 
 				self.push_stmt(Stmt::NumFor {
 					var: "_",
@@ -185,12 +185,12 @@ impl Des {
 			}
 
 			Ty::Enum(enum_ty) => {
-				self.push_assign(into.clone(), Expr::EmptyTab);
+				self.push_assign(into.clone(), Expr::EmptyTable);
 				self.push_enum(enum_ty, into)
 			}
 
 			Ty::Struct(struct_ty) => {
-				self.push_assign(into.clone(), Expr::EmptyTab);
+				self.push_assign(into.clone(), Expr::EmptyTable);
 				self.push_struct(struct_ty, into)
 			}
 

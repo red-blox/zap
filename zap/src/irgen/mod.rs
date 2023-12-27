@@ -285,7 +285,7 @@ pub enum Expr {
 	Call(Box<Var>, Option<String>, Vec<Expr>),
 
 	// Table
-	EmptyTab,
+	EmptyTable,
 
 	// Vector3
 	Vector3(Box<Expr>, Box<Expr>, Box<Expr>),
@@ -408,7 +408,7 @@ impl Display for Expr {
 				),
 			},
 
-			Self::EmptyTab => write!(f, "{{}}"),
+			Self::EmptyTable => write!(f, "{{}}"),
 
 			Self::Vector3(x, y, z) => write!(f, "Vector3.new({}, {}, {})", x, y, z),
 
