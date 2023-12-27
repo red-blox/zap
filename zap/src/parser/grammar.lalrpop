@@ -60,7 +60,7 @@ EvSource: EvSource = {
 }
 
 TyDecl: SyntaxTyDecl<'input> = {
-    <start:@L> "type" <name:Identifier> <ty:Ty> ";"? <end:@R> => SyntaxTyDecl { start, name, ty, end },
+    <start:@L> "type" <name:Identifier> "=" <ty:Ty> ";"? <end:@R> => SyntaxTyDecl { start, name, ty, end },
 }
 
 Ty: SyntaxTy<'input> = {
