@@ -163,6 +163,25 @@ BoolLit: SyntaxBoolLit = {
 
 Identifier: SyntaxIdentifier<'input> = {
     <start:@L> <name:r"[a-zA-Z_][a-zA-Z0-9_]*"> <end:@R> => SyntaxIdentifier { start, name, end },
+    <start:@L> "data" <end:@R> => SyntaxIdentifier { start, name: "data", end },
+    <start:@L> "event" <end:@R> => SyntaxIdentifier { start, name: "event", end },
+    <start:@L> "type" <end:@R> => SyntaxIdentifier { start, name: "type", end },
+    <start:@L> "opt" <end:@R> => SyntaxIdentifier { start, name: "opt", end },
+    <start:@L> "from" <end:@R> => SyntaxIdentifier { start, name: "from", end },
+    <start:@L> "call" <end:@R> => SyntaxIdentifier { start, name: "call", end },
+    <start:@L> "Reliable" <end:@R> => SyntaxIdentifier { start, name: "Reliable", end },
+    <start:@L> "Unreliable" <end:@R> => SyntaxIdentifier { start, name: "Unreliable", end },
+    <start:@L> "Server" <end:@R> => SyntaxIdentifier { start, name: "Server", end },
+    <start:@L> "Client" <end:@R> => SyntaxIdentifier { start, name: "Client", end },
+    <start:@L> "SingleSync" <end:@R> => SyntaxIdentifier { start, name: "SingleSync", end },
+    <start:@L> "SingleAsync" <end:@R> => SyntaxIdentifier { start, name: "SingleAsync", end },
+    <start:@L> "ManySync" <end:@R> => SyntaxIdentifier { start, name: "ManySync", end },
+    <start:@L> "ManyAsync" <end:@R> => SyntaxIdentifier { start, name: "ManyAsync", end },
+    <start:@L> "enum" <end:@R> => SyntaxIdentifier { start, name: "enum", end },
+    <start:@L> "struct" <end:@R> => SyntaxIdentifier { start, name: "struct", end },
+    <start:@L> "map" <end:@R> => SyntaxIdentifier { start, name: "map", end },
+    <start:@L> "true" <end:@R> => SyntaxIdentifier { start, name: "true", end },
+    <start:@L> "false" <end:@R> => SyntaxIdentifier { start, name: "false", end },
 }
 
 Comma<T>: Vec<T> = {
