@@ -20,10 +20,85 @@ pub trait Output {
 			Ty::Num(..) => self.push("number"),
 			Ty::Str { .. } => self.push("string"),
 
-			Ty::Arr(ty, ..) => {
-				self.push_ty(ty);
-				self.push("[]");
-			}
+			Ty::Arr(ty, range) => match (range.min(), range.max()) {
+				(Some(min), Some(max)) => {
+					if let Some(exact) = range.exact() {
+						self.push("[");
+
+						for i in 0..exact as usize {
+							if i != 0 {
+								self.push(", ");
+							}
+
+							self.push_ty(ty);
+						}
+
+						self.push("]");
+					} else {
+						if min as usize != 0 {
+							self.push("[");
+
+							for i in 0..min as usize {
+								if i != 0 {
+									self.push(", ");
+								}
+
+								self.push_ty(ty);
+							}
+
+							self.push("] & ");
+						}
+
+						self.push("Partial<[");
+
+						for i in 0..max as usize {
+							if i != 0 {
+								self.push(", ");
+							}
+
+							self.push_ty(ty);
+						}
+
+						self.push("]>");
+					}
+				}
+				(Some(min), None) => {
+					self.push("[");
+
+					if min as usize != 0 {
+						for i in 0..min as usize {
+							if i != 0 {
+								self.push(", ");
+							}
+
+							self.push_ty(ty);
+						}
+
+						self.push(", ");
+					}
+
+					self.push("...Array<");
+					self.push_ty(ty);
+					self.push(" | undefined>]");
+				}
+				(None, Some(max)) => {
+					self.push("Partial<[");
+
+					for i in 0..max as usize {
+						if i != 0 {
+							self.push(", ");
+						}
+
+						self.push_ty(ty);
+					}
+
+					self.push("]>");
+				}
+				_ => {
+					self.push_ty(ty);
+					self.push("[]");
+				}
+			},
 
 			Ty::Map(key, val) => {
 				self.push("{ [index: ");
