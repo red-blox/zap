@@ -33,6 +33,7 @@ const sidebar = [
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "Zap",
+  description: "A lightning fast, type-safe, and easy to use networking solution for Roblox.",
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav,
