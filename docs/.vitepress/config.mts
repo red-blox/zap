@@ -38,6 +38,7 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav,
     sidebar,
+    logo: '/logo.svg',
     socialLinks: [
       { icon: 'github', link: 'https://github.com/red-blox/zap' },
       { icon: 'discord', link: 'https://discord.gg/mchCdAFPWU' },

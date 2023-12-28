@@ -5,6 +5,9 @@ layout: home
 hero:
   name: "Zap"
   tagline: A blazingly fast networking solution for Roblox.
+  image:
+    src: /logo.svg
+    alt: Zap Logo
   actions:
     - theme: brand
       text: Get Started
@@ -27,4 +30,3 @@ features:
     icon: 🔎
     details: While buffers may only support a small number of types, Zap has complex type support.
 ---
-
