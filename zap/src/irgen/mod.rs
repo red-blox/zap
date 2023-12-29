@@ -213,7 +213,10 @@ pub trait Gen {
 	}
 
 	fn push_read_copy(&mut self, into: Var, count: Expr) {
-		self.push_assign(into.clone(), Var::from("buffer").nindex("create").call(vec![count.clone()]));
+		self.push_assign(
+			into.clone(),
+			Var::from("buffer").nindex("create").call(vec![count.clone()]),
+		);
 
 		self.push_stmt(Stmt::Call(
 			Var::from("buffer").nindex("copy"),

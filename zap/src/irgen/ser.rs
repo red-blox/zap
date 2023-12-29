@@ -106,7 +106,10 @@ impl Ser {
 
 					self.push_write_copy(from_expr, len.into());
 				} else {
-					self.push_local("len", Some(Var::from("buffer").nindex("len").call(vec![from_expr.clone()])));
+					self.push_local(
+						"len",
+						Some(Var::from("buffer").nindex("len").call(vec![from_expr.clone()])),
+					);
 
 					if self.checks {
 						self.push_range_check("len".into(), *range);
