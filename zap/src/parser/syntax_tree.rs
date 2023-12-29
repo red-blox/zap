@@ -120,6 +120,7 @@ impl<'src> Spanned for SyntaxTy<'src> {
 pub enum SyntaxTyKind<'src> {
 	Num(NumTy, Option<SyntaxRange<'src>>),
 	Str(Option<SyntaxRange<'src>>),
+	Buf(Option<SyntaxRange<'src>>),
 	Arr(Box<SyntaxTy<'src>>, Option<SyntaxRange<'src>>),
 	Map(Box<SyntaxTy<'src>>, Box<SyntaxTy<'src>>),
 	Opt(Box<SyntaxTy<'src>>),

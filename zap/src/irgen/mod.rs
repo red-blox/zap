@@ -10,6 +10,14 @@ pub trait Gen {
 	fn push_stmt(&mut self, stmt: Stmt);
 	fn gen(self, var: Var, ty: &Ty<'_>) -> Vec<Stmt>;
 
+	fn len(&mut self, buffer: Expr) {
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("len"),
+			None,
+			vec!["outgoing_buff".into(), buffer],
+		));
+	}
+
 	fn push_local(&mut self, name: &'static str, expr: Option<Expr>) {
 		self.push_stmt(Stmt::Local(name, expr))
 	}
@@ -192,6 +200,32 @@ pub trait Gen {
 			Var::from("read").call(vec![count.clone()]),
 			count,
 		])
+	}
+
+	fn push_write_copy(&mut self, expr: Expr, count: Expr) {
+		self.push_local("pos", Some(Var::from("alloc").call(vec![count.clone()])));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("copy"),
+			None,
+			vec!["outgoing_buff".into(), "pos".into(), expr, 0.0.into(), count],
+		));
+	}
+
+	fn push_read_copy(&mut self, into: Var, count: Expr) {
+		self.push_assign(into.clone(), Var::from("buffer").nindex("create").call(vec![count.clone()]));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("copy"),
+			None,
+			vec![
+				into.into(),
+				0.0.into(),
+				"incoming_buff".into(),
+				Var::from("read").call(vec![count.clone()]),
+				count,
+			],
+		));
 	}
 
 	fn push_range_check(&mut self, expr: Expr, range: Range) {

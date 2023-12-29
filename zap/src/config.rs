@@ -76,6 +76,7 @@ pub struct TyDecl<'src> {
 pub enum Ty<'src> {
 	Num(NumTy, Range),
 	Str(Range),
+	Buf(Range),
 	Arr(Box<Ty<'src>>, Range),
 	Map(Box<Ty<'src>>, Box<Ty<'src>>),
 	Opt(Box<Ty<'src>>),
@@ -97,6 +98,7 @@ impl<'src> Ty<'src> {
 			Self::Boolean => Some(1),
 			Self::Opt(ty) => ty.max_size(config, recursed).map(|size| size + 1),
 			Self::Str(len) => len.max().map(|len| len as usize),
+			Self::Buf(len) => len.max().map(|len| len as usize),
 			Self::Arr(ty, range) => range
 				.max()
 				.and_then(|len| ty.max_size(config, recursed).map(|size| size * len as usize)),

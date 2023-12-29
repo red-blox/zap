@@ -96,6 +96,20 @@ impl Des {
 				}
 			}
 
+			Ty::Buf(range) => {
+				if let Some(len) = range.exact() {
+					self.push_read_copy(into, len.into());
+				} else {
+					self.push_local("len", Some(self.readnumty(NumTy::U16)));
+
+					if self.checks {
+						self.push_range_check(Expr::from("len"), *range);
+					}
+
+					self.push_read_copy(into, Expr::from("len"))
+				}
+			}
+
 			Ty::Arr(ty, range) => {
 				self.push_assign(into.clone(), Expr::EmptyTable);
 

@@ -79,8 +79,8 @@ pub trait Output {
 
 		match ty {
 			Ty::Num(..) => self.push("number"),
-
 			Ty::Str(..) => self.push("string"),
+			Ty::Buf { .. } => self.push("buffer"),
 
 			Ty::Arr(ty, ..) => {
 				self.push("{ ");

@@ -203,6 +203,12 @@ impl<'src> SyntaxTy<'src> {
 					.unwrap_or_default(),
 			),
 
+			SyntaxTyKind::Buf(range) => Ty::Buf(
+				range
+					.map(|r| r.into_config_with_range(state, u16::MIN.into(), u16::MAX.into()))
+					.unwrap_or_default(),
+			),
+
 			SyntaxTyKind::Arr(ty, range) => Ty::Arr(
 				Box::new(ty.into_config(state)),
 				range
