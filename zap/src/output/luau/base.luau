@@ -2,6 +2,7 @@ local outgoing_buff: buffer
 local outgoing_used: number
 local outgoing_size: number
 local outgoing_inst: { Instance }
+local outgoing_apos: number
 
 local incoming_buff: buffer
 local incoming_read: number
@@ -19,10 +20,10 @@ local function alloc(len: number)
 		outgoing_buff = new_buff
 	end
 
-	local pos = outgoing_used
+	outgoing_apos = outgoing_used
 	outgoing_used = outgoing_used + len
 
-	return pos
+	return outgoing_apos
 end
 
 local function alloc_inst(inst: Instance)
