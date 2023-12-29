@@ -22,83 +22,87 @@ pub trait Gen {
 		self.push_stmt(Stmt::Assert(expr, msg))
 	}
 
+	fn push_alloc(&mut self, expr: Expr) {
+		self.push_stmt(Stmt::Call(Var::from("alloc"), None, vec![expr]));
+	}
+
 	fn push_writef32(&mut self, expr: Expr) {
-		self.push_local("pos", Some(Var::from("alloc").call(vec![4.0.into()])));
+		self.push_alloc(4.0.into());
 
 		self.push_stmt(Stmt::Call(
 			Var::from("buffer").nindex("writef32"),
 			None,
-			vec!["outgoing_buff".into(), "pos".into(), expr],
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
 		));
 	}
 
 	fn push_writef64(&mut self, expr: Expr) {
-		self.push_local("pos", Some(Var::from("alloc").call(vec![8.0.into()])));
+		self.push_alloc(8.0.into());
 
 		self.push_stmt(Stmt::Call(
 			Var::from("buffer").nindex("writef64"),
 			None,
-			vec!["outgoing_buff".into(), "pos".into(), expr],
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
 		));
 	}
 
 	fn push_writeu8(&mut self, expr: Expr) {
-		self.push_local("pos", Some(Var::from("alloc").call(vec![1.0.into()])));
+		self.push_alloc(1.0.into());
 
 		self.push_stmt(Stmt::Call(
 			Var::from("buffer").nindex("writeu8"),
 			None,
-			vec!["outgoing_buff".into(), "pos".into(), expr],
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
 		));
 	}
 
 	fn push_writeu16(&mut self, expr: Expr) {
-		self.push_local("pos", Some(Var::from("alloc").call(vec![2.0.into()])));
+		self.push_alloc(2.0.into());
 
 		self.push_stmt(Stmt::Call(
 			Var::from("buffer").nindex("writeu16"),
 			None,
-			vec!["outgoing_buff".into(), "pos".into(), expr],
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
 		));
 	}
 
 	fn push_writeu32(&mut self, expr: Expr) {
-		self.push_local("pos", Some(Var::from("alloc").call(vec![4.0.into()])));
+		self.push_alloc(4.0.into());
 
 		self.push_stmt(Stmt::Call(
 			Var::from("buffer").nindex("writeu32"),
 			None,
-			vec!["outgoing_buff".into(), "pos".into(), expr],
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
 		));
 	}
 
 	fn push_writei8(&mut self, expr: Expr) {
-		self.push_local("pos", Some(Var::from("alloc").call(vec![1.0.into()])));
+		self.push_alloc(1.0.into());
 
 		self.push_stmt(Stmt::Call(
 			Var::from("buffer").nindex("writei8"),
 			None,
-			vec!["outgoing_buff".into(), "pos".into(), expr],
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
 		));
 	}
 
 	fn push_writei16(&mut self, expr: Expr) {
-		self.push_local("pos", Some(Var::from("alloc").call(vec![2.0.into()])));
+		self.push_alloc(2.0.into());
 
 		self.push_stmt(Stmt::Call(
 			Var::from("buffer").nindex("writei16"),
 			None,
-			vec!["outgoing_buff".into(), "pos".into(), expr],
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
 		));
 	}
 
 	fn push_writei32(&mut self, expr: Expr) {
-		self.push_local("pos", Some(Var::from("alloc").call(vec![4.0.into()])));
+		self.push_alloc(4.0.into());
 
 		self.push_stmt(Stmt::Call(
 			Var::from("buffer").nindex("writei32"),
 			None,
-			vec!["outgoing_buff".into(), "pos".into(), expr],
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
 		));
 	}
 
@@ -116,12 +120,12 @@ pub trait Gen {
 	}
 
 	fn push_writestring(&mut self, expr: Expr, count: Expr) {
-		self.push_local("pos", Some(Var::from("alloc").call(vec![count.clone()])));
+		self.push_alloc(count.clone());
 
 		self.push_stmt(Stmt::Call(
 			Var::from("buffer").nindex("writestring"),
 			None,
-			vec!["outgoing_buff".into(), "pos".into(), expr, count],
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr, count],
 		));
 	}
 
@@ -195,12 +199,12 @@ pub trait Gen {
 	}
 
 	fn push_write_copy(&mut self, expr: Expr, count: Expr) {
-		self.push_local("pos", Some(Var::from("alloc").call(vec![count.clone()])));
+		self.push_alloc(count.clone());
 
 		self.push_stmt(Stmt::Call(
 			Var::from("buffer").nindex("copy"),
 			None,
-			vec!["outgoing_buff".into(), "pos".into(), expr, 0.0.into(), count],
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr, 0.0.into(), count],
 		));
 	}
 
