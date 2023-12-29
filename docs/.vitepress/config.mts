@@ -7,15 +7,15 @@ const nav = [
 
 const sidebar = [
   {
-    text: 'Getting Started',
+    text: 'Introduction',
     items: [
-      { text: 'Installation', link: '/install' },
+      { text: 'What is Zap?', link: '/intro/what-is-zap' },
+      { text: 'Getting Started', link: '/intro/getting-started' },
     ]
   },
   {
     text: 'Configuring Zap',
     items: [
-      { text: 'Introduction', link: '/config/intro' },
       { text: 'Options', link: '/config/options' },
       { text: 'Types', link: '/config/types' },
       { text: 'Events', link: '/config/events' },
@@ -46,5 +46,5 @@ export default defineConfig({
   },
   vite: {
     configFile: "./docs/.vitepress/vite.config.ts"
-  }
+  },
 })
