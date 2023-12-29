@@ -10,14 +10,6 @@ pub trait Gen {
 	fn push_stmt(&mut self, stmt: Stmt);
 	fn gen(self, var: Var, ty: &Ty<'_>) -> Vec<Stmt>;
 
-	fn len(&mut self, buffer: Expr) {
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("len"),
-			None,
-			vec!["outgoing_buff".into(), buffer],
-		));
-	}
-
 	fn push_local(&mut self, name: &'static str, expr: Option<Expr>) {
 		self.push_stmt(Stmt::Local(name, expr))
 	}
