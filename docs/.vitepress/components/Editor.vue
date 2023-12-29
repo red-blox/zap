@@ -125,6 +125,7 @@ const beforeMount = (monaco: Monaco) => {
 		"f64",
 		"boolean",
 		"string",
+		"buffer",
 		"Instance",
 		"Vector3",
 	] as const;

@@ -194,6 +194,35 @@ pub trait Gen {
 		])
 	}
 
+	fn push_write_copy(&mut self, expr: Expr, count: Expr) {
+		self.push_local("pos", Some(Var::from("alloc").call(vec![count.clone()])));
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("copy"),
+			None,
+			vec!["outgoing_buff".into(), "pos".into(), expr, 0.0.into(), count],
+		));
+	}
+
+	fn push_read_copy(&mut self, into: Var, count: Expr) {
+		self.push_assign(
+			into.clone(),
+			Var::from("buffer").nindex("create").call(vec![count.clone()]),
+		);
+
+		self.push_stmt(Stmt::Call(
+			Var::from("buffer").nindex("copy"),
+			None,
+			vec![
+				into.into(),
+				0.0.into(),
+				"incoming_buff".into(),
+				Var::from("read").call(vec![count.clone()]),
+				count,
+			],
+		));
+	}
+
 	fn push_range_check(&mut self, expr: Expr, range: Range) {
 		if let Some(min) = range.min() {
 			self.push_assert(expr.clone().gte(min.into()), None)

@@ -86,6 +86,7 @@ TyKind: SyntaxTyKind<'input> = {
     "u32" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U32, r),
 
     "string" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Str(r),
+    "buffer" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Buf(r),
 
     <ty:Ty> "[" <r:IntRange?> "]" => SyntaxTyKind::Arr(Box::new(ty), r),
     "map" "{" "[" <k:Ty> "]" ":" <v:Ty> "}" => SyntaxTyKind::Map(Box::new(k), Box::new(v)),

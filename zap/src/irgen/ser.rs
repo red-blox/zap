@@ -98,6 +98,28 @@ impl Ser {
 				}
 			}
 
+			Ty::Buf(range) => {
+				if let Some(len) = range.exact() {
+					if self.checks {
+						self.push_assert(from_expr.clone().len().eq(len.into()), None);
+					}
+
+					self.push_write_copy(from_expr, len.into());
+				} else {
+					self.push_local(
+						"len",
+						Some(Var::from("buffer").nindex("len").call(vec![from_expr.clone()])),
+					);
+
+					if self.checks {
+						self.push_range_check("len".into(), *range);
+					}
+
+					self.push_writeu16("len".into());
+					self.push_write_copy(from_expr, "len".into())
+				}
+			}
+
 			Ty::Arr(ty, range) => {
 				if let Some(len) = range.exact() {
 					if self.checks {
