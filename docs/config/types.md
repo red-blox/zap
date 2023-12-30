@@ -17,7 +17,7 @@ const enumExample = `enum "type" {
 	},
 }`
 
-const structExample = `type Item = {
+const structExample = `type Item = struct {
 	name: string,
 	price: u16,
 }`
