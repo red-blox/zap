@@ -114,7 +114,7 @@ const beforeMount = (monaco: Monaco) => {
 
 	const Options = ["typescript", "write_checks", "casing", "server_output", "client_output"] as const;
 
-	const Casing = ["PascalCase", "camelCase", "snake_case"] as const;
+	const Casing = ["PascalCase", "camelCase", "snake_case"].map((value) => `"${value}"`);
 
 	const setting = [...Locations, ...Brand, ...Calls, ...Casing] as const;
 
