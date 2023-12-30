@@ -33,7 +33,7 @@ pub trait Output {
 			}
 
 			Stmt::Assign(var, expr) => self.push_line(&format!("{var} = {expr}")),
-			Stmt::Error(msg) => self.push_line(&format!("error({msg})")),
+			Stmt::Error(msg) => self.push_line(&format!("error(\"{msg}\")")),
 			Stmt::Assert(cond, msg) => match msg {
 				Some(msg) => self.push_line(&format!("assert({cond}, {msg})")),
 				None => self.push_line(&format!("assert({cond})")),
