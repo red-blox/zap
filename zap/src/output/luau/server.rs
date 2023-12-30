@@ -77,7 +77,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
 
-		self.push_line("local len = buffer.len(buf)");
+		self.push_line("local len = buffer.len(buff)");
 		self.push_line("while incoming_read < len do");
 
 		self.indent();
