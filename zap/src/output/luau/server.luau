@@ -1,3 +1,7 @@
+if game:GetService("RunService"):IsClient() then
+	error("Cannot use the server module on the client!")
+end
+
 local reliable = Instance.new("RemoteEvent")
 reliable.Name = "ZAP_RELIABLE"
 reliable.Parent = game:GetService("ReplicatedStorage")

@@ -1,3 +1,7 @@
+if game:GetService("RunService"):IsServer() then
+	error("Cannot use the client module on the server!")
+end
+
 local reliable = game:GetService("ReplicatedStorage"):WaitForChild("ZAP_RELIABLE")
 local unreliable = game:GetService("ReplicatedStorage"):WaitForChild("ZAP_UNRELIABLE")
 
