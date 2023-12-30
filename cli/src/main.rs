@@ -31,8 +31,15 @@ fn main() -> Result<()> {
 	let diagnostics = ret.diagnostics;
 
 	if let Some(code) = code {
-		let server_path = code.server.path.unwrap_or(PathBuf::from("network/server.lua"));
-		let client_path = code.client.path.unwrap_or(PathBuf::from("network/client.lua"));
+		let server_path = config_path
+			.parent()
+			.unwrap()
+			.join(code.server.path.unwrap_or(PathBuf::from("./network/server.lua")));
+
+		let client_path = config_path
+			.parent()
+			.unwrap()
+			.join(code.client.path.unwrap_or(PathBuf::from("./network/client.lua")));
 
 		if let Some(parent) = server_path.parent() {
 			std::fs::create_dir_all(parent)?;
