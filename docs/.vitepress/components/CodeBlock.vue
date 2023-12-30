@@ -8,6 +8,7 @@
 			:options="{ ...(props.isCodeBlock ? CODEBLOCK_OPTIONS : EDITOR_OPTIONS), ...props.options }"
 			:lang="lang"
 			:isCodeBlock="props.isCodeBlock"
+			@mounted="onMount"
 		/>
 	</div>
 </template>
@@ -25,12 +26,18 @@ defineEmits<{ (e: "update:modelValue", value: string): void }>()
 const { go } = useRouter()
 
 const styles = ref()
+const lineHeight = ref(props.options?.lineHeight ?? 18)
+
+const onMount = (editor: monacoEditor.editor.IStandaloneCodeEditor) => {
+	lineHeight.value = editor.getOption(65)
+}
+
 watch(
-	() => props.code,
-	(code: string) => {
+	[() => props.code, lineHeight],
+	([code, lineHeight]) => {
 		styles.value = {
 			width: "100%",
-			height: Math.min(code.split("\n").length * (props.options?.lineHeight ?? 18), 460) + 40 + "px",
+			height: Math.min(code.split("\n").length * lineHeight, 460) + 40 + "px",
 			padding: "20px 0px",
 			background: props.isCodeBlock ? undefined : "transparent",
 			position: "relative",

@@ -4,7 +4,11 @@ layout: home
 
 hero:
   name: "Zap"
-  tagline: A blazingly fast networking solution for Roblox.
+  text: "A Lightning Fast Networking Solution"
+  tagline: "The DX that can't be beat, the speed that can't be matched. The future of Roblox networking is here."
+  image:
+    src: /logo.svg
+    alt: Zap Logo
   actions:
     - theme: brand
       text: Get Started
@@ -14,17 +18,20 @@ hero:
       link: /playground
 
 features:
-  - title: Type Safety
-    icon: 🔐
-    details: Zap generates a fully type-safe API for your network configuration. This means full intellisense support with autocomplete and type checking.
-  - title: Performance
+  - title: Buffer Packing
+    icon: 📦
+    details: Zap packs data into buffers with no overhead. The same data can be sent using a fraction of the bandwidth.
+  - title: Lighting Performance
     icon: ⚡
-    details: |
-      Zap packs all data into buffers to send over the network.
-      This has the obvious benefits of reduced bandwidth usage, however the serialization and deserialization process is typically quite slow.
-      Zap generates code for your specific types which makes this process blazingly fast.
-  - title: Complex Types
-    icon: 🔎
-    details: While buffers may only support a small number of types, Zap has complex type support.
+    details: Zap doesn't compromise on performance. Zap's packing and unpacking is typically faster than Roblox's generic encoding.
+  - title: Unparalleled DX
+    icon: 🧑‍💻
+    details: For both the IDL and API, Zap is a joy to use. It's easy to learn, easy to use, and easy to debug. It's the best DX you'll find.
+  - title: Security
+    icon: 🔒
+    details: Zap is fully secure. Buffers make reverse engineering your game's networking much harder and Zap validates all data received.
 ---
 
+<!--
+Zap Logo sourced from Twitter (https://github.com/twitter/twemoji/blob/master/assets/svg/26a1.svg) and is under the CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/) license.
+-->

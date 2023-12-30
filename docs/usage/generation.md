@@ -2,10 +2,10 @@
 
 ## Via the CLI
 
-After [installing Zap](../install.md), you can run the CLI with `zap [path to config file]`.
+After [installing Zap](../intro/getting-started.md), you can run the CLI with `zap [path to config file]`.
 
-The CLI assumes an output folder of `network` unless the `-o`/`--output` flag is specified with a path to another folder.
+The CLI assumes an output folder of `network` unless the [server_output and client_output](../config/options.md#server-output-client-output) options are specified in the config file.
 
 ## Via the playground
 
-Head to the [playground](../playground.md), input your Zap config file and paste the outputs into your IDE. 
+Head to the [playground](../playground.md), input your Zap config file and paste the outputs into your IDE.
