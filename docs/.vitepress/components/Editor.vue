@@ -5,6 +5,7 @@
 		:language="lang ?? 'zapConfig'"  
 		:theme="`${props.isCodeBlock ? 'codeblock' : 'tab'}-${isDark ? 'dark' : 'light'}`"
 		@beforeMount="beforeMount"
+		@mount="(editor) => $emit('mounted', editor)"
 		:options="EDITOR_OPTIONS"
 	/>	
 </template>	
@@ -14,12 +15,17 @@ import MonacoEditor from "@guolao/vue-monaco-editor";
 import type { Monaco } from "@monaco-editor/loader"
 import type monacoEditor from 'monaco-editor/esm/vs/editor/editor.api';
 import { useData } from "vitepress";
+import type { Ref } from "vue";
 
-const props = defineProps<{ modelValue: string, options?: monacoEditor.editor.IStandaloneEditorConstructionOptions, lang?: string, isCodeBlock?: boolean  }>()
-defineEmits<{ (e: "update:modelValue", value: string): void }>()
+const props = defineProps<{ modelValue: string, options?: monacoEditor.editor.IStandaloneEditorConstructionOptions, lang?: string, isCodeBlock?: boolean, lineHeight?: Ref<number>  }>()
+defineEmits<{ (e: "update:modelValue", value: string): void, (e: "mounted", editor: monacoEditor.editor.IStandaloneCodeEditor): void }>()
 
 const EDITOR_OPTIONS: monacoEditor.editor.IStandaloneEditorConstructionOptions = { ...props.options, formatOnPaste: true, formatOnType: true, stickyScroll: { enabled: true }, minimap: { enabled: false } }
 const { isDark } = useData();
+
+const onMount = (editor: monacoEditor.editor.IStandaloneCodeEditor) => {
+	if (props.lineHeight) props.lineHeight.value = editor.getOption(65);
+}
 
 const beforeMount = (monaco: Monaco) => {
 	monaco.editor.defineTheme("tab-light", {
