@@ -172,7 +172,7 @@ impl Des {
 								into_expr.clone().eq(Expr::Nil).or(Expr::Call(
 									Box::new(into.clone()),
 									Some("IsA".into()),
-									vec![class.unwrap().into()],
+									vec![Expr::Str(class.unwrap().into())],
 								)),
 								None,
 							)
@@ -220,7 +220,7 @@ impl Des {
 						into_expr.clone().eq(Expr::Nil).or(Expr::Call(
 							Box::new(into),
 							Some("IsA".into()),
-							vec![class.unwrap().into()],
+							vec![Expr::Str(class.unwrap().into())],
 						)),
 						None,
 					)
