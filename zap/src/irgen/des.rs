@@ -217,11 +217,11 @@ impl Des {
 
 				if self.checks && class.is_some() {
 					self.push_assert(
-						into_expr.clone().eq(Expr::Nil).or(Expr::Call(
+						Expr::Call(
 							Box::new(into),
 							Some("IsA".into()),
 							vec![Expr::Str(class.unwrap().into())],
-						)),
+						),
 						None,
 					)
 				}
