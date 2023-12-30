@@ -3,7 +3,7 @@ const configFile = `event MyEvent = {
     from: Server,
     type: Reliable,
     call: ManyAsync,
-    data: {
+    data: struct {
         foo: string,
         bar: u8,
     },
@@ -13,7 +13,7 @@ event AnotherEvent = {
     from: Client,
     type: Reliable,
     call: SingleAsync,
-    data: {
+    data: struct {
         baz: boolean,
     },
 }`
