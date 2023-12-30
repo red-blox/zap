@@ -21,7 +21,7 @@ features:
   - title: Buffer Packing
     icon: 📦
     details: Zap packs data into buffers with no overhead. The same data can be sent using a fraction of the bandwidth.
-  - title: Lighting Performance
+  - title: Lightning Performance
     icon: ⚡
     details: Zap doesn't compromise on performance. Zap's packing and unpacking is typically faster than Roblox's generic encoding.
   - title: Unparalleled DX
