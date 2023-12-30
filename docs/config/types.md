@@ -128,7 +128,7 @@ Zap has two types of enums, unit enums and tagged enums.
 
 Unit enums are used to represent a set of possible values. They are defined using the `enum` keyword, followed by a set of possible string values. For example, a unit enum representing the status of a round would look like:
 
-<CodeBlock code='enum { "Starting", "Playing", "Intermission" }' />
+<CodeBlock code='enum { Starting, Playing, Intermission }' />
 
 This code would create the Luau type:
 

@@ -1,72 +1,58 @@
+<script setup lang="ts">
+const example = `event MyEvent = {
+	from: Server,
+	type: Reliable,
+	call: ManyAsync,
+	data: struct {
+		foo: string,
+		bar: u8,
+	},
+}`
+</script>
+
 # Events
 
-Events are the core function of Zap, and can be defined through the following fields in the struct. Each field is optional and not required.
+Events are the primary way of communicating between the client and the server. Events are what is actually exposed from Zap's generated API.
 
-## Example Event
+## Defining Events
 
-<CodeBlock :code="['event RoundReady = {', '\tfrom: Client,', '\ttype: Reliable,', '\tcall: SingleSync,', '\tdata: bool,', '}'].join('\n')" />
+Events are defined in your config file using the `event` keyword.
 
-## From
+<CodeBlock :code="example" />
 
-### Default
+As you can see they have four fields. Let's go over them one by one.
 
-`Server`
+### `from`
 
-### Options
+This field determines which side of the game can fire the event. It can be either `Server` or `Client`.
 
-- `Client`
-- `Server`
+At this time Zap does not support two way events. As events have virtually no overhead, feel free to add more events instead of using two way events.
 
-### Example
+### `type`
 
-<CodeBlock :code="'\tfrom: Server,'" />
+This field determines the type of event. It can be either `Reliable` or `Unreliable`.
 
-## Type
+- Reliable events are guaranteed to arrive at their destination in the order they were sent.
+- Unreliable events are not guaranteed to arrive at their destination, and they are not guaranteed to arrive in the order they were sent. Unreliable events also have a maximum size of 900 bytes.
 
-Type determines if the event should be considered reliable or unreliable. Reliable events are ordered and guaranteed to deliver, while unreliable events are unordered and are not guaranteed to deliver.
+### `call`
 
-### Default
+This field determines how the event is listened to on the receiving side.
 
-`Reliable`
+- `ManyAsync` events can be listened to by many functions, and they are called asynchronously.
+- `ManySync` events can be listened to by many functions, and they are called synchronously.
+- `SingleAsync` events can be listened to by one function, and they are called asynchronously.
+- `SingleSync` events can be listened to by one function, and they are called synchronously.
 
-### Options
+::: danger
+Synchronous events are not recommended, and should only be used when performance is critical.
 
-- `Reliable`
-- `Unreliable`
+- If a synchronous event callback yields it will cause undefined and game-breaking behavior.
+- If a synchronous event callback errors it will cause the packet to be dropped.
 
-### Example
+Use synchronous events with extreme caution.
+:::
 
-<CodeBlock :code="'\ttype: Reliable,'" />
+### `data`
 
-## Call
-
-### Default
-
-`SingleSync`
-
-### Options
-
-- `SingleSync`
-- `SingleAsync`
-- `ManySync`
-- `ManyAsync`
-
-### Example
-
-<CodeBlock :code="'\tcall: SingleSync,'" />
-
-## Data
-
-### Default
-
-`bool`
-
-### Options
-
-Any 
-
-### Example
-
-<CodeBlock :code="'\tdata: bool,'" />
-
-<CodeBlock :code="['event Item = {', '\tfrom: Client,', '\ttype: Reliable,', '\tcall: SingleSync,', '\tdata: String,', '}'].join('\n')" />
+This field determines the data that is sent with the event. It can be any [Zap type](./types.md).
