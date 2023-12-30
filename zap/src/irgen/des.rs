@@ -165,7 +165,13 @@ impl Des {
 
 				match **ty {
 					Ty::Instance(class) => {
-						self.push_assign(into.clone(), Var::from("incoming_inst").eindex(self.readu16()).into());
+						self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
+						self.push_assign(
+							into.clone(),
+							Var::from("incoming_inst")
+								.eindex(Var::from("incoming_ipos").into())
+								.into(),
+						);
 
 						if self.checks && class.is_some() {
 							self.push_assert(
@@ -209,7 +215,13 @@ impl Des {
 			}
 
 			Ty::Instance(class) => {
-				self.push_assign(into.clone(), Var::from("incoming_inst").eindex(self.readu16()).into());
+				self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
+				self.push_assign(
+					into.clone(),
+					Var::from("incoming_inst")
+						.eindex(Var::from("incoming_ipos").into())
+						.into(),
+				);
 
 				// always assert non-optional instances as roblox
 				// will sometimes vaporize them
