@@ -76,6 +76,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
+		self.push_line("incoming_ipos = 0");
 
 		self.push_line("local len = buffer.len(buff)");
 		self.push_line("while incoming_read < len do");
@@ -169,6 +170,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
+		self.push_line("incoming_ipos = 0");
 
 		self.push_line(&format!(
 			"local id = buffer.read{}(buff, read({}))",
@@ -328,8 +330,9 @@ impl<'a> ServerOutput<'a> {
 				self.push_line("for player, outgoing in player_map do");
 				self.indent();
 				self.push_line("load(outgoing)");
-				self.push_line("local pos = alloc(used)");
-				self.push_line("buffer.copy(outgoing_buff, pos, buff, 0, used)");
+				self.push_line("alloc(used)");
+				self.push_line("buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)");
+				self.push_line("table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)");
 				self.push_line("player_map[player] = save()");
 				self.dedent();
 				self.push_line("end");
@@ -373,8 +376,9 @@ impl<'a> ServerOutput<'a> {
 				self.push_line(&format!("if player ~= {except} then"));
 				self.indent();
 				self.push_line("load(outgoing)");
-				self.push_line("local pos = alloc(used)");
-				self.push_line("buffer.copy(outgoing_buff, pos, buff, 0, used)");
+				self.push_line("alloc(used)");
+				self.push_line("buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)");
+				self.push_line("table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)");
 				self.push_line("player_map[player] = save()");
 				self.dedent();
 				self.push_line("end");
@@ -426,8 +430,9 @@ impl<'a> ServerOutput<'a> {
 				self.push_line(&format!("for _, player in {list} do"));
 				self.indent();
 				self.push_line("load(player_map[player])");
-				self.push_line("local pos = alloc(used)");
-				self.push_line("buffer.copy(outgoing_buff, pos, buff, 0, used)");
+				self.push_line("alloc(used)");
+				self.push_line("buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)");
+				self.push_line("table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)");
 				self.push_line("player_map[player] = save()");
 				self.dedent();
 				self.push_line("end");

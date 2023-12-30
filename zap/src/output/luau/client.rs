@@ -76,6 +76,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
+		self.push_line("incoming_ipos = 0");
 
 		self.push_line("local len = buffer.len(buff)");
 		self.push_line("while incoming_read < len do");
@@ -168,6 +169,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
+		self.push_line("incoming_ipos = 0");
 
 		self.push_line(&format!(
 			"local id = buffer.read{}(buff, read({}))",

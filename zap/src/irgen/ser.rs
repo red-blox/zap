@@ -211,7 +211,11 @@ impl Ser {
 					);
 				}
 
-				self.push_writeu16(Var::from("alloc_inst").call(vec![from_expr]))
+				self.push_stmt(Stmt::Call(
+					Var::from("table").nindex("insert"),
+					None,
+					vec!["outgoing_inst".into(), from_expr],
+				))
 			}
 
 			Ty::Vector3 => {

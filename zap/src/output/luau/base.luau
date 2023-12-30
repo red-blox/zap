@@ -7,6 +7,7 @@ local outgoing_apos: number
 local incoming_buff: buffer
 local incoming_read: number
 local incoming_inst: { Instance }
+local incoming_ipos: number
 
 local function alloc(len: number)
 	if outgoing_used + len > outgoing_size then
@@ -24,12 +25,6 @@ local function alloc(len: number)
 	outgoing_used = outgoing_used + len
 
 	return outgoing_apos
-end
-
-local function alloc_inst(inst: Instance)
-	table.insert(outgoing_inst, inst)
-
-	return #outgoing_inst
 end
 
 local function read(len: number)
