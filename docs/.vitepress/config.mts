@@ -44,6 +44,9 @@ export default defineConfig({
       { icon: 'discord', link: 'https://discord.gg/mchCdAFPWU' },
     ]
   },
+  head: [
+    ['link', { rel: 'icon', href: '/logo.svg' }]
+  ],
   vite: {
     configFile: "./docs/.vitepress/vite.config.ts"
   },
