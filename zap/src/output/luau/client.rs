@@ -108,12 +108,23 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("local value");
 		self.push_stmts(&des::gen(&ev.data, "value", true));
 
-		match ev.call {
-			EvCall::SingleSync => self.push_line(&format!("if events[{id}] then events[{id}](value) end")),
-			EvCall::SingleAsync => self.push_line(&format!("if events[{id}] then task.spawn(events[{id}], value) end")),
-			EvCall::ManySync => self.push_line(&format!("for _, cb in events[{id}] do cb(value) end")),
-			EvCall::ManyAsync => self.push_line(&format!("for _, cb in events[{id}] do task.spawn(cb, value) end")),
+		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
+			self.push_line("if events[{id}] then")
+		} else {
+			self.push_line("for _, cb in events[{id}] do")
 		}
+
+		self.indent();
+
+		match ev.call {
+			EvCall::SingleSync => self.push_line(&format!("events[{id}](value)")),
+			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{id}], value)")),
+			EvCall::ManySync => self.push_line("cb(value)"),
+			EvCall::ManyAsync => self.push_line("task.spawn(cb, value)"),
+		}
+
+		self.dedent();
+		self.push_line("end");
 
 		self.dedent();
 	}
@@ -185,12 +196,23 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("local value");
 		self.push_stmts(&des::gen(&ev.data, "value", self.config.write_checks));
 
-		match ev.call {
-			EvCall::SingleSync => self.push_line(&format!("if events[{id}] then events[{id}](value) end")),
-			EvCall::SingleAsync => self.push_line(&format!("if events[{id}] then task.spawn(events[{id}], value) end")),
-			EvCall::ManySync => self.push_line(&format!("for _, cb in events[{id}] do cb(value) end")),
-			EvCall::ManyAsync => self.push_line(&format!("for _, cb in events[{id}] do task.spawn(cb, value) end")),
+		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
+			self.push_line("if events[{id}] then")
+		} else {
+			self.push_line("for _, cb in events[{id}] do")
 		}
+
+		self.indent();
+
+		match ev.call {
+			EvCall::SingleSync => self.push_line(&format!("events[{id}](value)")),
+			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{id}], value)")),
+			EvCall::ManySync => self.push_line("cb(value)"),
+			EvCall::ManyAsync => self.push_line("task.spawn(cb, value)"),
+		}
+
+		self.dedent();
+		self.push_line("end");
 
 		self.dedent();
 	}

@@ -109,16 +109,23 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("local value");
 		self.push_stmts(&des::gen(&ev.data, "value", true));
 
-		match ev.call {
-			EvCall::SingleSync => self.push_line(&format!("if events[{id}] then events[{id}](player, value) end")),
-			EvCall::SingleAsync => self.push_line(&format!(
-				"if events[{id}] then task.spawn(events[{id}], player, value) end"
-			)),
-			EvCall::ManySync => self.push_line(&format!("for _, cb in events[{id}] do cb(player, value) end")),
-			EvCall::ManyAsync => self.push_line(&format!(
-				"for _, cb in events[{id}] do task.spawn(cb, player, value) end"
-			)),
+		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
+			self.push_line("if events[{id}] then")
+		} else {
+			self.push_line("for _, cb in events[{id}] do")
 		}
+
+		self.indent();
+
+		match ev.call {
+			EvCall::SingleSync => self.push_line(&format!("events[{id}](player, value)")),
+			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{id}], player, value)")),
+			EvCall::ManySync => self.push_line("cb(player, value)"),
+			EvCall::ManyAsync => self.push_line("task.spawn(cb, player, value)"),
+		}
+
+		self.dedent();
+		self.push_line("end");
 
 		self.dedent();
 	}
@@ -190,16 +197,23 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("local value");
 		self.push_stmts(&des::gen(&ev.data, "value", true));
 
-		match ev.call {
-			EvCall::SingleSync => self.push_line(&format!("if events[{id}] then events[{id}](player, value) end")),
-			EvCall::SingleAsync => self.push_line(&format!(
-				"if events[{id}] then task.spawn(events[{id}], player, value) end"
-			)),
-			EvCall::ManySync => self.push_line(&format!("for _, cb in events[{id}] do cb(player, value) end")),
-			EvCall::ManyAsync => self.push_line(&format!(
-				"for _, cb in events[{id}] do task.spawn(cb, player, value) end"
-			)),
+		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
+			self.push_line("if events[{id}] then")
+		} else {
+			self.push_line("for _, cb in events[{id}] do")
 		}
+
+		self.indent();
+
+		match ev.call {
+			EvCall::SingleSync => self.push_line(&format!("events[{id}](player, value)")),
+			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{id}], player, value)")),
+			EvCall::ManySync => self.push_line("cb(player, value)"),
+			EvCall::ManyAsync => self.push_line("task.spawn(cb, player, value)"),
+		}
+
+		self.dedent();
+		self.push_line("end");
 
 		self.dedent();
 	}
@@ -250,7 +264,7 @@ impl<'a> ServerOutput<'a> {
 	fn push_write_event_id(&mut self, id: usize) {
 		self.push_line(&format!("local pos = alloc({})", self.config.event_id_ty().size()));
 		self.push_line(&format!(
-			"buffer.write{}(outgoing_buf, pos, {id})",
+			"buffer.write{}(outgoing_buff, pos, {id})",
 			self.config.event_id_ty()
 		));
 	}
@@ -281,7 +295,7 @@ impl<'a> ServerOutput<'a> {
 			EvType::Reliable => self.push_line(&format!("player_map[{player}] = save()")),
 			EvType::Unreliable => {
 				self.push_line("local buf = buffer.create(outgoing_used)");
-				self.push_line("buffer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
+				self.push_line("buffer.copy(buf, 0, outgoing_buff, 0, outgoing_used)");
 				self.push_line(&format!("unreliable:FireClient({player}, buf, outgoing_inst)"));
 			}
 		}
@@ -310,12 +324,12 @@ impl<'a> ServerOutput<'a> {
 
 		match ev.evty {
 			EvType::Reliable => {
-				self.push_line("local buf, used, inst = outgoing_buf, outgoing_used, outgoing_inst");
+				self.push_line("local buf, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
 				self.push_line("for player, outgoing in player_map do");
 				self.indent();
 				self.push_line("load(outgoing)");
 				self.push_line("local pos = alloc(used)");
-				self.push_line("buffer.copy(outgoing_buf, pos, buf, 0, used)");
+				self.push_line("buffer.copy(outgoing_buff, pos, buf, 0, used)");
 				self.push_line("player_map[player] = save()");
 				self.dedent();
 				self.push_line("end");
@@ -323,7 +337,7 @@ impl<'a> ServerOutput<'a> {
 
 			EvType::Unreliable => {
 				self.push_line("local buf = buffer.create(outgoing_used)");
-				self.push_line("buffer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
+				self.push_line("buffer.copy(buf, 0, outgoing_buff, 0, outgoing_used)");
 				self.push_line("unreliable:FireAllClients(buf, outgoing_inst)")
 			}
 		}
@@ -353,14 +367,14 @@ impl<'a> ServerOutput<'a> {
 
 		match ev.evty {
 			EvType::Reliable => {
-				self.push_line("local buf, used, inst = outgoing_buf, outgoing_used, outgoing_inst");
+				self.push_line("local buf, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
 				self.push_line("for player, outgoing in player_map do");
 				self.indent();
 				self.push_line(&format!("if player ~= {except} then"));
 				self.indent();
 				self.push_line("load(outgoing)");
 				self.push_line("local pos = alloc(used)");
-				self.push_line("buffer.copy(outgoing_buf, pos, buf, 0, used)");
+				self.push_line("buffer.copy(outgoing_buff, pos, buf, 0, used)");
 				self.push_line("player_map[player] = save()");
 				self.dedent();
 				self.push_line("end");
@@ -370,7 +384,7 @@ impl<'a> ServerOutput<'a> {
 
 			EvType::Unreliable => {
 				self.push_line("local buf = buffer.create(outgoing_used)");
-				self.push_line("buffer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
+				self.push_line("buffer.copy(buf, 0, outgoing_buff, 0, outgoing_used)");
 				self.push_line("for player in player_map do");
 				self.indent();
 				self.push_line(&format!("if player ~= {except} then"));
@@ -408,12 +422,12 @@ impl<'a> ServerOutput<'a> {
 
 		match ev.evty {
 			EvType::Reliable => {
-				self.push_line("local buf, used, inst = outgoing_buf, outgoing_used, outgoing_inst");
+				self.push_line("local buf, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
 				self.push_line(&format!("for _, player in {list} do"));
 				self.indent();
 				self.push_line("load(player_map[player])");
 				self.push_line("local pos = alloc(used)");
-				self.push_line("buffer.copy(outgoing_buf, pos, buf, 0, used)");
+				self.push_line("buffer.copy(outgoing_buff, pos, buf, 0, used)");
 				self.push_line("player_map[player] = save()");
 				self.dedent();
 				self.push_line("end");
@@ -421,7 +435,7 @@ impl<'a> ServerOutput<'a> {
 
 			EvType::Unreliable => {
 				self.push_line("local buf = buffer.create(outgoing_used)");
-				self.push_line("buffer.copy(buf, 0, outgoing_buf, 0, outgoing_used)");
+				self.push_line("buffer.copy(buf, 0, outgoing_buff, 0, outgoing_used)");
 				self.push_line(&format!("for _, player in {list} do"));
 				self.indent();
 				self.push_line("unreliable:FireClient(player, buf, outgoing_inst)");
