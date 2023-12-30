@@ -1,6 +1,6 @@
 <script setup lang="ts">
-const outputDefaults = `opt server_output = "./network/server.luau"
-opt client_output = "path/to/client/output.luau"`
+const outputDefaults = `opt server_output = "./network/server.lua"
+opt client_output = "path/to/client/output.lua"`
 
 const outputExample = `opt server_output = "./network/client.luau"
 opt client_output = "src/client/zap.luau"`
@@ -12,7 +12,7 @@ Options are placed at the beginning of Zap config files and allow you to configu
 
 ## `server_output` & `client_output`
 
-These two options allow you to configure where Zap will output generated code. If you'ree not using the CLI these options can be ignored.
+These two options allow you to configure where Zap will output generated code. If you're not using the CLI these options can be ignored.
 
 The paths are relative to the configuration file and should point to a lua(u) file.
 

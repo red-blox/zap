@@ -23,7 +23,7 @@ event AnotherEvent = {
 
 Zap's generated API is fully typesafe. While Zap will not throw errors for invalid usage, your static analysis tooling will.
 
-- If you're using [vscode](https://code.visualstudio.com/), we recommend installing the [Luau-LSP](https://marketplace.visualstudio.com/items?itemName=JohnnyMorganz.luau-lsp) extension.
+- If you're using [VSCode](https://code.visualstudio.com/), we recommend installing the [Luau-LSP](https://marketplace.visualstudio.com/items?itemName=JohnnyMorganz.luau-lsp) extension.
 - If you're using Roblox Studio, you already have the proper Luau tooling.
 
 ::: info

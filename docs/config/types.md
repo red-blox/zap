@@ -68,7 +68,7 @@ Signed integers are standard integers. They can be positive and negative.
 
 ### Unsigned Integers
 
-Unsigned integers are positive integers that cannot be negative.
+Unsigned integers are positive integers.
 
 | Type  | Min Value | Max Value     |
 | ----- | --------- | ------------- |
@@ -130,7 +130,7 @@ Unit enums are used to represent a set of possible values. They are defined usin
 
 <CodeBlock code='enum { Starting, Playing, Intermission }' />
 
-This code would create the Luau type:
+This code would then create the Luau type:
 
 ```lua
 type RoundStatus = "Starting" | "Playing" | "Intermission"

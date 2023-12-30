@@ -12,7 +12,7 @@ const example = `event MyEvent = {
 
 # Events
 
-Events are the primary way of communicating between the client and the server. Events are what is actually exposed from Zap's generated API.
+Events are the primary method of communicating between the client and the server. Events are also what is exposed to the developer from Zap's generated API.
 
 ## Defining Events
 
@@ -20,13 +20,13 @@ Events are defined in your config file using the `event` keyword.
 
 <CodeBlock :code="example" />
 
-As you can see they have four fields. Let's go over them one by one.
+As you can see they have four fields. Let's go over them one by one:
 
 ### `from`
 
 This field determines which side of the game can fire the event. It can be either `Server` or `Client`.
 
-At this time Zap does not support two way events. As events have virtually no overhead, feel free to add more events instead of using two way events.
+At this time Zap does not support two way events. As events have almost no overhead, feel free to add more events instead of using two way events.
 
 ### `type`
 
@@ -47,8 +47,8 @@ This field determines how the event is listened to on the receiving side.
 ::: danger
 Synchronous events are not recommended, and should only be used when performance is critical.
 
-- If a synchronous event callback yields it will cause undefined and game-breaking behavior.
-- If a synchronous event callback errors it will cause the packet to be dropped.
+- If a synchronous event callback yields it will cause **undefined and game-breaking behavior**.
+- If a synchronous event callback errors it will cause **the packet to be dropped**.
 
 Use synchronous events with extreme caution.
 :::
