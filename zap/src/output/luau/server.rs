@@ -110,9 +110,9 @@ impl<'a> ServerOutput<'a> {
 		self.push_stmts(&des::gen(&ev.data, "value", true));
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line("if events[{id}] then")
+			self.push_line(&format!("if events[{id}] then"))
 		} else {
-			self.push_line("for _, cb in events[{id}] do")
+			self.push_line(&format!("for _, cb in events[{id}] do"))
 		}
 
 		self.indent();
@@ -198,9 +198,9 @@ impl<'a> ServerOutput<'a> {
 		self.push_stmts(&des::gen(&ev.data, "value", true));
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line("if events[{id}] then")
+			self.push_line(&format!("if events[{id}] then"))
 		} else {
-			self.push_line("for _, cb in events[{id}] do")
+			self.push_line(&format!("for _, cb in events[{id}] do"))
 		}
 
 		self.indent();
