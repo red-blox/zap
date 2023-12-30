@@ -7,15 +7,15 @@ const nav = [
 
 const sidebar = [
   {
-    text: 'Getting Started',
+    text: 'Introduction',
     items: [
-      { text: 'Installation', link: '/install' },
+      { text: 'What is Zap?', link: '/intro/what-is-zap' },
+      { text: 'Getting Started', link: '/intro/getting-started' },
     ]
   },
   {
     text: 'Configuring Zap',
     items: [
-      { text: 'Introduction', link: '/config/intro' },
       { text: 'Options', link: '/config/options' },
       { text: 'Types', link: '/config/types' },
       { text: 'Events', link: '/config/events' },
@@ -33,16 +33,21 @@ const sidebar = [
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "Zap",
+  description: "A lightning fast, type-safe, and easy to use networking solution for Roblox.",
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     nav,
     sidebar,
+    logo: '/logo.svg',
     socialLinks: [
       { icon: 'github', link: 'https://github.com/red-blox/zap' },
       { icon: 'discord', link: 'https://discord.gg/mchCdAFPWU' },
     ]
   },
+  head: [
+    ['link', { rel: 'icon', href: '/logo.svg' }]
+  ],
   vite: {
     configFile: "./docs/.vitepress/vite.config.ts"
-  }
+  },
 })
