@@ -3,17 +3,17 @@ outline: [2, 3]
 ---
 
 <script setup lang="ts">
-const enumExample = `enum "type" {
-	"number" {
-		value: f64,
+const enumExample = `enum "Type" {
+	Number {
+		Value: f64,
 	},
 
-	"string" {
-		value: string,
+	String {
+		Value: string,
 	},
 
-	"boolean" {
-		value: boolean,
+	Boolean {
+		Value: boolean,
 	},
 }`
 

@@ -44,18 +44,18 @@ Throughout this guide we'll be using the following events as examples.
 
 Listening to events is done the same way on both the server and client.
 
-If your event's [call field](../config/events.md#call) is `SingleAsync` or `SingleSync` you can only assign one listener. This is done with the `SetListener` function.
+If your event's [call field](../config/events.md#call) is `SingleAsync` or `SingleSync` you can only assign one listener. This is done with the `SetCallback` function.
 
 ```lua
 local Zap = require(Path.To.Zap)
 
 -- only server listeners are given the player argument
-Zap.AnotherEvent.SetListener(function(Player, Data)
+Zap.AnotherEvent.SetCallback(function(Player, Data)
     -- Do something with the player and data
 end)
 ```
 
-If your event's [call field](../config/events.md#call) is `ManyAsync` or `ManySync` you can assign multiple listeners. This is done with the `AddListener` function.
+If your event's [call field](../config/events.md#call) is `ManyAsync` or `ManySync` you can assign multiple listeners. This is done with the `On` function.
 
 ```lua
 local Zap = require(Path.To.Zap)
