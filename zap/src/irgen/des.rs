@@ -185,6 +185,16 @@ impl Des {
 						}
 					}
 
+					Ty::Unknown => {
+						self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
+						self.push_assign(
+							into.clone(),
+							Var::from("incoming_inst")
+								.eindex(Var::from("incoming_ipos").into())
+								.into(),
+						);
+					}
+
 					_ => self.push_ty(ty, into.clone()),
 				}
 
@@ -238,6 +248,9 @@ impl Des {
 					)
 				}
 			}
+
+			// unknown is always an opt
+			Ty::Unknown => unreachable!(),
 
 			Ty::Boolean => self.push_assign(into, self.readu8().eq(1.0.into())),
 			Ty::Vector3 => {

@@ -76,6 +76,10 @@ pub enum Report<'src> {
 		min: f64,
 		max: f64,
 	},
+
+	AnalyzeInvalidOptionalType {
+		span: Span,
+	},
 }
 
 impl<'src> Report<'src> {
@@ -98,6 +102,7 @@ impl<'src> Report<'src> {
 			Self::AnalyzeUnknownOptName { .. } => Severity::Warning,
 			Self::AnalyzeUnknownTypeRef { .. } => Severity::Error,
 			Self::AnalyzeNumOutsideRange { .. } => Severity::Error,
+			Self::AnalyzeInvalidOptionalType { .. } => Severity::Error,
 		}
 	}
 
@@ -123,6 +128,7 @@ impl<'src> Report<'src> {
 			Self::AnalyzeUnknownOptName { .. } => "unknown opt name".to_string(),
 			Self::AnalyzeUnknownTypeRef { name, .. } => format!("unknown type reference '{}'", name),
 			Self::AnalyzeNumOutsideRange { .. } => "number outside range".to_string(),
+			Self::AnalyzeInvalidOptionalType { .. } => "type must not be optional".to_string(),
 		}
 	}
 
@@ -145,6 +151,7 @@ impl<'src> Report<'src> {
 			Self::AnalyzeUnknownOptName { .. } => "3008",
 			Self::AnalyzeUnknownTypeRef { .. } => "3009",
 			Self::AnalyzeNumOutsideRange { .. } => "3010",
+			Self::AnalyzeInvalidOptionalType { .. } => "3011",
 		}
 	}
 
@@ -216,6 +223,10 @@ impl<'src> Report<'src> {
 			Self::AnalyzeNumOutsideRange { span, .. } => {
 				vec![Label::primary((), span.clone()).with_message("number outside range")]
 			}
+
+			Self::AnalyzeInvalidOptionalType { span, .. } => {
+				vec![Label::primary((), span.clone()).with_message("must be removed")]
+			}
 		}
 	}
 
@@ -260,6 +271,9 @@ impl<'src> Report<'src> {
 			Self::AnalyzeNumOutsideRange { min, max, .. } => Some(vec![
 				format!("(inclusive) min: {}", min),
 				format!("(inclusive) max: {}", max),
+			]),
+			Self::AnalyzeInvalidOptionalType { .. } => Some(vec![
+				"this type can only be used when it is not marked as optional".to_string(),
 			]),
 		}
 	}

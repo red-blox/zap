@@ -159,6 +159,7 @@ pub trait Output {
 
 			Ty::Instance(name) => self.push(name.unwrap_or("Instance")),
 
+			Ty::Unknown => self.push("unknown"),
 			Ty::Boolean => self.push("boolean"),
 			Ty::Vector3 => self.push("Vector3"),
 		}

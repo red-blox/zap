@@ -217,11 +217,24 @@ impl<'src> SyntaxTy<'src> {
 			),
 
 			SyntaxTyKind::Map(key, val) => Ty::Map(Box::new(key.into_config(state)), Box::new(val.into_config(state))),
-			SyntaxTyKind::Opt(ty) => Ty::Opt(Box::new(ty.into_config(state))),
+			SyntaxTyKind::Opt(ty) => {
+				let ty = ty.into_config(state);
+
+				if let Ty::Opt(ty) = &ty {
+					if let Ty::Unknown = **ty {
+						state.push_report(Report::AnalyzeInvalidOptionalType {
+							span: (self.end - 1)..self.end,
+						});
+					}
+				}
+
+				Ty::Opt(Box::new(ty))
+			}
 
 			SyntaxTyKind::Ref(name) => match name.into_config() {
 				"boolean" => Ty::Boolean,
 				"Vector3" => Ty::Vector3,
+				"unknown" => Ty::Opt(Box::new(Ty::Unknown)),
 
 				_ => {
 					let name = name.into_config();
