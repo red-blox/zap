@@ -53,11 +53,23 @@ fn main() -> Result<()> {
 		std::fs::write(client_path.clone(), code.client.code)?;
 
 		if let Some(defs) = code.server.defs {
-			std::fs::write(server_path.with_extension("d.ts"), defs)?;
+			let file_path = if server_path.file_stem().unwrap() == "init" {
+				server_path.with_file_name("index.d.ts")
+			} else {
+				server_path.with_extension("d.ts")
+			};
+
+			std::fs::write(file_path, defs)?;
 		}
 
 		if let Some(defs) = code.client.defs {
-			std::fs::write(client_path.with_extension("d.ts"), defs)?;
+			let file_path = if client_path.file_stem().unwrap() == "init" {
+				client_path.with_file_name("index.d.ts")
+			} else {
+				client_path.with_extension("d.ts")
+			};
+
+			std::fs::write(file_path, defs)?;
 		}
 	}
 
