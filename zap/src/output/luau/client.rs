@@ -110,12 +110,17 @@ impl<'src> ClientOutput<'src> {
 		self.push_stmts(&des::gen(&ev.data, "value", true));
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line(&format!("if events[{id}] then"))
+			self.push_line(&format!("if events[{id}] then"));
 		} else {
-			self.push_line(&format!("for _, cb in events[{id}] do"))
+			self.push_line(&format!("if events[{id}][1] then"));
 		}
 
 		self.indent();
+
+		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
+			self.push_line(&format!("for _, cb in events[{id}] do"));
+			self.indent();
+		}
 
 		match ev.call {
 			EvCall::SingleSync => self.push_line(&format!("events[{id}](value)")),
@@ -123,6 +128,17 @@ impl<'src> ClientOutput<'src> {
 			EvCall::ManySync => self.push_line("cb(value)"),
 			EvCall::ManyAsync => self.push_line("task.spawn(cb, value)"),
 		}
+
+		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
+			self.dedent();
+			self.push_line("end");
+		}
+
+		self.dedent();
+		self.push_line("else");
+		self.indent();
+
+		self.push_line(&format!("table.insert(event_queue[{id}], value)"));
 
 		self.dedent();
 		self.push_line("end");
@@ -199,12 +215,17 @@ impl<'src> ClientOutput<'src> {
 		self.push_stmts(&des::gen(&ev.data, "value", self.config.write_checks));
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line(&format!("if events[{id}] then"))
+			self.push_line(&format!("if events[{id}] then"));
 		} else {
-			self.push_line(&format!("for _, cb in events[{id}] do"))
+			self.push_line(&format!("if events[{id}][1] then"));
 		}
 
 		self.indent();
+
+		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
+			self.push_line(&format!("for _, cb in events[{id}] do"));
+			self.indent();
+		}
 
 		match ev.call {
 			EvCall::SingleSync => self.push_line(&format!("events[{id}](value)")),
@@ -212,6 +233,17 @@ impl<'src> ClientOutput<'src> {
 			EvCall::ManySync => self.push_line("cb(value)"),
 			EvCall::ManyAsync => self.push_line("task.spawn(cb, value)"),
 		}
+
+		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
+			self.dedent();
+			self.push_line("end");
+		}
+
+		self.dedent();
+		self.push_line("else");
+		self.indent();
+
+		self.push_line(&format!("table.insert(event_queue[{id}], value)"));
 
 		self.dedent();
 		self.push_line("end");
@@ -253,12 +285,20 @@ impl<'src> ClientOutput<'src> {
 	fn push_callback_lists(&mut self) {
 		self.push_line(&format!("local events = table.create({})", self.config.evdecls.len()));
 
-		for (i, _) in self.config.evdecls.iter().enumerate().filter(|(_, ev_decl)| {
-			ev_decl.from == EvSource::Server && matches!(ev_decl.call, EvCall::ManyAsync | EvCall::ManySync)
-		}) {
+		for (i, ev_decl) in self
+			.config
+			.evdecls
+			.iter()
+			.enumerate()
+			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server)
+		{
 			let id = i + 1;
 
-			self.push_line(&format!("events[{id}] = {{}}"));
+			if ev_decl.call == EvCall::ManyAsync || ev_decl.call == EvCall::ManySync {
+				self.push_line(&format!("events[{id}] = {{}}"));
+			}
+
+			self.push_line(&format!("event_queue[{id}] = {{}}"));
 		}
 	}
 
@@ -336,6 +376,20 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line(&format!("events[{id}] = {callback}"));
 
+		self.push_line(&format!("for _, value in event_queue[{id}] do"));
+		self.indent();
+
+		if ev.call == EvCall::SingleSync {
+			self.push_line(&format!("{callback}(value)"))
+		} else {
+			self.push_line(&format!("task.spawn({callback}, value)"))
+		}
+
+		self.dedent();
+		self.push_line("end");
+
+		self.push_line(&format!("event_queue[{id}] = {{}}"));
+
 		self.dedent();
 		self.push_line("end,");
 	}
@@ -353,6 +407,26 @@ impl<'src> ClientOutput<'src> {
 		self.indent();
 
 		self.push_line(&format!("table.insert(events[{id}], {callback})"));
+
+		self.push_line(&format!("for _, value in event_queue[{id}] do"));
+		self.indent();
+
+		self.push_line(&format!("for _, cb in events[{id}] do"));
+		self.indent();
+
+		if ev.call == EvCall::ManySync {
+			self.push_line("cb(value)");
+		} else {
+			self.push_line("task.spawn(cb, value)");
+		}
+
+		self.dedent();
+		self.push_line("end");
+
+		self.dedent();
+		self.push_line("end");
+
+		self.push_line(&format!("event_queue[{id}] = {{}}"));
 
 		self.dedent();
 		self.push_line("end,");
