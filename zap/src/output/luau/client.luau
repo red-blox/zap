@@ -5,7 +5,7 @@ end
 local reliable = game:GetService("ReplicatedStorage"):WaitForChild("ZAP_RELIABLE")
 local unreliable = game:GetService("ReplicatedStorage"):WaitForChild("ZAP_UNRELIABLE")
 
-local event_queue: { [number]: { any } }
+local event_queue: { [number]: { any } } = {}
 
 local time = 0
 
