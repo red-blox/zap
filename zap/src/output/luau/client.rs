@@ -5,6 +5,8 @@ use crate::{
 
 use super::Output;
 
+const CONNECT_FRAME_DELAY: u8 = 5;
+
 struct ClientOutput<'src> {
 	config: &'src Config<'src>,
 	tabs: u32,
@@ -392,6 +394,42 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("}");
 	}
 
+	fn push_event_connections(&mut self) {
+		let any_reliable = self
+			.config
+			.evdecls
+			.iter()
+			.any(|ev| ev.evty == EvType::Reliable && ev.from == EvSource::Server);
+		let any_unreliable = self
+			.config
+			.evdecls
+			.iter()
+			.any(|ev| ev.evty == EvType::Unreliable && ev.from == EvSource::Server);
+
+		if !any_reliable && !any_unreliable {
+			return;
+		}
+
+		self.push_line("task.spawn(function()");
+		self.indent();
+		self.push_line(&format!("for _ = 1, {} do", CONNECT_FRAME_DELAY));
+		self.indent();
+		self.push_line("task.wait()");
+		self.dedent();
+		self.push_line("end\n");
+
+		if any_reliable {
+			self.push_reliable();
+		}
+
+		if any_unreliable {
+			self.push_unreliable();
+		}
+
+		self.dedent();
+		self.push_line("end)");
+	}
+
 	pub fn output(mut self) -> String {
 		self.push_file_header("Client");
 
@@ -406,23 +444,7 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_callback_lists();
 
-		if self
-			.config
-			.evdecls
-			.iter()
-			.any(|ev| ev.evty == EvType::Reliable && ev.from == EvSource::Server)
-		{
-			self.push_reliable();
-		}
-
-		if self
-			.config
-			.evdecls
-			.iter()
-			.any(|ev| ev.evty == EvType::Unreliable && ev.from == EvSource::Server)
-		{
-			self.push_unreliable();
-		}
+		self.push_event_connections();
 
 		self.push_return();
 
