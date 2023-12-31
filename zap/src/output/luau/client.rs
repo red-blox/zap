@@ -140,6 +140,17 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line(&format!("table.insert(event_queue[{id}], value)"));
 
+		self.push_line(&format!("if #event_queue[{id}] > 64 then"));
+		self.indent();
+
+		self.push_line(&format!(
+			"warn(`[ZAP] {{#event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)",
+			ev.name
+		));
+
+		self.dedent();
+		self.push_line("end");
+
 		self.dedent();
 		self.push_line("end");
 
@@ -244,6 +255,17 @@ impl<'src> ClientOutput<'src> {
 		self.indent();
 
 		self.push_line(&format!("table.insert(event_queue[{id}], value)"));
+
+		self.push_line(&format!("if #event_queue[{id}] > 64 then"));
+		self.indent();
+
+		self.push_line(&format!(
+			"warn(`[ZAP] {{#event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)",
+			ev.name
+		));
+
+		self.dedent();
+		self.push_line("end");
 
 		self.dedent();
 		self.push_line("end");
