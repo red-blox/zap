@@ -411,17 +411,11 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("for _, value in event_queue[{id}] do"));
 		self.indent();
 
-		self.push_line(&format!("for _, cb in events[{id}] do"));
-		self.indent();
-
 		if ev.call == EvCall::ManySync {
-			self.push_line("cb(value)");
+			self.push_line(&format!("{callback}(value)"))
 		} else {
-			self.push_line("task.spawn(cb, value)");
+			self.push_line(&format!("task.spawn({callback}, value)"))
 		}
-
-		self.dedent();
-		self.push_line("end");
 
 		self.dedent();
 		self.push_line("end");
