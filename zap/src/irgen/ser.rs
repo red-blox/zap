@@ -218,6 +218,12 @@ impl Ser {
 				))
 			}
 
+			Ty::Unknown => self.push_stmt(Stmt::Call(
+				Var::from("table").nindex("insert"),
+				None,
+				vec!["outgoing_inst".into(), from_expr],
+			)),
+
 			Ty::Vector3 => {
 				self.push_writef32(from.clone().nindex("X").into());
 				self.push_writef32(from.clone().nindex("Y").into());

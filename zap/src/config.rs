@@ -88,6 +88,7 @@ pub enum Ty<'src> {
 
 	Vector3,
 	Boolean,
+	Unknown,
 }
 
 impl<'src> Ty<'src> {
@@ -106,6 +107,7 @@ impl<'src> Ty<'src> {
 			Self::Enum(enum_ty) => enum_ty.max_size(config, recursed),
 			Self::Struct(struct_ty) => struct_ty.max_size(config, recursed),
 			Self::Instance(_) => Some(2),
+			Self::Unknown => None,
 			Self::Ref(name) => {
 				if recursed.contains(name) {
 					None
