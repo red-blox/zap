@@ -2,13 +2,19 @@ if game:GetService("RunService"):IsClient() then
 	error("Cannot use the server module on the client!")
 end
 
-local reliable = Instance.new("RemoteEvent")
-reliable.Name = "ZAP_RELIABLE"
-reliable.Parent = game:GetService("ReplicatedStorage")
+local reliable = game:GetService("ReplicatedStorage"):FindFirstChild("ZAP_RELIABLE")
+if reliable == nil then
+	reliable = Instance.new("RemoteEvent")
+	reliable.Name = "ZAP_RELIABLE"
+	reliable.Parent = game:GetService("ReplicatedStorage")
+end
 
-local unreliable = Instance.new("RemoteEvent")
-unreliable.Name = "ZAP_UNRELIABLE"
-unreliable.Parent = game:GetService("ReplicatedStorage")
+local unreliable = game:GetService("ReplicatedStorage"):FindFirstChild("ZAP_UNRELIABLE")
+if unreliable == nil then
+	unreliable = Instance.new("RemoteEvent")
+	unreliable.Name = "ZAP_UNRELIABLE"
+	unreliable.Parent = game:GetService("ReplicatedStorage")
+end
 
 local player_map = {}
 
