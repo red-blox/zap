@@ -122,11 +122,9 @@ const beforeMount = (monaco: Monaco) => {
 		"u8",
 		"u16",
 		"u32",
-		"u64",
 		"i8",
 		"i16",
 		"i32",
-		"i64",
 		"f32",
 		"f64",
 		"boolean",
@@ -136,6 +134,8 @@ const beforeMount = (monaco: Monaco) => {
 		"Instance",
 		"Color3",
 		"Vector3",
+		"AlignedCFrame",
+		"CFrame",
 	] as const;
 
 	const EventParamToArray = {
@@ -182,16 +182,6 @@ const beforeMount = (monaco: Monaco) => {
 				root: [
 					// numbers
 					[/\d+?/, "number"],
-
-					// keys
-					[
-						/({)(\s*)([a-zA-Z_]\w*)(\s*)(:)(?!:)/,
-						["@brackets", "", "key", "", "delimiter"],
-					],
-					[
-						/(,)(\s*)([a-zA-Z_]\w*)(\s*)(:)(?!:)/,
-						["delimiter", "", "key", "", "delimiter"],
-					],
 
 					// delimiters and operators
 					[/[{}()\[\]]/, "@brackets"],

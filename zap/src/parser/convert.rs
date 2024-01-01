@@ -235,6 +235,8 @@ impl<'src> SyntaxTy<'src> {
 				"boolean" => Ty::Boolean,
 				"Color3" => Ty::Color3,
 				"Vector3" => Ty::Vector3,
+				"AlignedCFrame" => Ty::AlignedCFrame,
+				"CFrame" => Ty::CFrame,
 				"unknown" => Ty::Opt(Box::new(Ty::Unknown)),
 
 				_ => {

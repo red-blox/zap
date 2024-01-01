@@ -245,6 +245,33 @@ impl Ser {
 				self.push_writef32(from.clone().nindex("Z").into());
 			}
 
+			Ty::AlignedCFrame => {
+				self.push_local(
+					"axis_alignment",
+					Some(Expr::Call(
+						Box::new(Var::from("table").nindex("find")),
+						None,
+						vec!["CFrameSpecialCases".into(), from.clone().nindex("Rotation").into()],
+					)),
+				);
+
+				self.push_assert(
+					"axis_alignment".into(),
+					Some("CFrame not aligned to an axis!".to_string()),
+				);
+
+				self.push_writeu8("axis_alignment".into());
+
+				self.push_ty(&Ty::Vector3, from.clone().nindex("Position"));
+			}
+
+			Ty::CFrame => {
+				self.push_ty(&Ty::Vector3, from.clone().nindex("Position"));
+				self.push_ty(&Ty::Vector3, from.clone().nindex("XVector"));
+				self.push_ty(&Ty::Vector3, from.clone().nindex("YVector"));
+				self.push_ty(&Ty::Vector3, from.clone().nindex("ZVector"));
+			}
+
 			Ty::Boolean => self.push_writeu8(from_expr.and(1.0.into()).or(0.0.into())),
 		}
 	}

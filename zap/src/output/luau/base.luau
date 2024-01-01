@@ -9,6 +9,34 @@ local incoming_read: number
 local incoming_inst: { Instance }
 local incoming_ipos: number
 
+-- thanks to https://dom.rojo.space/binary.html#cframe
+local CFrameSpecialCases = {
+	CFrame.Angles(0, 0, 0),
+	CFrame.Angles(math.rad(90), 0, 0),
+	CFrame.Angles(0, math.rad(180), math.rad(180)),
+	CFrame.Angles(math.rad(-90), 0, 0),
+	CFrame.Angles(0, math.rad(180), math.rad(90)),
+	CFrame.Angles(0, math.rad(90), math.rad(90)),
+	CFrame.Angles(0, 0, math.rad(90)),
+	CFrame.Angles(0, math.rad(-90), math.rad(90)),
+	CFrame.Angles(math.rad(-90), math.rad(-90), 0),
+	CFrame.Angles(0, math.rad(-90), 0),
+	CFrame.Angles(math.rad(90), math.rad(-90), 0),
+	CFrame.Angles(0, math.rad(90), math.rad(180)),
+	CFrame.Angles(0, math.rad(-90), math.rad(180)), 			
+	CFrame.Angles(0, math.rad(180), math.rad(0)), 				
+	CFrame.Angles(math.rad(-90), math.rad(-180), math.rad(0)), 
+	CFrame.Angles(0, math.rad(0), math.rad(180)), 				
+	CFrame.Angles(math.rad(90), math.rad(180), math.rad(0)), 	
+	CFrame.Angles(0, math.rad(0), math.rad(-90)), 				
+	CFrame.Angles(0, math.rad(-90), math.rad(-90)),			
+	CFrame.Angles(0, math.rad(-180), math.rad(-90)), 			
+	CFrame.Angles(0, math.rad(90), math.rad(-90)), 			
+	CFrame.Angles(math.rad(90), math.rad(90), 0), 				
+	CFrame.Angles(0, math.rad(90), 0), 						
+	CFrame.Angles(math.rad(-90), math.rad(90), 0), 			
+}
+
 local function alloc(len: number)
 	if outgoing_used + len > outgoing_size then
 		while outgoing_used + len > outgoing_size do
