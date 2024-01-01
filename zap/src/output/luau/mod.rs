@@ -74,9 +74,6 @@ pub trait Output {
 			Stmt::Else => self.push_line("else"),
 
 			Stmt::End => self.push_line("end"),
-
-			Stmt::Continue => self.push_line("continue"),
-			Stmt::Break => self.push_line("break"),
 		};
 
 		if matches!(

@@ -263,9 +263,6 @@ pub enum Stmt {
 	Else,
 
 	End,
-
-	Continue,
-	Break,
 }
 
 #[derive(Debug, Clone)]
