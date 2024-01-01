@@ -86,6 +86,7 @@ pub enum Ty<'src> {
 	Struct(Struct<'src>),
 	Instance(Option<&'src str>),
 
+	Color3,
 	Vector3,
 	AlignedCFrame,
 	CFrame,
@@ -97,6 +98,7 @@ impl<'src> Ty<'src> {
 	pub fn max_size(&self, config: &Config<'src>, recursed: &mut HashSet<&'src str>) -> Option<usize> {
 		match self {
 			Self::Num(numty, _) => Some(numty.size()),
+			Self::Color3 => Some(NumTy::U8.size() * 3),
 			Self::Vector3 => Some(NumTy::F32.size() * 3),
 			Self::AlignedCFrame => Some(NumTy::U8.size() + NumTy::F32.size() * 3),
 			Self::CFrame => Some(NumTy::F32.size() * 12),

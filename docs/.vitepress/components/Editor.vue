@@ -132,6 +132,7 @@ const beforeMount = (monaco: Monaco) => {
 		"buffer",
 		"unknown",
 		"Instance",
+		"Color3",
 		"Vector3",
 		"AlignedCFrame",
 		"CFrame",
