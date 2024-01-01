@@ -320,7 +320,8 @@ pub enum Expr {
 	// Table
 	EmptyTable,
 
-	// Vector3
+	// Datatypes
+	Color3(Box<Expr>, Box<Expr>, Box<Expr>),
 	Vector3(Box<Expr>, Box<Expr>, Box<Expr>),
 
 	// Unary Operators
@@ -341,6 +342,7 @@ pub enum Expr {
 
 	// Arithmetic Binary Operators
 	Add(Box<Expr>, Box<Expr>),
+	Mul(Box<Expr>, Box<Expr>),
 }
 
 impl Expr {
@@ -443,6 +445,7 @@ impl Display for Expr {
 
 			Self::EmptyTable => write!(f, "{{}}"),
 
+			Self::Color3(x, y, z) => write!(f, "Color3.fromRGB({}, {}, {})", x, y, z),
 			Self::Vector3(x, y, z) => write!(f, "Vector3.new({}, {}, {})", x, y, z),
 
 			Self::Len(expr) => write!(f, "#{}", expr),
@@ -459,6 +462,7 @@ impl Display for Expr {
 			Self::Eq(lhs, rhs) => write!(f, "{} == {}", lhs, rhs),
 
 			Self::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
+			Self::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
 		}
 	}
 }
