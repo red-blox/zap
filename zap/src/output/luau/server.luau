@@ -13,7 +13,7 @@ end
 
 local unreliable = ReplicatedStorage:FindFirstChild("ZAP_UNRELIABLE")
 if unreliable == nil then
-	unreliable = Instance.new("RemoteEvent")
+	unreliable = Instance.new("UnreliableRemoteEvent")
 	unreliable.Name = "ZAP_UNRELIABLE"
 	unreliable.Parent = ReplicatedStorage
 end
