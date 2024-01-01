@@ -1,15 +1,18 @@
-if game:GetService("RunService"):IsServer() then
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+if RunService:IsServer() then
 	error("Cannot use the client module on the server!")
 end
 
-local reliable = game:GetService("ReplicatedStorage"):WaitForChild("ZAP_RELIABLE")
-local unreliable = game:GetService("ReplicatedStorage"):WaitForChild("ZAP_UNRELIABLE")
+local reliable = ReplicatedStorage:WaitForChild("ZAP_RELIABLE")
+local unreliable = ReplicatedStorage:WaitForChild("ZAP_UNRELIABLE")
 
 local event_queue: { [number]: { any } }
 
 local time = 0
 
-game:GetService("RunService").Heartbeat:Connect(function(dt)
+RunService.Heartbeat:Connect(function(dt)
 	time += dt
 
 	if time >= (1 / 61) then
