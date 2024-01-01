@@ -254,13 +254,13 @@ impl Des {
 
 			Ty::Boolean => self.push_assign(into, self.readu8().eq(1.0.into())),
 			Ty::Vector3 => {
-				self.push_local("x", Some(self.readnumty(NumTy::F32)));
-				self.push_local("y", Some(self.readnumty(NumTy::F32)));
-				self.push_local("z", Some(self.readnumty(NumTy::F32)));
-
 				self.push_assign(
 					into,
-					Expr::Vector3(Box::new("x".into()), Box::new("y".into()), Box::new("z".into())),
+					Expr::Vector3(
+						Box::new(self.readf32()),
+						Box::new(self.readf32()),
+						Box::new(self.readf32()),
+					),
 				);
 			}
 			Ty::CFrame => {
