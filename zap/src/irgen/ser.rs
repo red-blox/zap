@@ -251,21 +251,10 @@ impl Ser {
 			}
 
 			Ty::CFrame => {
-				self.push_stmt(Stmt::LocalTuple(
-					vec!["x", "y", "z", "R00", "R01", "R02", "R10", "R11", "R12"],
-					Some(Expr::Call(Box::new(from.clone()), Some("GetComponents".into()), vec![])),
-				));
-
-				self.push_writef32("x".into());
-				self.push_writef32("y".into());
-				self.push_writef32("z".into());
-
-				self.push_writef32("R00".into());
-				self.push_writef32("R01".into());
-				self.push_writef32("R02".into());
-				self.push_writef32("R10".into());
-				self.push_writef32("R11".into());
-				self.push_writef32("R12".into());
+				self.push_ty(&Ty::Vector3, from.clone().nindex("Position"));
+				self.push_ty(&Ty::Vector3, from.clone().nindex("XVector"));
+				self.push_ty(&Ty::Vector3, from.clone().nindex("YVector"));
+				self.push_ty(&Ty::Vector3, from.clone().nindex("ZVector"));
 			}
 
 			Ty::Boolean => self.push_writeu8(from_expr.and(1.0.into()).or(0.0.into())),

@@ -289,12 +289,15 @@ impl Des {
 				self.push_local("vY", None);
 				self.push_ty(&Ty::Vector3, "vY".into());
 
+				self.push_local("vZ", None);
+				self.push_ty(&Ty::Vector3, "vZ".into());
+
 				self.push_assign(
 					into,
 					Expr::Call(
 						Box::new(Var::from("CFrame").nindex("fromMatrix")),
 						None,
-						vec!["pos".into(), "vX".into(), "vY".into()],
+						vec!["pos".into(), "vX".into(), "vY".into(), "vZ".into()],
 					),
 				);
 			}
