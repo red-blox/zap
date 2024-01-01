@@ -5,6 +5,9 @@ end
 local reliable = ReplicatedStorage:WaitForChild("ZAP_RELIABLE")
 local unreliable = ReplicatedStorage:WaitForChild("ZAP_UNRELIABLE")
 
+assert(reliable:IsA("RemoteEvent"), "Expected ZAP_RELIABLE to be a RemoteEvent")
+assert(unreliable:IsA("UnreliableRemoteEvent"), "Expected ZAP_UNRELIABLE to be an UnreliableRemoteEvent")
+
 local event_queue: { [number]: { any } }
 
 local time = 0
