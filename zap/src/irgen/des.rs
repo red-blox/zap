@@ -263,6 +263,132 @@ impl Des {
 					Expr::Vector3(Box::new("x".into()), Box::new("y".into()), Box::new("z".into())),
 				);
 			}
+			Ty::CFrame => {
+				self.push_local("orient_id", Some(self.readu8()));
+
+				self.push_stmt(Stmt::If(Expr::Eq(
+					Box::new("orient_id".into()),
+					Box::new(Expr::Num(0.0)),
+				)));
+
+				self.push_local("components", Some(Expr::EmptyTable));
+
+				self.push_stmt(Stmt::NumFor {
+					var: "i",
+					from: Expr::Num(1.0),
+					to: Expr::Num(12.0),
+				});
+
+				self.push_stmt(Stmt::Call(
+					Var::from("table").nindex("insert"),
+					None,
+					vec!["components".into(), self.readf32()],
+				));
+
+				self.push_stmt(Stmt::End);
+
+				self.push_assign(
+					into.clone(),
+					Expr::CFrame(vec![Expr::Call(
+						Box::new("unpack".into()),
+						None,
+						vec!["components".into()],
+					)]),
+				);
+
+				self.push_stmt(Stmt::Else);
+
+				self.push_local("cols", Some(Expr::EmptyTable));
+
+				self.push_stmt(Stmt::GenFor {
+					key: "_",
+					val: "normalId",
+					obj: Expr::Call(
+						Box::new(Var::from("table").nindex("pack")),
+						None,
+						vec![
+							Expr::Div(Box::new("orient_id".into()), Box::new(Expr::Num(6.0))),
+							Expr::Mod(Box::new("orient_id".into()), Box::new(Expr::Num(6.0))),
+						],
+					),
+				});
+
+				self.push_local(
+					"coords",
+					Some(Expr::Call(
+						Box::new(Var::from("table").nindex("pack")),
+						None,
+						vec![Expr::Num(0.0), Expr::Num(0.0), Expr::Num(0.0)],
+					)),
+				);
+
+				self.push_stmt(Stmt::If(Expr::Gt(
+					Box::new("normalId".into()),
+					Box::new(Expr::Num(3.0)),
+				)));
+
+				self.push_assign(
+					Var::from("coords").eindex(Expr::Mod(Box::new("normalId".into()), Box::new(Expr::Num(3.0)))),
+					Expr::Num(-1.0),
+				);
+
+				self.push_stmt(Stmt::Else);
+
+				self.push_assign(
+					Var::from("coords").eindex(Expr::Mod(Box::new("normalId".into()), Box::new(Expr::Num(3.0)))),
+					Expr::Num(1.0),
+				);
+
+				self.push_stmt(Stmt::End);
+
+				self.push_stmt(Stmt::Call(
+					Var::from("table").nindex("insert"),
+					None,
+					vec![
+						"cols".into(),
+						Expr::Call(
+							Box::new(Var::from("Vector3").nindex("new")),
+							None,
+							vec![Expr::Call(Box::new(Var::from("unpack")), None, vec!["coords".into()])],
+						),
+					],
+				));
+
+				self.push_stmt(Stmt::End);
+
+				self.push_stmt(Stmt::Call(
+					Var::from("table").nindex("insert"),
+					None,
+					vec![
+						"cols".into(),
+						Expr::Call(
+							Box::new(Var::from("cols").eindex(Expr::Num(0.0)).nindex("Cross")),
+							None,
+							vec![Var::from("cols").eindex(Expr::Num(1.0)).into()],
+						),
+					],
+				));
+
+				self.push_assign(
+					into.clone(),
+					Expr::CFrame(vec![
+						self.readf32(),
+						self.readf32(),
+						self.readf32(),
+						Var::from("cols").eindex(Expr::Num(1.0)).eindex(Expr::Num(1.0)).into(),
+						Var::from("cols").eindex(Expr::Num(1.0)).eindex(Expr::Num(2.0)).into(),
+						Var::from("cols").eindex(Expr::Num(1.0)).eindex(Expr::Num(3.0)).into(),
+						Var::from("cols").eindex(Expr::Num(2.0)).eindex(Expr::Num(1.0)).into(),
+						Var::from("cols").eindex(Expr::Num(2.0)).eindex(Expr::Num(2.0)).into(),
+						Var::from("cols").eindex(Expr::Num(2.0)).eindex(Expr::Num(3.0)).into(),
+						Var::from("cols").eindex(Expr::Num(3.0)).eindex(Expr::Num(1.0)).into(),
+						Var::from("cols").eindex(Expr::Num(3.0)).eindex(Expr::Num(2.0)).into(),
+						Var::from("cols").eindex(Expr::Num(3.0)).eindex(Expr::Num(3.0)).into(),
+					]),
+				);
+
+				self.push_stmt(Stmt::End);
+			}
 		}
 	}
 }

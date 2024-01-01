@@ -33,6 +33,22 @@ pub trait Output {
 			}
 
 			Stmt::Assign(var, expr) => self.push_line(&format!("{var} = {expr}")),
+			Stmt::LocalTuple(var, expr) => {
+				let mut items = String::new();
+
+				for (i, exp) in var.iter().enumerate() {
+					if i != 0 {
+						items.push_str(", ");
+					}
+					items.push_str(exp)
+				}
+
+				if let Some(expr) = expr {
+					self.push_line(&format!("local {items} = {expr}"));
+				} else {
+					self.push_line(&format!("local {items}"));
+				}
+			}
 			Stmt::Error(msg) => self.push_line(&format!("error(\"{msg}\")")),
 			Stmt::Assert(cond, msg) => match msg {
 				Some(msg) => self.push_line(&format!("assert({cond}, {msg})")),
@@ -58,6 +74,9 @@ pub trait Output {
 			Stmt::Else => self.push_line("else"),
 
 			Stmt::End => self.push_line("end"),
+
+			Stmt::Continue => self.push_line("continue"),
+			Stmt::Break => self.push_line("break"),
 		};
 
 		if matches!(
@@ -162,6 +181,7 @@ pub trait Output {
 			Ty::Unknown => self.push("unknown"),
 			Ty::Boolean => self.push("boolean"),
 			Ty::Vector3 => self.push("Vector3"),
+			Ty::CFrame => self.push("CFrame"),
 		}
 
 		self.push(")");

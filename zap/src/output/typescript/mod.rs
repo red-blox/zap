@@ -175,6 +175,7 @@ pub trait Output {
 			Ty::Unknown => self.push("unknown"),
 			Ty::Boolean => self.push("boolean"),
 			Ty::Vector3 => self.push("Vector3"),
+			Ty::CFrame => self.push("CFrame"),
 		}
 	}
 
