@@ -223,11 +223,20 @@ impl Ser {
 				None,
 				vec!["outgoing_inst".into(), from_expr],
 			)),
-			
+
 			Ty::Color3 => {
-				self.push_writeu8(Expr::Mul(Box::new(from.clone().nindex("R").into()), Box::new(Expr::Num(255.0))));
-				self.push_writeu8(Expr::Mul(Box::new(from.clone().nindex("G").into()), Box::new(Expr::Num(255.0))));
-				self.push_writeu8(Expr::Mul(Box::new(from.clone().nindex("B").into()), Box::new(Expr::Num(255.0))));
+				self.push_writeu8(Expr::Mul(
+					Box::new(from.clone().nindex("R").into()),
+					Box::new(Expr::Num(255.0)),
+				));
+				self.push_writeu8(Expr::Mul(
+					Box::new(from.clone().nindex("G").into()),
+					Box::new(Expr::Num(255.0)),
+				));
+				self.push_writeu8(Expr::Mul(
+					Box::new(from.clone().nindex("B").into()),
+					Box::new(Expr::Num(255.0)),
+				));
 			}
 
 			Ty::Vector3 => {
