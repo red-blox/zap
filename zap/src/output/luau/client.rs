@@ -89,6 +89,7 @@ impl<'src> ClientOutput<'src> {
 			self.config.event_id_ty().size()
 		));
 	}
+
 	fn push_reliable_callback(&mut self, first: bool, ev: &EvDecl, id: usize) {
 		self.push_indent();
 
