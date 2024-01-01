@@ -324,9 +324,8 @@ pub enum Expr {
 	// Table
 	EmptyTable,
 
-	// Datatypes
+	// Vector3
 	Vector3(Box<Expr>, Box<Expr>, Box<Expr>),
-	CFrame(Vec<Expr>),
 
 	// Unary Operators
 	Len(Box<Expr>),
@@ -346,12 +345,7 @@ pub enum Expr {
 
 	// Arithmetic Binary Operators
 	Add(Box<Expr>, Box<Expr>),
-	Sub(Box<Expr>, Box<Expr>),
-	Mutiply(Box<Expr>, Box<Expr>),
-	Div(Box<Expr>, Box<Expr>),
-	Mod(Box<Expr>, Box<Expr>),
-
-	Paren(Box<Expr>),
+	Mul(Box<Expr>, Box<Expr>),
 }
 
 impl Expr {
@@ -455,18 +449,6 @@ impl Display for Expr {
 			Self::EmptyTable => write!(f, "{{}}"),
 
 			Self::Vector3(x, y, z) => write!(f, "Vector3.new({}, {}, {})", x, y, z),
-			Self::CFrame(table) => {
-				write!(f, "CFrame.new(");
-
-				for (i, exp) in table.iter().enumerate() {
-					if i != 0 {
-						write!(f, ", ");
-					}
-					write!(f, "{exp}");
-				}
-
-				write!(f, ")")
-			}
 
 			Self::Len(expr) => write!(f, "#{}", expr),
 			Self::Not(expr) => write!(f, "not {}", expr),
@@ -482,12 +464,7 @@ impl Display for Expr {
 			Self::Eq(lhs, rhs) => write!(f, "{} == {}", lhs, rhs),
 
 			Self::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
-			Self::Sub(lhs, rhs) => write!(f, "{} - {}", lhs, rhs),
-			Self::Mutiply(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
-			Self::Div(lhs, rhs) => write!(f, "{} / {}", lhs, rhs),
-			Self::Mod(lhs, rhs) => write!(f, "{} % {}", lhs, rhs),
-
-			Self::Paren(expr) => write!(f, "({})", expr),
+			Self::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
 		}
 	}
 }
