@@ -230,9 +230,9 @@ impl Ser {
 				self.push_writef32(from.clone().nindex("Z").into());
 			}
 
-			Ty::CFrame => {
+			Ty::AlignedCFrame => {
 				self.push_local(
-					"is_axis_aligned",
+					"axis_alignment",
 					Some(Expr::Call(
 						Box::new(Var::from("table").nindex("find")),
 						None,
@@ -240,14 +240,17 @@ impl Ser {
 					)),
 				);
 
-				self.push_writeu8(Expr::Or(Box::new("is_axis_aligned".into()), Box::new(Expr::Num(0.0))));
+				self.push_assert(
+					"axis_alignment".into(),
+					Some("CFrame not aligned to an axis!".to_string()),
+				);
 
-				self.push_stmt(Stmt::If("is_axis_aligned".into()));
+				self.push_writeu8("axis_alignment".into());
 
 				self.push_ty(&Ty::Vector3, from.clone().nindex("Position"));
+			}
 
-				self.push_stmt(Stmt::Else);
-
+			Ty::CFrame => {
 				self.push_stmt(Stmt::LocalTuple(
 					vec!["x", "y", "z", "R00", "R01", "R02", "R10", "R11", "R12"],
 					Some(Expr::Call(Box::new(from.clone()), Some("GetComponents".into()), vec![])),
@@ -263,8 +266,6 @@ impl Ser {
 				self.push_writef32("R10".into());
 				self.push_writef32("R11".into());
 				self.push_writef32("R12".into());
-
-				self.push_stmt(Stmt::End);
 			}
 
 			Ty::Boolean => self.push_writeu8(from_expr.and(1.0.into()).or(0.0.into())),

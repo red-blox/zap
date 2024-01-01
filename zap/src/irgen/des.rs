@@ -263,14 +263,23 @@ impl Des {
 					),
 				);
 			}
+			Ty::AlignedCFrame => {
+				self.push_local("pos", None);
+				self.push_ty(&Ty::Vector3, "pos".into());
+
+				self.push_assign(
+					into,
+					Expr::Mul(
+						Box::new(Expr::Call(
+							Box::new(Var::from("CFrame").nindex("new")),
+							None,
+							vec!["pos".into()],
+						)),
+						Box::new(Var::from("CFrameSpecialCases").eindex("is_axis_aligned".into()).into()),
+					),
+				);
+			}
 			Ty::CFrame => {
-				self.push_local("is_axis_aligned", Some(self.readu8()));
-
-				self.push_stmt(Stmt::If(Expr::Eq(
-					Box::new("is_axis_aligned".into()),
-					Box::new(Expr::Num(0.0)),
-				)));
-
 				self.push_local("pos", None);
 				self.push_ty(&Ty::Vector3, "pos".into());
 
@@ -281,32 +290,13 @@ impl Des {
 				self.push_ty(&Ty::Vector3, "vY".into());
 
 				self.push_assign(
-					into.clone(),
+					into,
 					Expr::Call(
 						Box::new(Var::from("CFrame").nindex("fromMatrix")),
 						None,
 						vec!["pos".into(), "vX".into(), "vY".into()],
 					),
 				);
-
-				self.push_stmt(Stmt::Else);
-
-				self.push_local("pos", None);
-				self.push_ty(&Ty::Vector3, "pos".into());
-
-				self.push_assign(
-					into.clone(),
-					Expr::Mul(
-						Box::new(Expr::Call(
-							Box::new(Var::from("CFrame").nindex("new")),
-							None,
-							vec!["pos".into()],
-						)),
-						Box::new(Var::from("CFrameSpecialCases").eindex("is_axis_aligned".into()).into()),
-					),
-				);
-
-				self.push_stmt(Stmt::End);
 			}
 		}
 	}

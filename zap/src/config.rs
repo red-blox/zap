@@ -87,6 +87,7 @@ pub enum Ty<'src> {
 	Instance(Option<&'src str>),
 
 	Vector3,
+	AlignedCFrame,
 	CFrame,
 	Boolean,
 	Unknown,
@@ -97,7 +98,8 @@ impl<'src> Ty<'src> {
 		match self {
 			Self::Num(numty, _) => Some(numty.size()),
 			Self::Vector3 => Some(NumTy::F32.size() * 3),
-			Self::CFrame => Some(NumTy::U8.size() + NumTy::F32.size() * 9),
+			Self::AlignedCFrame => Some(NumTy::U8.size() + NumTy::F32.size() * 3),
+			Self::CFrame => Some(NumTy::F32.size() * 9),
 			Self::Boolean => Some(1),
 			Self::Opt(ty) => ty.max_size(config, recursed).map(|size| size + 1),
 			Self::Str(len) => len.max().map(|len| len as usize),
