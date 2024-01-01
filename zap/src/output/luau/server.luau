@@ -1,6 +1,4 @@
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 if RunService:IsClient() then
 	error("Cannot use the server module on the client!")

@@ -1,6 +1,3 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-
 if RunService:IsServer() then
 	error("Cannot use the client module on the server!")
 end

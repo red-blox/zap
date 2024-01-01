@@ -1,3 +1,6 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
 local outgoing_buff: buffer
 local outgoing_used: number
 local outgoing_size: number
