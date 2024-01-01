@@ -253,19 +253,11 @@ impl Des {
 			Ty::Unknown => unreachable!(),
 
 			Ty::Boolean => self.push_assign(into, self.readu8().eq(1.0.into())),
-			Ty::Vector3 => {
-				self.push_assign(
-					into,
-					Expr::Vector3(
-						Box::new(self.readf32()),
-						Box::new(self.readf32()),
-						Box::new(self.readf32()),
-					),
-				);
-			}
+			Ty::Vector3 => self.push_assign(into, self.readvector3()),
 			Ty::AlignedCFrame => {
-				self.push_local("pos", None);
-				self.push_ty(&Ty::Vector3, "pos".into());
+				self.push_local("axis_alignment", Some(self.readu8()));
+
+				self.push_local("pos", Some(self.readvector3()));
 
 				self.push_assign(
 					into,
@@ -275,22 +267,15 @@ impl Des {
 							None,
 							vec!["pos".into()],
 						)),
-						Box::new(Var::from("CFrameSpecialCases").eindex("is_axis_aligned".into()).into()),
+						Box::new(Var::from("CFrameSpecialCases").eindex("axis_alignment".into()).into()),
 					),
 				);
 			}
 			Ty::CFrame => {
-				self.push_local("pos", None);
-				self.push_ty(&Ty::Vector3, "pos".into());
-
-				self.push_local("vX", None);
-				self.push_ty(&Ty::Vector3, "vX".into());
-
-				self.push_local("vY", None);
-				self.push_ty(&Ty::Vector3, "vY".into());
-
-				self.push_local("vZ", None);
-				self.push_ty(&Ty::Vector3, "vZ".into());
+				self.push_local("pos", Some(self.readvector3()));
+				self.push_local("vX", Some(self.readvector3()));
+				self.push_local("vY", Some(self.readvector3()));
+				self.push_local("vZ", Some(self.readvector3()));
 
 				self.push_assign(
 					into,

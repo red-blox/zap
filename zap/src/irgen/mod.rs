@@ -198,6 +198,14 @@ pub trait Gen {
 		])
 	}
 
+	fn readvector3(&self) -> Expr {
+		Expr::Vector3(
+			Box::new(self.readf32()),
+			Box::new(self.readf32()),
+			Box::new(self.readf32()),
+		)
+	}
+
 	fn push_write_copy(&mut self, expr: Expr, count: Expr) {
 		self.push_alloc(count.clone());
 
