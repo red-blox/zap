@@ -21,16 +21,16 @@ end
 local player_map = {}
 
 local function load_player(player: Player)
-	if not player_map[player] then
-		player_map[player] = {
+	if player_map[player] then
+		load(player_map[player])
+	else
+		load({
 			buff = buffer.create(64),
 			used = 0,
 			size = 64,
 			inst = {},
-		}
+		})
 	end
-
-	load(player_map[player])
 end
 
 Players.PlayerRemoving:Connect(function(player)
