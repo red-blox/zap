@@ -253,6 +253,9 @@ impl Des {
 			Ty::Unknown => unreachable!(),
 
 			Ty::Boolean => self.push_assign(into, self.readu8().eq(1.0.into())),
+
+			Ty::Color3 => self.push_assign(into, Expr::Color3(Box::new(self.readu8()), Box::new(self.readu8()), Box::new(self.readu8()))),
+
 			Ty::Vector3 => {
 				self.push_local("x", Some(self.readnumty(NumTy::F32)));
 				self.push_local("y", Some(self.readnumty(NumTy::F32)));

@@ -134,6 +134,7 @@ const beforeMount = (monaco: Monaco) => {
 		"buffer",
 		"unknown",
 		"Instance",
+		"Color3",
 		"Vector3",
 	] as const;
 

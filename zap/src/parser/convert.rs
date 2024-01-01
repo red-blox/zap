@@ -233,6 +233,7 @@ impl<'src> SyntaxTy<'src> {
 
 			SyntaxTyKind::Ref(name) => match name.into_config() {
 				"boolean" => Ty::Boolean,
+				"Color3" => Ty::Color3,
 				"Vector3" => Ty::Vector3,
 				"unknown" => Ty::Opt(Box::new(Ty::Unknown)),
 
