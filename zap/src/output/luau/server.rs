@@ -70,6 +70,42 @@ impl<'a> ServerOutput<'a> {
 		}
 	}
 
+	fn push_event_loop(&mut self) {
+		self.push_line("");
+
+		if self.config.manual_event_loop {
+			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+
+			self.push_line(&format!("local function {send_events}()"));
+		} else {
+			self.push_line("RunService.Heartbeat:Connect(function()");
+		}
+
+		self.push_line(
+			r#"	for player, outgoing in player_map do
+		if outgoing.used > 0 then
+			local buff = buffer.create(outgoing.used)
+			buffer.copy(buff, 0, outgoing.buff, 0, outgoing.used)
+
+			reliable:FireClient(player, buff, outgoing.inst)
+
+			outgoing.buff = buffer.create(64)
+			outgoing.used = 0
+			outgoing.size = 64
+			table.clear(outgoing.inst)
+		end
+	end"#,
+		);
+
+		if self.config.manual_event_loop {
+			self.push_line("end");
+		} else {
+			self.push_line("end)");
+		}
+
+		self.push_line("");
+	}
+
 	fn push_reliable_header(&mut self) {
 		self.push_line("reliable.OnServerEvent:Connect(function(player, buff, inst)");
 		self.indent();
@@ -539,6 +575,12 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("return {");
 		self.indent();
 
+		if self.config.manual_event_loop {
+			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+
+			self.push_line(&format!("{send_events} = {send_events},"));
+		}
+
 		self.push_return_outgoing();
 		self.push_return_listen();
 
@@ -557,6 +599,8 @@ impl<'a> ServerOutput<'a> {
 		self.push(include_str!("server.luau"));
 
 		self.push_tydecls();
+
+		self.push_event_loop();
 
 		self.push_callback_lists();
 

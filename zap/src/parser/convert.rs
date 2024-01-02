@@ -59,6 +59,7 @@ impl<'src> SyntaxConfig<'src> {
 	fn into_config(self, state: &mut ConvertState<'src>) -> Config<'src> {
 		let mut write_checks = false;
 		let mut typescript = false;
+		let mut manual_event_loop = false;
 
 		let mut server_output = None;
 		let mut client_output = None;
@@ -78,6 +79,15 @@ impl<'src> SyntaxConfig<'src> {
 
 				"typescript" => match opt.value.kind {
 					SyntaxOptValueKind::Bool(value) => typescript = value.into_config(),
+
+					_ => state.push_report(Report::AnalyzeInvalidOptValue {
+						span: opt.value.span(),
+						expected: "boolean",
+					}),
+				},
+
+				"manual_event_loop" => match opt.value.kind {
+					SyntaxOptValueKind::Bool(value) => manual_event_loop = value.into_config(),
 
 					_ => state.push_report(Report::AnalyzeInvalidOptValue {
 						span: opt.value.span(),
@@ -141,6 +151,7 @@ impl<'src> SyntaxConfig<'src> {
 
 			write_checks,
 			typescript,
+			manual_event_loop,
 
 			server_output,
 			client_output,

@@ -70,6 +70,52 @@ impl<'src> ClientOutput<'src> {
 		}
 	}
 
+	fn push_event_loop(&mut self) {
+		self.push_line("");
+
+		let delta_time = if self.config.manual_event_loop {
+			self.config.casing.with("DeltaTime", "deltaTime", "delta_time")
+		} else {
+			"dt"
+		};
+
+		if self.config.manual_event_loop {
+			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+
+			self.push_line(&format!("local function {send_events}({delta_time}: number)"));
+		} else {
+			self.push_line(&format!("RunService.Heartbeat:Connect(function({delta_time})"));
+		}
+
+		self.push_line(&format!(
+			r#"	time += {delta_time}
+
+	if time >= 1 / 61 then
+		time -= 1 / 61
+
+		if outgoing_used ~= 0 then
+			local buff = buffer.create(outgoing_used)
+			buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)
+
+			reliable:FireServer(buff, outgoing_inst)
+
+			outgoing_buff = buffer.create(64)
+			outgoing_used = 0
+			outgoing_size = 64
+			table.clear(outgoing_inst)
+		end
+	end"#,
+		));
+
+		if self.config.manual_event_loop {
+			self.push_line("end");
+		} else {
+			self.push_line("end)");
+		}
+
+		self.push_line("");
+	}
+
 	fn push_reliable_header(&mut self) {
 		self.push_line("reliable.OnClientEvent:Connect(function(buff, inst)");
 		self.indent();
@@ -476,6 +522,12 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("return {");
 		self.indent();
 
+		if self.config.manual_event_loop {
+			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+
+			self.push_line(&format!("{send_events} = {send_events},"));
+		}
+
 		self.push_return_outgoing();
 		self.push_return_listen();
 
@@ -494,6 +546,8 @@ impl<'src> ClientOutput<'src> {
 		self.push(include_str!("client.luau"));
 
 		self.push_tydecls();
+
+		self.push_event_loop();
 
 		self.push_callback_lists();
 
