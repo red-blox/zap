@@ -24,12 +24,7 @@ local function load_player(player: Player)
 	if player_map[player] then
 		load(player_map[player])
 	else
-		load({
-			buff = buffer.create(64),
-			used = 0,
-			size = 64,
-			inst = {},
-		})
+		load_empty()
 	end
 end
 
