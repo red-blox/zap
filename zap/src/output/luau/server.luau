@@ -20,14 +20,13 @@ end
 
 local player_map = {}
 
-Players.PlayerAdded:Connect(function(player)
-	player_map[player] = {
-		buff = buffer.create(64),
-		used = 0,
-		size = 64,
-		inst = {},
-	}
-end)
+local function load_player(player: Player)
+	if player_map[player] then
+		load(player_map[player])
+	else
+		load_empty()
+	end
+end
 
 Players.PlayerRemoving:Connect(function(player)
 	player_map[player] = nil

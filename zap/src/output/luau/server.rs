@@ -285,7 +285,7 @@ impl<'a> ServerOutput<'a> {
 		self.indent();
 
 		match ev.evty {
-			EvType::Reliable => self.push_line(&format!("load(player_map[{player}])")),
+			EvType::Reliable => self.push_line(&format!("load_player({player})")),
 			EvType::Unreliable => self.push_line("load_empty()"),
 		}
 
@@ -327,9 +327,9 @@ impl<'a> ServerOutput<'a> {
 		match ev.evty {
 			EvType::Reliable => {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
-				self.push_line("for player, outgoing in player_map do");
+				self.push_line("for _, player in Players:GetPlayers() do");
 				self.indent();
-				self.push_line("load(outgoing)");
+				self.push_line("load_player(player)");
 				self.push_line("alloc(used)");
 				self.push_line("buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)");
 				self.push_line("table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)");
@@ -371,11 +371,11 @@ impl<'a> ServerOutput<'a> {
 		match ev.evty {
 			EvType::Reliable => {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
-				self.push_line("for player, outgoing in player_map do");
+				self.push_line("for _, player in Players:GetPlayers() do");
 				self.indent();
 				self.push_line(&format!("if player ~= {except} then"));
 				self.indent();
-				self.push_line("load(outgoing)");
+				self.push_line("load_player(player)");
 				self.push_line("alloc(used)");
 				self.push_line("buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)");
 				self.push_line("table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)");
@@ -389,7 +389,7 @@ impl<'a> ServerOutput<'a> {
 			EvType::Unreliable => {
 				self.push_line("local buff = buffer.create(outgoing_used)");
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
-				self.push_line("for player in player_map do");
+				self.push_line("for _, player in Players:GetPlayers() do");
 				self.indent();
 				self.push_line(&format!("if player ~= {except} then"));
 				self.indent();
@@ -429,7 +429,7 @@ impl<'a> ServerOutput<'a> {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
 				self.push_line(&format!("for _, player in {list} do"));
 				self.indent();
-				self.push_line("load(player_map[player])");
+				self.push_line("load_player(player)");
 				self.push_line("alloc(used)");
 				self.push_line("buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)");
 				self.push_line("table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)");
