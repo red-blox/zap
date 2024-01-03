@@ -296,7 +296,6 @@ impl<'src> Report<'src> {
 			]),
 			Self::AnalyzeUnboundedRecursiveType { .. } => Some(vec![
 				"this is an unbounded recursive type".to_string(),
-				"unbounded recursive types are not allowed".to_string(),
 				"unbounded recursive types cause infinite loops".to_string(),
 			]),
 		}
