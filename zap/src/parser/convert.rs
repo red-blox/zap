@@ -70,8 +70,8 @@ impl<'src> Converter<'src> {
 		let write_checks = self.boolean_opt("write_checks", true, &config.opts).0;
 		let typescript = self.boolean_opt("typescript", false, &config.opts).0;
 
-		let server_output = self.str_opt("network/server.lua", "server", &config.opts).0;
-		let client_output = self.str_opt("network/client.lua", "client", &config.opts).0;
+		let server_output = self.str_opt("server_output", "network/server.lua", &config.opts).0;
+		let client_output = self.str_opt("client_output", "network/client.lua", &config.opts).0;
 
 		let casing = match self.str_opt("casing", "PascalCase", &config.opts) {
 			("snake_case", ..) => Casing::Snake,
