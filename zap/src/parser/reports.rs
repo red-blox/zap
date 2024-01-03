@@ -261,7 +261,7 @@ impl<'src> Report<'src> {
 				format!("all unreliable events must be under {max_size} bytes in size"),
 				"consider adding a upper limit to any arrays or strings".to_string(),
 				"upper limits can be added for arrays by doing `[..10]`".to_string(),
-				"upper limits can be added for strings by doing `[..10]`".to_string(),
+				"upper limits can be added for strings by doing `(..10)`".to_string(),
 			]),
 			Self::AnalyzePotentiallyOversizeUnreliable { max_size, .. } => Some(vec![
 				format!("all unreliable events must be under {max_size} bytes in size"),
