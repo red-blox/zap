@@ -282,13 +282,7 @@ impl Des {
 			Ty::CFrame => {
 				self.push_local("pos", Some(self.readvector3()));
 				self.push_local("axisangle", Some(self.readvector3()));
-				self.push_local(
-					"angle",
-					Some(Expr::Var(Box::new(Var::NameIndex(
-						Box::new("axisangle".into()),
-						"Magnitude".into(),
-					)))),
-				);
+				self.push_local("angle", Some(Var::from("axisangle").nindex("Magnitude").into()));
 
 				// We don't need to convert the axis back to a unit vector as the constructor does that for us
 				// The angle is the magnitude of the axis vector

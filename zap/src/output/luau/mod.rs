@@ -32,14 +32,7 @@ pub trait Output {
 				}
 			}
 			Stmt::LocalTuple(var, expr) => {
-				let mut items = String::new();
-
-				for (i, exp) in var.iter().enumerate() {
-					if i != 0 {
-						items.push_str(", ");
-					}
-					items.push_str(exp)
-				}
+				let items = var.join(", ");
 
 				if let Some(expr) = expr {
 					self.push_line(&format!("local {items} = {expr}"));
