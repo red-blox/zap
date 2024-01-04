@@ -10,6 +10,7 @@ pub struct Config<'src> {
 
 	pub write_checks: bool,
 	pub typescript: bool,
+	pub manual_event_loop: bool,
 
 	pub server_output: &'src str,
 	pub client_output: &'src str,
