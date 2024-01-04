@@ -1,4 +1,7 @@
-use std::{collections::HashSet, fmt::Display};
+use std::{
+	collections::{HashMap, HashSet},
+	fmt::Display,
+};
 
 #[derive(Debug, Clone)]
 pub struct Config<'src> {
@@ -9,8 +12,8 @@ pub struct Config<'src> {
 	pub typescript: bool,
 	pub manual_event_loop: bool,
 
-	pub server_output: Option<&'src str>,
-	pub client_output: Option<&'src str>,
+	pub server_output: &'src str,
+	pub client_output: &'src str,
 
 	pub casing: Casing,
 }
@@ -96,37 +99,90 @@ pub enum Ty<'src> {
 }
 
 impl<'src> Ty<'src> {
-	pub fn max_size(&self, config: &Config<'src>, recursed: &mut HashSet<&'src str>) -> Option<usize> {
+	/// Returns the amount of data used by this type in bytes.
+	///
+	/// Note that this is not the same as the size of the type in the buffer.
+	/// For example, an `Instance` will always send 4 bytes of data, but the
+	/// size of the type in the buffer will be 0 bytes.
+	pub fn size(
+		&self,
+		tydecls: &HashMap<&'src str, TyDecl<'src>>,
+		recursed: &mut HashSet<&'src str>,
+	) -> (usize, Option<usize>) {
 		match self {
-			Self::Num(numty, _) => Some(numty.size()),
-			Self::Color3 => Some(NumTy::U8.size() * 3),
-			Self::Vector3 => Some(NumTy::F32.size() * 3),
-			Self::AlignedCFrame => Some(NumTy::U8.size() + NumTy::F32.size() * 3),
-			Self::CFrame => Some(NumTy::F32.size() * 12),
-			Self::Boolean => Some(1),
-			Self::Opt(ty) => ty.max_size(config, recursed).map(|size| size + 1),
-			Self::Str(len) => len.max().map(|len| len as usize),
-			Self::Buf(len) => len.max().map(|len| len as usize),
-			Self::Arr(ty, range) => range
-				.max()
-				.and_then(|len| ty.max_size(config, recursed).map(|size| size * len as usize)),
-			Self::Map(..) => None,
-			Self::Enum(enum_ty) => enum_ty.max_size(config, recursed),
-			Self::Struct(struct_ty) => struct_ty.max_size(config, recursed),
-			Self::Instance(_) => Some(2),
-			Self::Unknown => None,
-			Self::Ref(name) => {
-				if recursed.contains(name) {
-					None
+			Self::Num(numty, ..) => (numty.size(), Some(numty.size())),
+
+			Self::Str(len) => {
+				if let Some(exact) = len.exact() {
+					(exact as usize, Some(exact as usize))
 				} else {
-					recursed.insert(name);
-					config
-						.tydecls
-						.iter()
-						.find(|tydecl| tydecl.name == *name)
-						.and_then(|tydecl| tydecl.ty.max_size(config, recursed))
+					(
+						len.min().map(|min| (min as usize) + 2).unwrap_or(2),
+						len.max().map(|max| (max as usize) + 2),
+					)
 				}
 			}
+
+			Self::Buf(len) => {
+				if let Some(exact) = len.exact() {
+					(exact as usize, Some(exact as usize))
+				} else {
+					(
+						len.min().map(|min| (min as usize) + 2).unwrap_or(2),
+						len.max().map(|max| (max as usize) + 2),
+					)
+				}
+			}
+
+			Self::Arr(ty, len) => {
+				let (ty_min, ty_max) = ty.size(tydecls, recursed);
+				let len_min = len.min().map(|min| min as usize).unwrap_or(0);
+
+				if let Some(exact) = len.exact() {
+					(ty_min * (exact as usize), ty_max.map(|max| ty_max.unwrap() * max))
+				} else if let Some(len_max) = len.max() {
+					(
+						ty_min * len_min + 2,
+						ty_max.map(|ty_max| ty_max * (len_max as usize) + 2),
+					)
+				} else {
+					(ty_min * len_min + 2, None)
+				}
+			}
+
+			Self::Map(..) => (2, None),
+
+			Self::Opt(ty) => {
+				let (_, ty_max) = ty.size(tydecls, recursed);
+
+				(1, ty_max.map(|ty_max| ty_max + 1))
+			}
+
+			Self::Ref(name) => {
+				if recursed.contains(name) {
+					// 0 is returned here because all valid recursive types are
+					// bounded and all bounded types have their own min size
+					(0, None)
+				} else {
+					recursed.insert(name);
+
+					let tydecl = tydecls.get(name).unwrap();
+
+					tydecl.ty.size(tydecls, recursed)
+				}
+			}
+
+			Self::Enum(enum_ty) => enum_ty.size(tydecls, recursed),
+			Self::Struct(struct_ty) => struct_ty.size(tydecls, recursed),
+
+			Self::Instance(_) => (4, Some(4)),
+
+			Self::Boolean => (1, Some(1)),
+			Self::Color3 => (12, Some(12)),
+			Self::Vector3 => (12, Some(12)),
+			Self::AlignedCFrame => (13, Some(13)),
+			Self::CFrame => (48, Some(48)),
+			Self::Unknown => (0, None),
 		}
 	}
 }
@@ -142,22 +198,41 @@ pub enum Enum<'src> {
 }
 
 impl<'src> Enum<'src> {
-	pub fn max_size(&self, config: &Config<'src>, recursed: &mut HashSet<&'src str>) -> Option<usize> {
+	pub fn size(
+		&self,
+		tydecls: &HashMap<&'src str, TyDecl<'src>>,
+		recursed: &mut HashSet<&'src str>,
+	) -> (usize, Option<usize>) {
 		match self {
-			Self::Unit(vec) => Some(NumTy::from_f64(0.0, vec.len() as f64).size()),
+			Self::Unit(enumerators) => {
+				let numty = NumTy::from_f64(0.0, enumerators.len() as f64);
+
+				(numty.min() as usize, Some(numty.max() as usize))
+			}
 
 			Self::Tagged { variants, .. } => {
-				let mut size = NumTy::from_f64(0.0, variants.len() as f64).size();
+				let mut min = 0;
+				let mut max = Some(0);
 
-				for (_, ty) in variants {
-					if let Some(ty_size) = ty.max_size(config, recursed) {
-						size += ty_size;
+				for (_, ty) in variants.iter() {
+					let (ty_min, ty_max) = ty.size(tydecls, recursed);
+
+					if ty_min < min {
+						min = ty_min;
+					}
+
+					if let Some(ty_max) = ty_max {
+						if let Some(current_max) = max {
+							if ty_max > current_max {
+								max = Some(ty_max);
+							}
+						}
 					} else {
-						return None;
+						max = None;
 					}
 				}
 
-				Some(size)
+				(min, max)
 			}
 		}
 	}
@@ -169,18 +244,33 @@ pub struct Struct<'src> {
 }
 
 impl<'src> Struct<'src> {
-	pub fn max_size(&self, config: &Config<'src>, recursed: &mut HashSet<&'src str>) -> Option<usize> {
-		let mut size = 0;
+	pub fn size(
+		&self,
+		tydecls: &HashMap<&'src str, TyDecl<'src>>,
+		recursed: &mut HashSet<&'src str>,
+	) -> (usize, Option<usize>) {
+		let mut min = 0;
+		let mut max = Some(0);
 
-		for (_, ty) in &self.fields {
-			if let Some(ty_size) = ty.max_size(config, recursed) {
-				size += ty_size;
+		for (_, ty) in self.fields.iter() {
+			let (ty_min, ty_max) = ty.size(tydecls, recursed);
+
+			if ty_min < min {
+				min = ty_min;
+			}
+
+			if let Some(ty_max) = ty_max {
+				if let Some(current_max) = max {
+					if ty_max > current_max {
+						max = Some(ty_max);
+					}
+				}
 			} else {
-				return None;
+				max = None;
 			}
 		}
 
-		Some(size)
+		(min, max)
 	}
 }
 
@@ -272,6 +362,36 @@ impl NumTy {
 			NumTy::I8 => 1,
 			NumTy::I16 => 2,
 			NumTy::I32 => 4,
+		}
+	}
+
+	pub fn min(&self) -> f64 {
+		match self {
+			NumTy::F32 => f32::MIN.into(),
+			NumTy::F64 => f64::MIN,
+
+			NumTy::U8 => u8::MIN.into(),
+			NumTy::U16 => u16::MIN.into(),
+			NumTy::U32 => u32::MIN.into(),
+
+			NumTy::I8 => i8::MIN.into(),
+			NumTy::I16 => i16::MIN.into(),
+			NumTy::I32 => i32::MIN.into(),
+		}
+	}
+
+	pub fn max(&self) -> f64 {
+		match self {
+			NumTy::F32 => f32::MAX.into(),
+			NumTy::F64 => f64::MAX,
+
+			NumTy::U8 => u8::MAX.into(),
+			NumTy::U16 => u16::MAX.into(),
+			NumTy::U32 => u32::MAX.into(),
+
+			NumTy::I8 => i8::MAX.into(),
+			NumTy::I16 => i16::MAX.into(),
+			NumTy::I32 => i32::MAX.into(),
 		}
 	}
 }
