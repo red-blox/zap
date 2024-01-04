@@ -187,7 +187,7 @@ impl<'src> Converter<'src> {
 				self.report(Report::AnalyzeOversizeUnreliable {
 					ev_span: evdecl.span(),
 					ty_span: evdecl.data.span(),
-					max_size: 900 - event_id_size,
+					max_size: max_unreliable_size,
 					size: min,
 				});
 			} else if !max.is_some_and(|max| max < max_unreliable_size) {
