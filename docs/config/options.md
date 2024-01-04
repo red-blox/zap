@@ -104,6 +104,29 @@ When enabled, a `SendEvents` function will be exported from the client and serve
 
 This is useful when you can easily run `SendEvents` after all events have been fired each frame.
 
+::: danger
+At the time of writing (January 2024), Roblox has an issue where firing remotes at too high of a rate (above 60 hz) can cause the server to have incredibly high network response times.
+
+**This causes servers to essentially crash, and all clients to disconnect.**
+
+This can be mitigated by firing remotes to the server at a timed rate, so as to not exceed 60 hz.
+
+```lua
+local Timer = 0
+
+RunService.Heartbeat:Connect(function(DeltaTime)
+	Timer += DeltaTime
+
+	-- Only send events 60 times per second
+	if Timer >= 1 / 60 then
+		Timer = 0
+		Zap.SendEvents()
+	end
+end)
+```
+
+:::
+
 ### Default
 
 `false`
