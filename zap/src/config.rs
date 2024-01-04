@@ -98,6 +98,11 @@ pub enum Ty<'src> {
 }
 
 impl<'src> Ty<'src> {
+	/// Returns the amount of data used by this type in bytes.
+	///
+	/// Note that this is not the same as the size of the type in the buffer.
+	/// For example, an `Instance` will always send 4 bytes of data, but the
+	/// size of the type in the buffer will be 0 bytes.
 	pub fn size(
 		&self,
 		tydecls: &HashMap<&'src str, TyDecl<'src>>,
@@ -169,14 +174,14 @@ impl<'src> Ty<'src> {
 			Self::Enum(enum_ty) => enum_ty.size(tydecls, recursed),
 			Self::Struct(struct_ty) => struct_ty.size(tydecls, recursed),
 
-			Self::Instance(_) => (0, Some(0)),
+			Self::Instance(_) => (4, Some(4)),
 
 			Self::Boolean => (1, Some(1)),
 			Self::Color3 => (12, Some(12)),
 			Self::Vector3 => (12, Some(12)),
 			Self::AlignedCFrame => (13, Some(13)),
 			Self::CFrame => (48, Some(48)),
-			Self::Unknown => (0, Some(0)),
+			Self::Unknown => (0, None),
 		}
 	}
 }

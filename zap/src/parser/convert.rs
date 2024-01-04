@@ -180,14 +180,17 @@ impl<'src> Converter<'src> {
 			let (min, max) = data.size(tydecls, &mut HashSet::new());
 			let event_id_size = NumTy::from_f64(1.0, self.evdecls.len() as f64).size();
 
-			if (min + event_id_size) > 900 {
+			// We subtract two for the `inst` array.
+			let max_unreliable_size = 900 - event_id_size - 2;
+
+			if min > max_unreliable_size {
 				self.report(Report::AnalyzeOversizeUnreliable {
 					ev_span: evdecl.span(),
 					ty_span: evdecl.data.span(),
 					max_size: 900 - event_id_size,
 					size: min,
 				});
-			} else if !max.is_some_and(|max| max < 900 - event_id_size) {
+			} else if !max.is_some_and(|max| max < max_unreliable_size) {
 				self.report(Report::AnalyzePotentiallyOversizeUnreliable {
 					ev_span: evdecl.span(),
 					ty_span: evdecl.data.span(),
@@ -324,16 +327,16 @@ impl<'src> Converter<'src> {
 
 				let variants = variants
 					.iter()
-					.map(|variant| {
-						if variant.1.fields.iter().any(|field| field.0.name == tag_name) {
+					.map(|(variant_name, variant_struct)| {
+						if variant_struct.fields.iter().any(|(field, _)| field.name == tag_name) {
 							self.report(Report::AnalyzeEnumTagUsed {
 								tag_span: tag.span(),
-								used_span: variant.0.span(),
+								used_span: variant_name.span(),
 								tag: tag_name,
 							});
 						}
 
-						(variant.0.name, self.struct_ty(&variant.1))
+						(variant_name.name, self.struct_ty(variant_struct))
 					})
 					.collect();
 
