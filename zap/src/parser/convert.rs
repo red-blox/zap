@@ -67,11 +67,11 @@ impl<'src> Converter<'src> {
 			self.report(Report::AnalyzeEmptyEvDecls);
 		}
 
-		let write_checks = self.boolean_opt("write_checks", true, &config.opts).0;
-		let typescript = self.boolean_opt("typescript", false, &config.opts).0;
+		let (write_checks, _) = self.boolean_opt("write_checks", true, &config.opts);
+		let (typescript, _) = self.boolean_opt("typescript", false, &config.opts);
 
-		let server_output = self.str_opt("server_output", "network/server.lua", &config.opts).0;
-		let client_output = self.str_opt("client_output", "network/client.lua", &config.opts).0;
+		let (server_output, _) = self.str_opt("server_output", "network/server.lua", &config.opts);
+		let (client_output, _) = self.str_opt("client_output", "network/client.lua", &config.opts);
 
 		let casing = match self.str_opt("casing", "PascalCase", &config.opts) {
 			("snake_case", ..) => Casing::Snake,
