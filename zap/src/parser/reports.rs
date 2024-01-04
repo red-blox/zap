@@ -240,8 +240,8 @@ impl<'src> Report<'src> {
 				decl_span, use_span, ..
 			} => {
 				vec![
-					Label::primary((), decl_span.clone()).with_message("declared here"),
-					Label::secondary((), use_span.clone()).with_message("used recursively here"),
+					Label::secondary((), decl_span.clone()).with_message("declared here"),
+					Label::primary((), use_span.clone()).with_message("used recursively here"),
 				]
 			}
 		}
