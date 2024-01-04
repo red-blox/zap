@@ -101,7 +101,7 @@ impl<'src> Ty<'src> {
 			Self::Color3 => Some(NumTy::U8.size() * 3),
 			Self::Vector3 => Some(NumTy::F32.size() * 3),
 			Self::AlignedCFrame => Some(NumTy::U8.size() + NumTy::F32.size() * 3),
-			Self::CFrame => Some(NumTy::F32.size() * 12),
+			Self::CFrame => Some(NumTy::F32.size() * 6),
 			Self::Boolean => Some(1),
 			Self::Opt(ty) => ty.max_size(config, recursed).map(|size| size + 1),
 			Self::Str(len) => len.max().map(|len| len as usize),

@@ -281,16 +281,26 @@ impl Des {
 			}
 			Ty::CFrame => {
 				self.push_local("pos", Some(self.readvector3()));
-				self.push_local("vX", Some(self.readvector3()));
-				self.push_local("vY", Some(self.readvector3()));
-				self.push_local("vZ", Some(self.readvector3()));
+				self.push_local("axisangle", Some(self.readvector3()));
+
+				// We don't need to convert the axis back to a unit vector as the constructor does that for us
+				// The angle is the magnitude of the axis vector
 
 				self.push_assign(
 					into,
-					Expr::Call(
-						Box::new(Var::from("CFrame").nindex("fromMatrix")),
-						None,
-						vec!["pos".into(), "vX".into(), "vY".into(), "vZ".into()],
+					Expr::Add(
+						Box::new(Expr::Call(
+							Box::new(Var::from("CFrame").nindex("fromAxisAngle")),
+							None,
+							vec![
+								"axisangle".into(),
+								Expr::Var(Box::new(Var::NameIndex(
+									Box::new("axisangle".into()),
+									"Magnitude".into(),
+								))),
+							],
+						)),
+						Box::new("pos".into()),
 					),
 				);
 			}
