@@ -125,6 +125,7 @@ RunService.Heartbeat:Connect(function(DeltaTime)
 end)
 ```
 
+Note that Zap uses `RunService.Heartbeat` and a 61 hz rate by default.
 :::
 
 ### Default
