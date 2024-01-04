@@ -172,6 +172,10 @@ impl<'a> ServerOutput<'a> {
 			return self.buf;
 		};
 
+		if self.config.manual_event_loop {
+			self.push_manual_event_loop(self.config);
+		}
+
 		self.push_tydecls();
 
 		self.push_return();

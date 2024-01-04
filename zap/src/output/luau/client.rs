@@ -70,6 +70,51 @@ impl<'src> ClientOutput<'src> {
 		}
 	}
 
+	fn push_event_loop(&mut self) {
+		self.push("\n");
+
+		if self.config.manual_event_loop {
+			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+
+			self.push_line(&format!("local function {send_events}()"));
+			self.indent();
+		} else {
+			self.push_line("RunService.Heartbeat:Connect(function(dt)");
+			self.indent();
+			self.push_line("time += dt");
+			self.push("\n");
+			self.push_line("if time >= (1 / 61) then");
+			self.indent();
+			self.push_line("time -= (1 / 61)");
+			self.push("\n");
+		}
+
+		self.push_line("if outgoing_used ~= 0 then");
+		self.indent();
+		self.push_line("local buff = buffer.create(outgoing_used)");
+		self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
+		self.push("\n");
+		self.push_line("reliable:FireServer(buff, outgoing_inst)");
+		self.push("\n");
+		self.push_line("outgoing_buff = buffer.create(64)");
+		self.push_line("outgoing_used = 0");
+		self.push_line("outgoing_size = 64");
+		self.push_line("table.clear(outgoing_inst)");
+		self.dedent();
+		self.push_line("end");
+		self.dedent();
+
+		if self.config.manual_event_loop {
+			self.push_line("end");
+		} else {
+			self.push_line("end");
+			self.dedent();
+			self.push_line("end)");
+		}
+
+		self.push("\n");
+	}
+
 	fn push_reliable_header(&mut self) {
 		self.push_line("reliable.OnClientEvent:Connect(function(buff, inst)");
 		self.indent();
@@ -476,6 +521,12 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("return {");
 		self.indent();
 
+		if self.config.manual_event_loop {
+			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+
+			self.push_line(&format!("{send_events} = {send_events},"));
+		}
+
 		self.push_return_outgoing();
 		self.push_return_listen();
 
@@ -494,6 +545,8 @@ impl<'src> ClientOutput<'src> {
 		self.push(include_str!("client.luau"));
 
 		self.push_tydecls();
+
+		self.push_event_loop();
 
 		self.push_callback_lists();
 

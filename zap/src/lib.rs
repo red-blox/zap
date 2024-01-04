@@ -20,7 +20,7 @@ use std::path::PathBuf;
 #[derive(Debug)]
 #[cfg(not(target_arch = "wasm32"))]
 pub struct Output {
-	pub path: Option<PathBuf>,
+	pub path: PathBuf,
 	pub code: String,
 	pub defs: Option<String>,
 }
@@ -63,12 +63,12 @@ pub fn run(input: &str) -> Return {
 		Return {
 			code: Some(Code {
 				server: Output {
-					path: config.server_output.map(|p| p.into()),
+					path: config.server_output.into(),
 					code: output::luau::server::code(&config),
 					defs: output::typescript::server::code(&config),
 				},
 				client: Output {
-					path: config.client_output.map(|p| p.into()),
+					path: config.client_output.into(),
 					code: output::luau::client::code(&config),
 					defs: output::typescript::client::code(&config),
 				},

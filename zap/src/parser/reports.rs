@@ -80,6 +80,11 @@ pub enum Report<'src> {
 	AnalyzeInvalidOptionalType {
 		span: Span,
 	},
+
+	AnalyzeUnboundedRecursiveType {
+		decl_span: Span,
+		use_span: Span,
+	},
 }
 
 impl<'src> Report<'src> {
@@ -103,6 +108,7 @@ impl<'src> Report<'src> {
 			Self::AnalyzeUnknownTypeRef { .. } => Severity::Error,
 			Self::AnalyzeNumOutsideRange { .. } => Severity::Error,
 			Self::AnalyzeInvalidOptionalType { .. } => Severity::Error,
+			Self::AnalyzeUnboundedRecursiveType { .. } => Severity::Error,
 		}
 	}
 
@@ -128,7 +134,8 @@ impl<'src> Report<'src> {
 			Self::AnalyzeUnknownOptName { .. } => "unknown opt name".to_string(),
 			Self::AnalyzeUnknownTypeRef { name, .. } => format!("unknown type reference '{}'", name),
 			Self::AnalyzeNumOutsideRange { .. } => "number outside range".to_string(),
-			Self::AnalyzeInvalidOptionalType { .. } => "type must not be optional".to_string(),
+			Self::AnalyzeInvalidOptionalType { .. } => "invalid optional type".to_string(),
+			Self::AnalyzeUnboundedRecursiveType { .. } => "unbounded recursive type".to_string(),
 		}
 	}
 
@@ -152,6 +159,7 @@ impl<'src> Report<'src> {
 			Self::AnalyzeUnknownTypeRef { .. } => "3009",
 			Self::AnalyzeNumOutsideRange { .. } => "3010",
 			Self::AnalyzeInvalidOptionalType { .. } => "3011",
+			Self::AnalyzeUnboundedRecursiveType { .. } => "3012",
 		}
 	}
 
@@ -227,6 +235,15 @@ impl<'src> Report<'src> {
 			Self::AnalyzeInvalidOptionalType { span, .. } => {
 				vec![Label::primary((), span.clone()).with_message("must be removed")]
 			}
+
+			Self::AnalyzeUnboundedRecursiveType {
+				decl_span, use_span, ..
+			} => {
+				vec![
+					Label::secondary((), decl_span.clone()).with_message("declared here"),
+					Label::primary((), use_span.clone()).with_message("used recursively here"),
+				]
+			}
 		}
 	}
 
@@ -244,7 +261,7 @@ impl<'src> Report<'src> {
 				format!("all unreliable events must be under {max_size} bytes in size"),
 				"consider adding a upper limit to any arrays or strings".to_string(),
 				"upper limits can be added for arrays by doing `[..10]`".to_string(),
-				"upper limits can be added for strings by doing `[..10]`".to_string(),
+				"upper limits can be added for strings by doing `(..10)`".to_string(),
 			]),
 			Self::AnalyzePotentiallyOversizeUnreliable { max_size, .. } => Some(vec![
 				format!("all unreliable events must be under {max_size} bytes in size"),
@@ -273,7 +290,13 @@ impl<'src> Report<'src> {
 				format!("(inclusive) max: {}", max),
 			]),
 			Self::AnalyzeInvalidOptionalType { .. } => Some(vec![
-				"this type can only be used when it is not marked as optional".to_string(),
+				"you cannot have 'double optional' types, where a type is optional twice".to_string(),
+				"maps cannot have optional keys or values, as those are impossible to represent in luau".to_string(),
+				"additionally the `unknown` type cannot be optional".to_string(),
+			]),
+			Self::AnalyzeUnboundedRecursiveType { .. } => Some(vec![
+				"this is an unbounded recursive type".to_string(),
+				"unbounded recursive types cause infinite loops".to_string(),
 			]),
 		}
 	}

@@ -112,7 +112,7 @@ const beforeMount = (monaco: Monaco) => {
 
 	const Calls = ["SingleSync", "SingleAsync", "ManySync", "ManyAsync"] as const;
 
-	const Options = ["typescript", "write_checks", "casing", "server_output", "client_output"] as const;
+	const Options = ["typescript", "write_checks", "casing", "server_output", "client_output", "manual_event_loop"] as const;
 
 	const Casing = ["PascalCase", "camelCase", "snake_case"].map((value) => `"${value}"`);
 
@@ -151,8 +151,11 @@ const beforeMount = (monaco: Monaco) => {
 		opt: Options,
 
 		casing: Casing,
+
 		typescript: Operators,
 		write_checks: Operators,
+		manual_event_loop: Operators,
+
 		output_server: [],
 		output_client: [],
 	} as const;
