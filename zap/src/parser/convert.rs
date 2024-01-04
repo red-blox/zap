@@ -351,8 +351,8 @@ impl<'src> Converter<'src> {
 	fn struct_ty(&mut self, ty: &SyntaxStruct<'src>) -> Struct<'src> {
 		let mut fields = Vec::new();
 
-		for field in ty.fields.iter() {
-			fields.push((field.0.name, self.ty(&field.1)));
+		for (field, ty) in ty.fields.iter() {
+			fields.push((field.name, self.ty(ty)));
 		}
 
 		Struct { fields }
