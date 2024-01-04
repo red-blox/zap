@@ -32,7 +32,6 @@ fn main() -> Result<()> {
 
 	if let Some(code) = code {
 		let server_path = config_path.parent().unwrap().join(code.server.path);
-
 		let client_path = config_path.parent().unwrap().join(code.client.path);
 
 		if let Some(parent) = server_path.parent() {
