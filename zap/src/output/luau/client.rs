@@ -444,7 +444,7 @@ impl<'src> ClientOutput<'src> {
 
 		for (i, ..) in self.config.fndecls.iter().enumerate() {
 			let id = i + 1;
-			self.push_line(&format!("event_queue[{id}] = {{}}"));
+			self.push_line(&format!("event_queue[{id}] = table.create(255)"));
 		}
 	}
 
