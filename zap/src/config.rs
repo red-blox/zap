@@ -56,6 +56,7 @@ pub struct FnDecl<'src> {
 	pub call: FnCall,
 	pub args: Option<Ty<'src>>,
 	pub rets: Option<Ty<'src>>,
+	pub id: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,6 +72,7 @@ pub struct EvDecl<'src> {
 	pub evty: EvType,
 	pub call: EvCall,
 	pub data: Option<Ty<'src>>,
+	pub id: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

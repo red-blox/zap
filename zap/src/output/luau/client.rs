@@ -135,7 +135,7 @@ impl<'src> ClientOutput<'src> {
 		));
 	}
 
-	fn push_reliable_callback(&mut self, first: bool, ev: &EvDecl, id: usize) {
+	fn push_reliable_callback(&mut self, first: bool, ev: &EvDecl) {
 		self.push_indent();
 
 		if first {
@@ -147,7 +147,7 @@ impl<'src> ClientOutput<'src> {
 		// push_line is not used here as indent was pushed above
 		// and we don't want to push it twice, especially after
 		// the if/elseif
-		self.push(&format!("id == {id} then"));
+		self.push(&format!("id == {} then", ev.id));
 		self.push("\n");
 
 		self.indent();
@@ -159,21 +159,21 @@ impl<'src> ClientOutput<'src> {
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line(&format!("if events[{id}] then"));
+			self.push_line(&format!("if events[{}] then", ev.id));
 		} else {
-			self.push_line(&format!("if events[{id}][1] then"));
+			self.push_line(&format!("if events[{}][1] then", ev.id));
 		}
 
 		self.indent();
 
 		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
-			self.push_line(&format!("for _, cb in events[{id}] do"));
+			self.push_line(&format!("for _, cb in events[{}] do", ev.id));
 			self.indent();
 		}
 
 		match ev.call {
-			EvCall::SingleSync => self.push_line(&format!("events[{id}](value)")),
-			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{id}], value)")),
+			EvCall::SingleSync => self.push_line(&format!("events[{}](value)", ev.id)),
+			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{}], value)", ev.id)),
 			EvCall::ManySync => self.push_line("cb(value)"),
 			EvCall::ManyAsync => self.push_line("task.spawn(cb, value)"),
 		}
@@ -188,18 +188,18 @@ impl<'src> ClientOutput<'src> {
 		self.indent();
 
 		if ev.data.is_some() {
-			self.push_line(&format!("table.insert(event_queue[{id}], value)"));
-			self.push_line(&format!("if #event_queue[{id}] > 64 then"));
+			self.push_line(&format!("table.insert(event_queue[{}], value)", ev.id));
+			self.push_line(&format!("if #event_queue[{}] > 64 then", ev.id));
 		} else {
-			self.push_line(&format!("event_queue[{id}] += 1"));
-			self.push_line(&format!("if event_queue[{id}] > 16 then"));
+			self.push_line(&format!("event_queue[{}] += 1", ev.id));
+			self.push_line(&format!("if event_queue[{}] > 16 then", ev.id));
 		}
 
 		self.indent();
 
 		self.push_line(&format!(
-			"warn(`[ZAP] {{#event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)",
-			ev.name
+			"warn(`[ZAP] {{#event_queue[{}]}} events in queue for {}. Did you forget to attach a listener?`)",
+			ev.id, ev.name
 		));
 
 		self.dedent();
@@ -211,7 +211,7 @@ impl<'src> ClientOutput<'src> {
 		self.dedent();
 	}
 
-	fn push_fn_callback(&mut self, first: bool, ev: &FnDecl, id: usize) {
+	fn push_fn_callback(&mut self, first: bool, fndecl: &FnDecl) {
 		self.push_indent();
 
 		if first {
@@ -223,7 +223,7 @@ impl<'src> ClientOutput<'src> {
 		// push_line is not used here as indent was pushed above
 		// and we don't want to push it twice, especially after
 		// the if/elseif
-		self.push(&format!("id == {id} then"));
+		self.push(&format!("id == {} then", fndecl.id));
 		self.push("\n");
 
 		self.indent();
@@ -232,20 +232,23 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line("local value");
 
-		if let Some(data) = &ev.args {
+		if let Some(data) = &fndecl.args {
 			self.push_stmts(&des::gen(data, "value", true));
 		}
 
 		match self.config.yield_type {
 			YieldType::Yield | YieldType::Future => {
-				self.push_line(&format!("task.spawn(event_queue[{id}][function_call_id], value)"));
+				self.push_line(&format!(
+					"task.spawn(event_queue[{}][function_call_id], value)",
+					fndecl.id
+				));
 			}
 			YieldType::Promise => {
-				self.push_line(&format!("event_queue[{id}][function_call_id](value)"));
+				self.push_line(&format!("event_queue[{}][function_call_id](value)", fndecl.id));
 			}
 		}
 
-		self.push_line(&format!("event_queue[{id}][call_id] = nil"));
+		self.push_line(&format!("event_queue[{}][call_id] = nil", fndecl.id));
 
 		self.dedent();
 	}
@@ -267,23 +270,18 @@ impl<'src> ClientOutput<'src> {
 
 		let mut first = true;
 
-		for (i, ev) in self
+		for evdecl in self
 			.config
 			.evdecls
 			.iter()
-			.enumerate()
-			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server && ev_decl.evty == EvType::Reliable)
+			.filter(|evdecl| evdecl.from == EvSource::Server && evdecl.evty == EvType::Reliable)
 		{
-			let id = i + 1;
-
-			self.push_reliable_callback(first, ev, id);
+			self.push_reliable_callback(first, evdecl);
 			first = false;
 		}
 
-		for (i, fndecl) in self.config.fndecls.iter().enumerate() {
-			let id = i + 1;
-
-			self.push_fn_callback(first, fndecl, id);
+		for fndecl in self.config.fndecls.iter() {
+			self.push_fn_callback(first, fndecl);
 			first = false;
 		}
 
@@ -305,7 +303,7 @@ impl<'src> ClientOutput<'src> {
 		));
 	}
 
-	fn push_unreliable_callback(&mut self, first: bool, ev: &EvDecl, id: usize) {
+	fn push_unreliable_callback(&mut self, first: bool, ev: &EvDecl) {
 		self.push_indent();
 
 		if first {
@@ -317,7 +315,7 @@ impl<'src> ClientOutput<'src> {
 		// push_line is not used here as indent was pushed above
 		// and we don't want to push it twice, especially after
 		// the if/elseif
-		self.push(&format!("id == {id} then"));
+		self.push(&format!("id == {} then", ev.id));
 		self.push("\n");
 
 		self.indent();
@@ -329,21 +327,21 @@ impl<'src> ClientOutput<'src> {
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line(&format!("if events[{id}] then"));
+			self.push_line(&format!("if events[{}] then", ev.id));
 		} else {
-			self.push_line(&format!("if events[{id}][1] then"));
+			self.push_line(&format!("if events[{}][1] then", ev.id));
 		}
 
 		self.indent();
 
 		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
-			self.push_line(&format!("for _, cb in events[{id}] do"));
+			self.push_line(&format!("for _, cb in events[{}] do", ev.id));
 			self.indent();
 		}
 
 		match ev.call {
-			EvCall::SingleSync => self.push_line(&format!("events[{id}](value)")),
-			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{id}], value)")),
+			EvCall::SingleSync => self.push_line(&format!("events[{}](value)", ev.id)),
+			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{}], value)", ev.id)),
 			EvCall::ManySync => self.push_line("cb(value)"),
 			EvCall::ManyAsync => self.push_line("task.spawn(cb, value)"),
 		}
@@ -358,18 +356,18 @@ impl<'src> ClientOutput<'src> {
 		self.indent();
 
 		if ev.data.is_some() {
-			self.push_line(&format!("table.insert(event_queue[{id}], value)"));
-			self.push_line(&format!("if #event_queue[{id}] > 64 then"));
+			self.push_line(&format!("table.insert(event_queue[{}], value)", ev.id));
+			self.push_line(&format!("if #event_queue[{}] > 64 then", ev.id));
 		} else {
-			self.push_line(&format!("event_queue[{id}] += 1"));
-			self.push_line(&format!("if event_queue[{id}] > 64 then"));
+			self.push_line(&format!("event_queue[{}] += 1", ev.id));
+			self.push_line(&format!("if event_queue[{}] > 64 then", ev.id));
 		}
 
 		self.indent();
 
 		self.push_line(&format!(
-			"warn(`[ZAP] {{#event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)",
-			ev.name
+			"warn(`[ZAP] {{#event_queue[{}]}} events in queue for {}. Did you forget to attach a listener?`)",
+			ev.id, ev.name
 		));
 
 		self.dedent();
@@ -396,16 +394,13 @@ impl<'src> ClientOutput<'src> {
 
 		let mut first = true;
 
-		for (i, ev) in self
+		for ev in self
 			.config
 			.evdecls
 			.iter()
-			.enumerate()
-			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server && ev_decl.evty == EvType::Unreliable)
+			.filter(|ev_decl| ev_decl.from == EvSource::Server && ev_decl.evty == EvType::Unreliable)
 		{
-			let id = i + 1;
-
-			self.push_unreliable_callback(first, ev, id);
+			self.push_unreliable_callback(first, ev);
 			first = false;
 		}
 
@@ -417,34 +412,34 @@ impl<'src> ClientOutput<'src> {
 			"local events = table.create({})",
 			self.config.evdecls.len() + self.config.fndecls.len()
 		));
+		self.push_line(&format!(
+			"local event_queue: {{ [number]: {{ any }} }} = table.create({})",
+			self.config.evdecls.len() + self.config.fndecls.len()
+		));
 
 		if !self.config.fndecls.is_empty() {
 			self.push_line("local function_call_id = 0")
 		}
 
-		for (i, ev_decl) in self
+		for evdecl in self
 			.config
 			.evdecls
 			.iter()
-			.enumerate()
-			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server)
+			.filter(|ev_decl| ev_decl.from == EvSource::Server)
 		{
-			let id = i + 1;
-
-			if ev_decl.call == EvCall::ManyAsync || ev_decl.call == EvCall::ManySync {
-				self.push_line(&format!("events[{id}] = {{}}"));
+			if evdecl.call == EvCall::ManyAsync || evdecl.call == EvCall::ManySync {
+				self.push_line(&format!("events[{}] = {{}}", evdecl.id));
 			}
 
-			if ev_decl.data.is_some() {
-				self.push_line(&format!("event_queue[{id}] = {{}}"));
+			if evdecl.data.is_some() {
+				self.push_line(&format!("event_queue[{}] = {{}}", evdecl.id));
 			} else {
-				self.push_line(&format!("event_queue[{id}] = 0"));
+				self.push_line(&format!("event_queue[{}] = 0", evdecl.id));
 			}
 		}
 
-		for (i, ..) in self.config.fndecls.iter().enumerate() {
-			let id = i + 1;
-			self.push_line(&format!("event_queue[{id}] = table.create(255)"));
+		for fndecl in self.config.fndecls.iter() {
+			self.push_line(&format!("event_queue[{}] = table.create(255)", fndecl.id));
 		}
 	}
 
@@ -456,7 +451,7 @@ impl<'src> ClientOutput<'src> {
 		));
 	}
 
-	fn push_return_fire(&mut self, ev: &EvDecl, id: usize) {
+	fn push_return_fire(&mut self, ev: &EvDecl) {
 		let fire = self.config.casing.with("Fire", "fire", "fire");
 		let value = self.config.casing.with("Value", "value", "value");
 
@@ -476,7 +471,7 @@ impl<'src> ClientOutput<'src> {
 			self.push_line("load_empty()");
 		}
 
-		self.push_write_event_id(id);
+		self.push_write_event_id(ev.id);
 
 		if let Some(data) = &ev.data {
 			self.push_stmts(&ser::gen(data, value, self.config.write_checks));
@@ -494,26 +489,23 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_return_outgoing(&mut self) {
-		for (i, ev) in self
+		for ev in self
 			.config
 			.evdecls
 			.iter()
-			.enumerate()
-			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client)
+			.filter(|ev_decl| ev_decl.from == EvSource::Client)
 		{
-			let id = i + 1;
-
 			self.push_line(&format!("{name} = {{", name = ev.name));
 			self.indent();
 
-			self.push_return_fire(ev, id);
+			self.push_return_fire(ev);
 
 			self.dedent();
 			self.push_line("},");
 		}
 	}
 
-	fn push_return_setcallback(&mut self, ev: &EvDecl, id: usize) {
+	fn push_return_setcallback(&mut self, ev: &EvDecl) {
 		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
 		let callback = self.config.casing.with("Callback", "callback", "callback");
 
@@ -527,10 +519,10 @@ impl<'src> ClientOutput<'src> {
 		self.push(") -> ())\n");
 		self.indent();
 
-		self.push_line(&format!("events[{id}] = {callback}"));
+		self.push_line(&format!("events[{}] = {callback}", ev.id));
 
 		if ev.data.is_some() {
-			self.push_line(&format!("for _, value in event_queue[{id}] do"));
+			self.push_line(&format!("for _, value in event_queue[{}] do", ev.id));
 			self.indent();
 
 			if ev.call == EvCall::SingleSync {
@@ -542,9 +534,9 @@ impl<'src> ClientOutput<'src> {
 			self.dedent();
 			self.push_line("end");
 
-			self.push_line(&format!("event_queue[{id}] = {{}}"));
+			self.push_line(&format!("event_queue[{}] = {{}}", ev.id));
 		} else {
-			self.push_line(&format!("for 1, event_queue[{id}] do"));
+			self.push_line(&format!("for 1, event_queue[{}] do", ev.id));
 			self.indent();
 
 			if ev.call == EvCall::SingleSync {
@@ -556,14 +548,14 @@ impl<'src> ClientOutput<'src> {
 			self.dedent();
 			self.push_line("end");
 
-			self.push_line(&format!("event_queue[{id}] = 0"));
+			self.push_line(&format!("event_queue[{}] = 0", ev.id));
 		}
 
 		self.dedent();
 		self.push_line("end,");
 	}
 
-	fn push_return_on(&mut self, ev: &EvDecl, id: usize) {
+	fn push_return_on(&mut self, ev: &EvDecl) {
 		let on = self.config.casing.with("On", "on", "on");
 		let callback = self.config.casing.with("Callback", "callback", "callback");
 
@@ -577,10 +569,10 @@ impl<'src> ClientOutput<'src> {
 		self.push(") -> ())\n");
 		self.indent();
 
-		self.push_line(&format!("table.insert(events[{id}], {callback})"));
+		self.push_line(&format!("table.insert(events[{}], {callback})", ev.id));
 
 		if ev.data.is_some() {
-			self.push_line(&format!("for _, value in event_queue[{id}] do"));
+			self.push_line(&format!("for _, value in event_queue[{}] do", ev.id));
 			self.indent();
 
 			if ev.call == EvCall::ManySync {
@@ -592,9 +584,9 @@ impl<'src> ClientOutput<'src> {
 			self.dedent();
 			self.push_line("end");
 
-			self.push_line(&format!("event_queue[{id}] = {{}}"));
+			self.push_line(&format!("event_queue[{}] = {{}}", ev.id));
 		} else {
-			self.push_line(&format!("for 1, event_queue[{id}] do"));
+			self.push_line(&format!("for 1, event_queue[{}] do", ev.id));
 			self.indent();
 
 			if ev.call == EvCall::ManySync {
@@ -606,7 +598,7 @@ impl<'src> ClientOutput<'src> {
 			self.dedent();
 			self.push_line("end");
 
-			self.push_line(&format!("event_queue[{id}] = 0"));
+			self.push_line(&format!("event_queue[{}] = 0", ev.id));
 		}
 
 		self.dedent();
@@ -614,21 +606,18 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	pub fn push_return_listen(&mut self) {
-		for (i, ev) in self
+		for ev in self
 			.config
 			.evdecls
 			.iter()
-			.enumerate()
-			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server)
+			.filter(|ev_decl| ev_decl.from == EvSource::Server)
 		{
-			let id = i + 1;
-
 			self.push_line(&format!("{name} = {{", name = ev.name));
 			self.indent();
 
 			match ev.call {
-				EvCall::SingleSync | EvCall::SingleAsync => self.push_return_setcallback(ev, id),
-				EvCall::ManySync | EvCall::ManyAsync => self.push_return_on(ev, id),
+				EvCall::SingleSync | EvCall::SingleAsync => self.push_return_setcallback(ev),
+				EvCall::ManySync | EvCall::ManyAsync => self.push_return_on(ev),
 			}
 
 			self.dedent();
@@ -640,9 +629,7 @@ impl<'src> ClientOutput<'src> {
 		let call = self.config.casing.with("Call", "call", "call");
 		let value = self.config.casing.with("Value", "value", "value");
 
-		for (i, fndecl) in self.config.fndecls.iter().enumerate() {
-			let id = i + 1;
-
+		for fndecl in self.config.fndecls.iter() {
 			self.push_line(&format!("{name} = {{", name = fndecl.name));
 			self.indent();
 
@@ -657,13 +644,13 @@ impl<'src> ClientOutput<'src> {
 			self.push(")\n");
 			self.indent();
 
-			self.push_write_event_id(id);
+			self.push_write_event_id(fndecl.id);
 
 			self.push_line("function_call_id += 1");
 
 			self.push_line("function_call_id %= 256");
 
-			self.push_line(&format!("if event_queue[{id}][function_call_id] then"));
+			self.push_line(&format!("if event_queue[{}][function_call_id] then", fndecl.id));
 			self.indent();
 
 			self.push_line("function_call_id -= 1");
@@ -681,14 +668,20 @@ impl<'src> ClientOutput<'src> {
 
 			match self.config.yield_type {
 				YieldType::Yield => {
-					self.push_line(&format!("event_queue[{id}][function_call_id] = coroutine.running()"));
+					self.push_line(&format!(
+						"event_queue[{}][function_call_id] = coroutine.running()",
+						fndecl.id
+					));
 					self.push_line("local value = coroutine.yield()");
 				}
 				YieldType::Future => {
 					self.push_line("local value = Future.new(function()");
 					self.indent();
 
-					self.push_line(&format!("event_queue[{id}][function_call_id] = coroutine.running()"));
+					self.push_line(&format!(
+						"event_queue[{}][function_call_id] = coroutine.running()",
+						fndecl.id
+					));
 					self.push_line("return coroutine.yield()");
 
 					self.dedent();
@@ -698,7 +691,7 @@ impl<'src> ClientOutput<'src> {
 					self.push_line("local value = Promise.new(function(resolve)");
 					self.indent();
 
-					self.push_line(&format!("event_queue[{id}][function_call_id] = resolve"));
+					self.push_line(&format!("event_queue[{}][function_call_id] = resolve", fndecl.id));
 
 					self.dedent();
 					self.push_line("end)");

@@ -57,6 +57,8 @@ impl<'src> Converter<'src> {
 		let mut evdecls = Vec::new();
 		let mut fndecls = Vec::new();
 
+		let mut event_count = 0_usize;
+
 		for tydecl in config.decls.iter().filter_map(|decl| match decl {
 			SyntaxDecl::Ty(tydecl) => Some(tydecl),
 			_ => None,
@@ -68,14 +70,18 @@ impl<'src> Converter<'src> {
 			SyntaxDecl::Ev(evdecl) => Some(evdecl),
 			_ => None,
 		}) {
-			evdecls.push(self.evdecl(evdecl, &tydecls));
+			event_count += 1;
+
+			evdecls.push(self.evdecl(evdecl, event_count, &tydecls));
 		}
 
 		for fndecl in config.decls.iter().filter_map(|decl| match decl {
 			SyntaxDecl::Fn(fndecl) => Some(fndecl),
 			_ => None,
 		}) {
-			fndecls.push(self.fndecl(fndecl));
+			event_count += 1;
+
+			fndecls.push(self.fndecl(fndecl, event_count));
 		}
 
 		if evdecls.is_empty() && fndecls.is_empty() {
@@ -205,7 +211,12 @@ impl<'src> Converter<'src> {
 		(value, span)
 	}
 
-	fn evdecl(&mut self, evdecl: &SyntaxEvDecl<'src>, tydecls: &HashMap<&'src str, TyDecl<'src>>) -> EvDecl<'src> {
+	fn evdecl(
+		&mut self,
+		evdecl: &SyntaxEvDecl<'src>,
+		id: usize,
+		tydecls: &HashMap<&'src str, TyDecl<'src>>,
+	) -> EvDecl<'src> {
 		let name = evdecl.name.name;
 		let from = evdecl.from;
 		let evty = evdecl.evty;
@@ -243,16 +254,23 @@ impl<'src> Converter<'src> {
 			evty,
 			call,
 			data,
+			id,
 		}
 	}
 
-	fn fndecl(&mut self, fndecl: &SyntaxFnDecl<'src>) -> FnDecl<'src> {
+	fn fndecl(&mut self, fndecl: &SyntaxFnDecl<'src>, id: usize) -> FnDecl<'src> {
 		let name = fndecl.name.name;
 		let call = fndecl.call;
 		let args = fndecl.args.as_ref().map(|ty| self.ty(ty));
 		let rets = fndecl.rets.as_ref().map(|ty| self.ty(ty));
 
-		FnDecl { name, args, call, rets }
+		FnDecl {
+			name,
+			args,
+			call,
+			rets,
+			id,
+		}
 	}
 
 	fn tydecl(&mut self, tydecl: &SyntaxTyDecl<'src>) -> TyDecl<'src> {
