@@ -413,7 +413,10 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_callback_lists(&mut self) {
-		self.push_line(&format!("local events = table.create({})", self.config.evdecls.len()));
+		self.push_line(&format!(
+			"local events = table.create({})",
+			self.config.evdecls.len() + self.config.fndecls.len()
+		));
 
 		if !self.config.fndecls.is_empty() {
 			self.push_line("local function_call_id = 0")

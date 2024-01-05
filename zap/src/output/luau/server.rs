@@ -360,7 +360,10 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_callback_lists(&mut self) {
-		self.push_line(&format!("local events = table.create({})", self.config.evdecls.len()));
+		self.push_line(&format!(
+			"local events = table.create({})",
+			self.config.evdecls.len() + self.config.fndecls.len()
+		));
 
 		for (i, _) in self.config.evdecls.iter().enumerate().filter(|(_, ev_decl)| {
 			ev_decl.from == EvSource::Client && matches!(ev_decl.call, EvCall::ManyAsync | EvCall::ManySync)
