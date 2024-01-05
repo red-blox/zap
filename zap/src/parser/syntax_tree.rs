@@ -1,4 +1,4 @@
-use crate::config::{EvCall, EvSource, EvType, NumTy};
+use crate::config::{EvCall, EvSource, EvType, FnCall, NumTy};
 
 use super::reports::Span;
 
@@ -68,8 +68,25 @@ pub enum SyntaxOptValueKind<'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SyntaxDecl<'src> {
-	Ev(SyntaxEvDecl<'src>),
 	Ty(SyntaxTyDecl<'src>),
+	Ev(SyntaxEvDecl<'src>),
+	Fn(SyntaxFnDecl<'src>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyntaxFnDecl<'src> {
+	pub start: usize,
+	pub name: SyntaxIdentifier<'src>,
+	pub call: FnCall,
+	pub args: Option<SyntaxTy<'src>>,
+	pub rets: Option<SyntaxTy<'src>>,
+	pub end: usize,
+}
+
+impl<'src> Spanned for SyntaxFnDecl<'src> {
+	fn span(&self) -> Span {
+		self.start..self.end
+	}
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -79,7 +96,7 @@ pub struct SyntaxEvDecl<'src> {
 	pub from: EvSource,
 	pub evty: EvType,
 	pub call: EvCall,
-	pub data: SyntaxTy<'src>,
+	pub data: Option<SyntaxTy<'src>>,
 	pub end: usize,
 }
 

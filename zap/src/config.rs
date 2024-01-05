@@ -7,6 +7,7 @@ use std::{
 pub struct Config<'src> {
 	pub tydecls: Vec<TyDecl<'src>>,
 	pub evdecls: Vec<EvDecl<'src>>,
+	pub fndecls: Vec<FnDecl<'src>>,
 
 	pub write_checks: bool,
 	pub typescript: bool,
@@ -16,6 +17,7 @@ pub struct Config<'src> {
 	pub client_output: &'src str,
 
 	pub casing: Casing,
+	pub yield_type: YieldType,
 }
 
 impl<'src> Config<'src> {
@@ -41,13 +43,34 @@ impl Casing {
 	}
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum YieldType {
+	Yield,
+	Future,
+	Promise,
+}
+
+#[derive(Debug, Clone)]
+pub struct FnDecl<'src> {
+	pub name: &'src str,
+	pub call: FnCall,
+	pub args: Option<Ty<'src>>,
+	pub rets: Option<Ty<'src>>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FnCall {
+	Async,
+	Sync,
+}
+
 #[derive(Debug, Clone)]
 pub struct EvDecl<'src> {
 	pub name: &'src str,
 	pub from: EvSource,
 	pub evty: EvType,
 	pub call: EvCall,
-	pub data: Ty<'src>,
+	pub data: Option<Ty<'src>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

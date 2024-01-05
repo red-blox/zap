@@ -1,4 +1,4 @@
-use crate::config::{Config, EvCall, EvDecl, EvSource, TyDecl};
+use crate::config::{Config, EvCall, EvDecl, EvSource, Ty, TyDecl};
 
 use super::Output;
 
@@ -58,53 +58,93 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_return_fire(&mut self, ev: &EvDecl) {
-		let ty = &ev.data;
-
 		let fire = self.config.casing.with("Fire", "fire", "fire");
 		let player = self.config.casing.with("Player", "player", "player");
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire}: ({player}: Player, {value}: "));
-		self.push_ty(ty);
+		self.push(&format!("{fire}: ({player}: Player"));
+
+		if let Some(data) = &ev.data {
+			self.push(&format!(", {value}"));
+
+			if let Ty::Opt(data) = data {
+				self.push("?: ");
+				self.push_ty(data);
+			} else {
+				self.push(": ");
+				self.push_ty(data);
+			}
+		}
+
 		self.push(") => void\n");
 	}
 
 	fn push_return_fire_all(&mut self, ev: &EvDecl) {
-		let ty = &ev.data;
-
 		let fire_all = self.config.casing.with("FireAll", "fireAll", "fire_all");
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_all}: ({value}: "));
-		self.push_ty(ty);
+		self.push(&format!("{fire_all}: ("));
+
+		if let Some(data) = &ev.data {
+			self.push(value);
+
+			if let Ty::Opt(data) = data {
+				self.push("?: ");
+				self.push_ty(data);
+			} else {
+				self.push(": ");
+				self.push_ty(data);
+			}
+		}
+
 		self.push(") => void\n");
 	}
 
 	fn push_return_fire_except(&mut self, ev: &EvDecl) {
-		let ty = &ev.data;
-
 		let fire_except = self.config.casing.with("FireExcept", "fireExcept", "fire_except");
 		let except = self.config.casing.with("Except", "except", "except");
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_except}: ({except}: Player, {value}: "));
-		self.push_ty(ty);
+		self.push(&format!("{fire_except}: ({except}: Player"));
+
+		if let Some(data) = &ev.data {
+			self.push(&format!(", {value}"));
+
+			if let Ty::Opt(data) = data {
+				self.push("?: ");
+				self.push_ty(data);
+			} else {
+				self.push(": ");
+				self.push_ty(data);
+			}
+		}
+
 		self.push(") => void\n");
 	}
 
 	fn push_return_fire_list(&mut self, ev: &EvDecl) {
-		let ty = &ev.data;
-
 		let fire_list = self.config.casing.with("FireList", "fireList", "fire_list");
 		let list = self.config.casing.with("List", "list", "list");
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_list}: ({list}: Player[], {value}: "));
-		self.push_ty(ty);
+		self.push(&format!("{fire_list}: ({list}: Player[]"));
+
+		if let Some(data) = &ev.data {
+			self.push(&format!(", {value}"));
+
+			if let Ty::Opt(data) = data {
+				self.push("?: ");
+				self.push_ty(data);
+			} else {
+				self.push(": ");
+				self.push_ty(data);
+			}
+		}
+
 		self.push(") => void\n");
 	}
 
@@ -151,8 +191,20 @@ impl<'a> ServerOutput<'a> {
 			let value = self.config.casing.with("Value", "value", "value");
 
 			self.push_indent();
-			self.push(&format!("{set_callback}: ({callback}: ({player}: Player, {value}: "));
-			self.push_ty(&ev.data);
+			self.push(&format!("{set_callback}: ({callback}: ({player}: Player"));
+
+			if let Some(data) = &ev.data {
+				self.push(&format!(", {value}"));
+
+				if let Ty::Opt(data) = data {
+					self.push("?: ");
+					self.push_ty(data);
+				} else {
+					self.push(": ");
+					self.push_ty(data);
+				}
+			}
+
 			self.push(") => void) => void\n");
 
 			self.dedent();

@@ -1,5 +1,5 @@
 use crate::parser::{reports::Report, syntax_tree::*};
-use crate::config::{EvCall, EvSource, EvType, NumTy};
+use crate::config::{EvCall, EvSource, EvType, FnCall, NumTy};
 
 use lalrpop_util::ParseError;
 
@@ -35,16 +35,32 @@ OptValueKind: SyntaxOptValueKind<'input> = {
 }
 
 Decl: SyntaxDecl<'input> = {
-    <decl:EvDecl> => SyntaxDecl::Ev(decl),
     <decl:TyDecl> => SyntaxDecl::Ty(decl),
+    <decl:EvDecl> => SyntaxDecl::Ev(decl),
+    <decl:FnDecl> => SyntaxDecl::Fn(decl),
+}
+
+FnDecl: SyntaxFnDecl<'input> = {
+    <start:@L> "funct" <name:Identifier> "=" "{"
+        "call" ":" <call:FnCall>
+        <args:("," "args" ":" <Ty>)?>
+        <rets:("," "rets" ":" <Ty>)?>
+        ","?
+    "}" ";"? <end:@R> => SyntaxFnDecl { start, name, call, args, rets, end },
+}
+
+FnCall: FnCall = {
+    "Async" => FnCall::Async,
+    "Sync" => FnCall::Sync,
 }
 
 EvDecl: SyntaxEvDecl<'input> = {
     <start:@L> "event" <name:Identifier> "=" "{"
-        "from" ":" <from:EvSource> ","
-        "type" ":" <evty:EvTy> ","
-        "call" ":" <call:EvCall> ","
-        "data" ":" <data:Ty> ","?
+        "from" ":" <from:EvSource>
+        "," "type" ":" <evty:EvTy>
+        "," "call" ":" <call:EvCall> 
+        <data:("," "data" ":" <Ty>)?>
+        ","?
     "}" ";"? <end:@R> => SyntaxEvDecl { start, name, from, evty, call, data, end },
 }
 
@@ -170,6 +186,8 @@ Identifier: SyntaxIdentifier<'input> = {
     <start:@L> "opt" <end:@R> => SyntaxIdentifier { start, name: "opt", end },
     <start:@L> "from" <end:@R> => SyntaxIdentifier { start, name: "from", end },
     <start:@L> "call" <end:@R> => SyntaxIdentifier { start, name: "call", end },
+    <start:@L> "Async" <end:@R> => SyntaxIdentifier { start, name: "Async", end },
+    <start:@L> "Sync" <end:@R> => SyntaxIdentifier { start, name: "Sync", end },
     <start:@L> "Reliable" <end:@R> => SyntaxIdentifier { start, name: "Reliable", end },
     <start:@L> "Unreliable" <end:@R> => SyntaxIdentifier { start, name: "Unreliable", end },
     <start:@L> "Server" <end:@R> => SyntaxIdentifier { start, name: "Server", end },

@@ -141,8 +141,16 @@ pub trait Output {
 
 						for (name, ty) in struct_ty.fields.iter() {
 							self.push_indent();
-							self.push(&format!("{name}: "));
-							self.push_ty(ty);
+							self.push(name);
+
+							if let Ty::Opt(ty) = ty {
+								self.push("?: ");
+								self.push_ty(ty);
+							} else {
+								self.push(": ");
+								self.push_ty(ty);
+							}
+
 							self.push(",\n");
 						}
 
@@ -160,8 +168,16 @@ pub trait Output {
 
 				for (name, ty) in struct_ty.fields.iter() {
 					self.push_indent();
-					self.push(&format!("{name}: "));
-					self.push_ty(ty);
+					self.push(name);
+
+					if let Ty::Opt(ty) = ty {
+						self.push("?: ");
+						self.push_ty(ty);
+					} else {
+						self.push(": ");
+						self.push_ty(ty);
+					}
+
 					self.push(",\n");
 				}
 

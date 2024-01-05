@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::config::{Casing, Config, Enum, EvDecl, EvType, NumTy, Range, Struct, Ty, TyDecl};
+use crate::config::{Casing, Config, Enum, EvDecl, EvType, FnDecl, NumTy, Range, Struct, Ty, TyDecl, YieldType};
 
 use super::{
 	reports::{Report, Span},
@@ -12,6 +12,7 @@ struct Converter<'src> {
 
 	tydecls: HashMap<&'src str, SyntaxTyDecl<'src>>,
 	evdecls: HashMap<&'src str, SyntaxEvDecl<'src>>,
+	fndecls: HashMap<&'src str, SyntaxFnDecl<'src>>,
 
 	reports: Vec<Report<'src>>,
 }
@@ -20,6 +21,7 @@ impl<'src> Converter<'src> {
 	fn new(config: SyntaxConfig<'src>) -> Self {
 		let mut tydecls = HashMap::new();
 		let mut evdecls = HashMap::new();
+		let mut fndecls = HashMap::new();
 
 		for decl in config.decls.iter() {
 			match decl {
@@ -30,6 +32,10 @@ impl<'src> Converter<'src> {
 				SyntaxDecl::Ev(evdecl) => {
 					evdecls.insert(evdecl.name.name, evdecl.clone());
 				}
+
+				SyntaxDecl::Fn(fndecl) => {
+					fndecls.insert(fndecl.name.name, fndecl.clone());
+				}
 			}
 		}
 
@@ -38,6 +44,7 @@ impl<'src> Converter<'src> {
 
 			tydecls,
 			evdecls,
+			fndecls,
 
 			reports: Vec::new(),
 		}
@@ -45,7 +52,10 @@ impl<'src> Converter<'src> {
 
 	fn convert(mut self) -> (Config<'src>, Vec<Report<'src>>) {
 		let config = self.config.clone();
+
 		let mut tydecls = HashMap::new();
+		let mut evdecls = Vec::new();
+		let mut fndecls = Vec::new();
 
 		for tydecl in config.decls.iter().filter_map(|decl| match decl {
 			SyntaxDecl::Ty(tydecl) => Some(tydecl),
@@ -54,8 +64,6 @@ impl<'src> Converter<'src> {
 			tydecls.insert(tydecl.name.name, self.tydecl(tydecl));
 		}
 
-		let mut evdecls = Vec::new();
-
 		for evdecl in config.decls.iter().filter_map(|decl| match decl {
 			SyntaxDecl::Ev(evdecl) => Some(evdecl),
 			_ => None,
@@ -63,7 +71,14 @@ impl<'src> Converter<'src> {
 			evdecls.push(self.evdecl(evdecl, &tydecls));
 		}
 
-		if evdecls.is_empty() {
+		for fndecl in config.decls.iter().filter_map(|decl| match decl {
+			SyntaxDecl::Fn(fndecl) => Some(fndecl),
+			_ => None,
+		}) {
+			fndecls.push(self.fndecl(fndecl));
+		}
+
+		if evdecls.is_empty() && fndecls.is_empty() {
 			self.report(Report::AnalyzeEmptyEvDecls);
 		}
 
@@ -91,9 +106,27 @@ impl<'src> Converter<'src> {
 			_ => unreachable!(),
 		};
 
+		let yield_type = match self.str_opt("yield_type", "yield", &config.opts) {
+			("yield", ..) => YieldType::Yield,
+			("future", ..) => YieldType::Future,
+			("promise", ..) => YieldType::Promise,
+
+			(_, Some(span)) => {
+				self.report(Report::AnalyzeInvalidOptValue {
+					span,
+					expected: "`yield`, `future`, or `promise`",
+				});
+
+				YieldType::Yield
+			}
+
+			_ => unreachable!(),
+		};
+
 		let config = Config {
 			tydecls: tydecls.into_values().collect(),
 			evdecls,
+			fndecls,
 
 			write_checks,
 			typescript,
@@ -103,6 +136,7 @@ impl<'src> Converter<'src> {
 			client_output,
 
 			casing,
+			yield_type,
 		};
 
 		(config, self.reports)
@@ -176,28 +210,30 @@ impl<'src> Converter<'src> {
 		let from = evdecl.from;
 		let evty = evdecl.evty;
 		let call = evdecl.call;
-		let data = self.ty(&evdecl.data);
+		let data = evdecl.data.as_ref().map(|ty| self.ty(ty));
 
-		if let EvType::Unreliable = evty {
-			let (min, max) = data.size(tydecls, &mut HashSet::new());
-			let event_id_size = NumTy::from_f64(1.0, self.evdecls.len() as f64).size();
+		if let Some(data) = &data {
+			if let EvType::Unreliable = evty {
+				let (min, max) = data.size(tydecls, &mut HashSet::new());
+				let event_id_size = NumTy::from_f64(1.0, self.evdecls.len() as f64).size();
 
-			// We subtract two for the `inst` array.
-			let max_unreliable_size = 900 - event_id_size - 2;
+				// We subtract two for the `inst` array.
+				let max_unreliable_size = 900 - event_id_size - 2;
 
-			if min > max_unreliable_size {
-				self.report(Report::AnalyzeOversizeUnreliable {
-					ev_span: evdecl.span(),
-					ty_span: evdecl.data.span(),
-					max_size: max_unreliable_size,
-					size: min,
-				});
-			} else if !max.is_some_and(|max| max < max_unreliable_size) {
-				self.report(Report::AnalyzePotentiallyOversizeUnreliable {
-					ev_span: evdecl.span(),
-					ty_span: evdecl.data.span(),
-					max_size: max_unreliable_size,
-				});
+				if min > max_unreliable_size {
+					self.report(Report::AnalyzeOversizeUnreliable {
+						ev_span: evdecl.span(),
+						ty_span: evdecl.data.as_ref().unwrap().span(),
+						max_size: max_unreliable_size,
+						size: min,
+					});
+				} else if !max.is_some_and(|max| max < max_unreliable_size) {
+					self.report(Report::AnalyzePotentiallyOversizeUnreliable {
+						ev_span: evdecl.span(),
+						ty_span: evdecl.data.as_ref().unwrap().span(),
+						max_size: max_unreliable_size,
+					});
+				}
 			}
 		}
 
@@ -208,6 +244,15 @@ impl<'src> Converter<'src> {
 			call,
 			data,
 		}
+	}
+
+	fn fndecl(&mut self, fndecl: &SyntaxFnDecl<'src>) -> FnDecl<'src> {
+		let name = fndecl.name.name;
+		let call = fndecl.call;
+		let args = fndecl.args.as_ref().map(|ty| self.ty(ty));
+		let rets = fndecl.rets.as_ref().map(|ty| self.ty(ty));
+
+		FnDecl { name, args, call, rets }
 	}
 
 	fn tydecl(&mut self, tydecl: &SyntaxTyDecl<'src>) -> TyDecl<'src> {
@@ -325,7 +370,7 @@ impl<'src> Converter<'src> {
 			}
 
 			SyntaxEnumKind::Tagged { tag, variants } => {
-				let tag_name = tag.value;
+				let tag_name = self.str(tag);
 
 				let variants = variants
 					.iter()

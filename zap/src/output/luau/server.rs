@@ -1,5 +1,5 @@
 use crate::{
-	config::{Config, EvCall, EvDecl, EvSource, EvType, TyDecl},
+	config::{Config, EvCall, EvDecl, EvSource, EvType, FnCall, FnDecl, TyDecl},
 	irgen::{des, ser},
 };
 
@@ -148,7 +148,10 @@ impl<'a> ServerOutput<'a> {
 		self.indent();
 
 		self.push_line("local value");
-		self.push_stmts(&des::gen(&ev.data, "value", true));
+
+		if let Some(data) = &ev.data {
+			self.push_stmts(&des::gen(data, "value", true));
+		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
 			self.push_line(&format!("if events[{id}] then"))
@@ -163,6 +166,61 @@ impl<'a> ServerOutput<'a> {
 			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{id}], player, value)")),
 			EvCall::ManySync => self.push_line("cb(player, value)"),
 			EvCall::ManyAsync => self.push_line("task.spawn(cb, player, value)"),
+		}
+
+		self.dedent();
+		self.push_line("end");
+
+		self.dedent();
+	}
+
+	fn push_fn_callback(&mut self, first: bool, fndecl: &FnDecl, id: usize) {
+		self.push_indent();
+
+		if first {
+			self.push("if ");
+		} else {
+			self.push("elseif ");
+		}
+
+		self.push(&format!("id == {id} then"));
+		self.push("\n");
+
+		self.indent();
+
+		self.push_line("local call_id = buffer.readu8(buff, read(1))");
+		self.push_line("local value");
+
+		if let Some(data) = &fndecl.args {
+			self.push_stmts(&des::gen(data, "value", true));
+		}
+
+		self.push_line(&format!("if events[{id}] then"));
+
+		self.indent();
+
+		if fndecl.call == FnCall::Async {
+			self.push_line("task.spawn(function(player, call_id, value)");
+			self.indent();
+		}
+
+		self.push_line(&format!("local rets = events[{id}](player, value)"));
+
+		self.push_line("load_player(player)");
+		self.push_write_event_id(id);
+
+		self.push_line("alloc(1)");
+		self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, call_id)");
+
+		if let Some(ty) = &fndecl.rets {
+			self.push_stmts(&ser::gen(ty, "rets", self.config.write_checks));
+		}
+
+		self.push_line("player_map[player] = save()");
+
+		if fndecl.call == FnCall::Async {
+			self.dedent();
+			self.push_line("end, player, call_id, value)");
 		}
 
 		self.dedent();
@@ -198,6 +256,13 @@ impl<'a> ServerOutput<'a> {
 			let id = i + 1;
 
 			self.push_reliable_callback(first, ev, id);
+			first = false;
+		}
+
+		for (i, fndecl) in self.config.fndecls.iter().enumerate() {
+			let id = i + 1;
+
+			self.push_fn_callback(first, fndecl, id);
 			first = false;
 		}
 
@@ -237,7 +302,10 @@ impl<'a> ServerOutput<'a> {
 		self.indent();
 
 		self.push_line("local value");
-		self.push_stmts(&des::gen(&ev.data, "value", true));
+
+		if let Some(data) = &ev.data {
+			self.push_stmts(&des::gen(data, "value", true));
+		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
 			self.push_line(&format!("if events[{id}] then"))
@@ -304,9 +372,9 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_write_event_id(&mut self, id: usize) {
-		self.push_line(&format!("local pos = alloc({})", self.config.event_id_ty().size()));
+		self.push_line(&format!("alloc({})", self.config.event_id_ty().size()));
 		self.push_line(&format!(
-			"buffer.write{}(outgoing_buff, pos, {id})",
+			"buffer.write{}(outgoing_buff, outgoing_apos, {id})",
 			self.config.event_id_ty()
 		));
 	}
@@ -319,8 +387,13 @@ impl<'a> ServerOutput<'a> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire} = function({player}: Player, {value}: "));
-		self.push_ty(ty);
+		self.push(&format!("{fire} = function({player}: Player"));
+
+		if let Some(ty) = ty {
+			self.push(&format!(", {value}: "));
+			self.push_ty(ty);
+		}
+
 		self.push(")\n");
 		self.indent();
 
@@ -331,7 +404,9 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_write_event_id(id);
 
-		self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+		if let Some(ty) = ty {
+			self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+		}
 
 		match ev.evty {
 			EvType::Reliable => self.push_line(&format!("player_map[{player}] = save()")),
@@ -353,8 +428,13 @@ impl<'a> ServerOutput<'a> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_all} = function({value}: "));
-		self.push_ty(ty);
+		self.push(&format!("{fire_all} = function("));
+
+		if let Some(ty) = ty {
+			self.push(&format!("{value}: "));
+			self.push_ty(ty);
+		}
+
 		self.push(")\n");
 		self.indent();
 
@@ -362,7 +442,9 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_write_event_id(id);
 
-		self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+		if let Some(ty) = ty {
+			self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+		}
 
 		match ev.evty {
 			EvType::Reliable => {
@@ -397,8 +479,13 @@ impl<'a> ServerOutput<'a> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_except} = function({except}: Player, {value}: "));
-		self.push_ty(ty);
+		self.push(&format!("{fire_except} = function({except}: Player"));
+
+		if let Some(ty) = ty {
+			self.push(&format!(", {value}: "));
+			self.push_ty(ty);
+		}
+
 		self.push(")\n");
 		self.indent();
 
@@ -406,7 +493,9 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_write_event_id(id);
 
-		self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+		if let Some(ty) = ty {
+			self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+		}
 
 		match ev.evty {
 			EvType::Reliable => {
@@ -453,8 +542,13 @@ impl<'a> ServerOutput<'a> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_list} = function({list}: {{ Player }}, {value}: "));
-		self.push_ty(ty);
+		self.push(&format!("{fire_list} = function({list}: {{ Player }}"));
+
+		if let Some(ty) = ty {
+			self.push(&format!(", {value}: "));
+			self.push_ty(ty);
+		}
+
 		self.push(")\n");
 		self.indent();
 
@@ -462,7 +556,9 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_write_event_id(id);
 
-		self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+		if let Some(ty) = ty {
+			self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+		}
 
 		match ev.evty {
 			EvType::Reliable => {
@@ -517,14 +613,17 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_return_setcallback(&mut self, ev: &EvDecl, id: usize) {
-		let ty = &ev.data;
-
 		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
 		let callback = self.config.casing.with("Callback", "callback", "callback");
 
 		self.push_indent();
-		self.push(&format!("{set_callback} = function({callback}: (Player, "));
-		self.push_ty(ty);
+		self.push(&format!("{set_callback} = function({callback}: (Player"));
+
+		if let Some(ty) = &ev.data {
+			self.push(", ");
+			self.push_ty(ty);
+		}
+
 		self.push(") -> ())\n");
 		self.indent();
 
@@ -535,18 +634,48 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_return_on(&mut self, ev: &EvDecl, id: usize) {
-		let ty = &ev.data;
-
 		let on = self.config.casing.with("On", "on", "on");
 		let callback = self.config.casing.with("Callback", "callback", "callback");
 
 		self.push_indent();
-		self.push(&format!("{on} = function({callback}: (Player, "));
-		self.push_ty(ty);
+		self.push(&format!("{on} = function({callback}: (Player"));
+
+		if let Some(ty) = &ev.data {
+			self.push(", ");
+			self.push_ty(ty);
+		}
+
 		self.push(") -> ())\n");
 		self.indent();
 
 		self.push_line(&format!("table.insert(events[{id}], {callback})"));
+
+		self.dedent();
+		self.push_line("end,");
+	}
+
+	fn push_fn_return(&mut self, fndecl: &FnDecl, id: usize) {
+		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
+		let callback = self.config.casing.with("Callback", "callback", "callback");
+
+		self.push_indent();
+		self.push(&format!("{set_callback} = function({callback}: (Player"));
+
+		if let Some(ty) = &fndecl.args {
+			self.push(", ");
+			self.push_ty(ty);
+		}
+
+		self.push(") -> (");
+
+		if let Some(ty) = &fndecl.rets {
+			self.push_ty(ty);
+		}
+
+		self.push("))\n");
+		self.indent();
+
+		self.push_line(&format!("events[{id}] = {callback}"));
 
 		self.dedent();
 		self.push_line("end,");
@@ -562,13 +691,25 @@ impl<'a> ServerOutput<'a> {
 		{
 			let id = i + 1;
 
-			self.push_line(&format!("{name} = {{", name = ev.name));
+			self.push_line(&format!("{} = {{", ev.name));
 			self.indent();
 
 			match ev.call {
 				EvCall::SingleSync | EvCall::SingleAsync => self.push_return_setcallback(ev, id),
 				EvCall::ManySync | EvCall::ManyAsync => self.push_return_on(ev, id),
 			}
+
+			self.dedent();
+			self.push_line("},");
+		}
+
+		for (i, fndecl) in self.config.fndecls.iter().enumerate() {
+			let id = i + 1;
+
+			self.push_line(&format!("{} = {{", fndecl.name));
+			self.indent();
+
+			self.push_fn_return(fndecl, id);
 
 			self.dedent();
 			self.push_line("},");
@@ -595,7 +736,7 @@ impl<'a> ServerOutput<'a> {
 	pub fn output(mut self) -> String {
 		self.push_file_header("Server");
 
-		if self.config.evdecls.is_empty() {
+		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
 			return self.buf;
 		};
 
@@ -608,11 +749,12 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_callback_lists();
 
-		if self
-			.config
-			.evdecls
-			.iter()
-			.any(|ev| ev.evty == EvType::Reliable && ev.from == EvSource::Client)
+		if !self.config.fndecls.is_empty()
+			|| self
+				.config
+				.evdecls
+				.iter()
+				.any(|ev| ev.evty == EvType::Reliable && ev.from == EvSource::Client)
 		{
 			self.push_reliable();
 		}

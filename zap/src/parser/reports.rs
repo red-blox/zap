@@ -124,7 +124,7 @@ impl<'src> Report<'src> {
 			Self::ParserExtraToken { .. } => "extra token".to_string(),
 			Self::ParserExpectedInt { .. } => "expected integer".to_string(),
 
-			Self::AnalyzeEmptyEvDecls => "no event declarations".to_string(),
+			Self::AnalyzeEmptyEvDecls => "no event or function declarations".to_string(),
 			Self::AnalyzeOversizeUnreliable { .. } => "oversize unreliable".to_string(),
 			Self::AnalyzePotentiallyOversizeUnreliable { .. } => "potentially oversize unreliable".to_string(),
 			Self::AnalyzeInvalidRange { .. } => "invalid range".to_string(),
@@ -256,7 +256,9 @@ impl<'src> Report<'src> {
 			Self::ParserExtraToken { .. } => None,
 			Self::ParserExpectedInt { .. } => None,
 
-			Self::AnalyzeEmptyEvDecls => Some(vec!["add an event declaration to allow zap to output code".to_string()]),
+			Self::AnalyzeEmptyEvDecls => Some(vec![
+				"add an event or function declaration to allow zap to output code".to_string()
+			]),
 			Self::AnalyzeOversizeUnreliable { max_size, .. } => Some(vec![
 				format!("all unreliable events must be under {max_size} bytes in size"),
 				"consider adding a upper limit to any arrays or strings".to_string(),

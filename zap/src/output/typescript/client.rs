@@ -1,4 +1,4 @@
-use crate::config::{Config, EvCall, EvSource, TyDecl};
+use crate::config::{Config, EvCall, EvSource, Ty, TyDecl};
 
 use super::Output;
 
@@ -72,8 +72,20 @@ impl<'src> ClientOutput<'src> {
 			self.indent();
 
 			self.push_indent();
-			self.push(&format!("{fire}: ({value}: "));
-			self.push_ty(&ev.data);
+			self.push(&format!("{fire}: ("));
+
+			if let Some(data) = &ev.data {
+				self.push(value);
+
+				if let Ty::Opt(data) = data {
+					self.push("?: ");
+					self.push_ty(data);
+				} else {
+					self.push(": ");
+					self.push_ty(data);
+				}
+			}
+
 			self.push(") => void\n");
 
 			self.dedent();
@@ -103,7 +115,19 @@ impl<'src> ClientOutput<'src> {
 
 			self.push_indent();
 			self.push(&format!("{set_callback}: ({callback}: ({value}: "));
-			self.push_ty(&ev.data);
+
+			if let Some(data) = &ev.data {
+				self.push(value);
+
+				if let Ty::Opt(data) = data {
+					self.push("?: ");
+					self.push_ty(data);
+				} else {
+					self.push(": ");
+					self.push_ty(data);
+				}
+			}
+
 			self.push(") => void) => void\n");
 
 			self.dedent();
