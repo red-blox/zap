@@ -181,7 +181,7 @@ impl<'src> Ty<'src> {
 			Self::Color3 => (12, Some(12)),
 			Self::Vector3 => (12, Some(12)),
 			Self::AlignedCFrame => (13, Some(13)),
-			Self::CFrame => (48, Some(48)),
+			Self::CFrame => (24, Some(24)),
 			Self::Unknown => (0, None),
 		}
 	}

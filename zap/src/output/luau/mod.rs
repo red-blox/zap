@@ -31,6 +31,15 @@ pub trait Output {
 					self.push_line(&format!("local {name}"));
 				}
 			}
+			Stmt::LocalTuple(var, expr) => {
+				let items = var.join(", ");
+
+				if let Some(expr) = expr {
+					self.push_line(&format!("local {items} = {expr}"));
+				} else {
+					self.push_line(&format!("local {items}"));
+				}
+			}
 
 			Stmt::Assign(var, expr) => self.push_line(&format!("{var} = {expr}")),
 			Stmt::Error(msg) => self.push_line(&format!("error(\"{msg}\")")),
