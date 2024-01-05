@@ -685,7 +685,7 @@ impl<'src> ClientOutput<'src> {
 					self.push_line("local value = coroutine.yield()");
 				}
 				YieldType::Future => {
-					self.push_line("Future.new(function()");
+					self.push_line("local value = Future.new(function()");
 					self.indent();
 
 					self.push_line(&format!("event_queue[{id}][function_call_id] = coroutine.running()"));
@@ -695,7 +695,7 @@ impl<'src> ClientOutput<'src> {
 					self.push_line("end)");
 				}
 				YieldType::Promise => {
-					self.push_line("Promise.new(function(resolve)");
+					self.push_line("local value = Promise.new(function(resolve)");
 					self.indent();
 
 					self.push_line(&format!("event_queue[{id}][function_call_id] = resolve"));
