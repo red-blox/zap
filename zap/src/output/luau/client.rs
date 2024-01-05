@@ -667,7 +667,7 @@ impl<'src> ClientOutput<'src> {
 			self.indent();
 
 			self.push_line("function_call_id -= 1");
-			self.push_line("error(\"Zap has more than 256 events awaiting a response, and therefore this packet has been dropped.\")");
+			self.push_line("error(\"Zap has more than 256 calls awaiting a response, and therefore this packet has been dropped\")");
 
 			self.dedent();
 			self.push_line("end");
