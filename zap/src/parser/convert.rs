@@ -114,8 +114,21 @@ impl<'src> Converter<'src> {
 
 		let yield_type = match self.str_opt("yield_type", "yield", &config.opts) {
 			("yield", ..) => YieldType::Yield,
-			("future", ..) => YieldType::Future,
 			("promise", ..) => YieldType::Promise,
+			("future", span) => {
+				if typescript {
+					if let Some(span) = span {
+						self.report(Report::AnalyzeInvalidOptValue {
+							span,
+							expected: "`yield`, or `promise`",
+						});
+					}
+
+					YieldType::Yield
+				} else {
+					YieldType::Future
+				}
+			}
 
 			(_, Some(span)) => {
 				self.report(Report::AnalyzeInvalidOptValue {
@@ -128,6 +141,27 @@ impl<'src> Converter<'src> {
 
 			_ => unreachable!(),
 		};
+
+		let (async_lib, async_lib_span) = self.str_opt("async_lib", "", &config.opts);
+
+		if let Some(span) = async_lib_span {
+			if !async_lib.starts_with("require(") {
+				self.report(Report::AnalyzeInvalidOptValue {
+					span,
+					expected: "that `async_lib` path must be a `require` statement",
+				});
+			} else if yield_type == YieldType::Yield {
+				self.report(Report::AnalyzeInvalidOptValue {
+					span,
+					expected: "that `async_lib` cannot be defined when using a `yield_type` of `yield`",
+				});
+			}
+		} else if async_lib.is_empty() && yield_type != YieldType::Yield {
+			self.report(Report::AnalyzeMissingOptValue {
+				expected: "`async_lib`",
+				required_when: "`yield_type` is set to `promise` or `future`.",
+			});
+		}
 
 		let config = Config {
 			tydecls: tydecls.into_values().collect(),
@@ -143,6 +177,7 @@ impl<'src> Converter<'src> {
 
 			casing,
 			yield_type,
+			async_lib,
 		};
 
 		(config, self.reports)

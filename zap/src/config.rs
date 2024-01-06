@@ -18,6 +18,7 @@ pub struct Config<'src> {
 
 	pub casing: Casing,
 	pub yield_type: YieldType,
+	pub async_lib: &'src str,
 }
 
 impl<'src> Config<'src> {
@@ -43,11 +44,22 @@ impl Casing {
 	}
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum YieldType {
 	Yield,
 	Future,
 	Promise,
+}
+
+impl std::fmt::Display for YieldType {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			// do nothing, as yield will never import
+			YieldType::Yield => Ok(()),
+			YieldType::Future => write!(f, "Future"),
+			YieldType::Promise => write!(f, "Promise"),
+		}
+	}
 }
 
 #[derive(Debug, Clone)]

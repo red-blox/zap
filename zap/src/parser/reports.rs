@@ -85,6 +85,11 @@ pub enum Report<'src> {
 		decl_span: Span,
 		use_span: Span,
 	},
+
+	AnalyzeMissingOptValue {
+		expected: &'static str,
+		required_when: &'static str,
+	},
 }
 
 impl<'src> Report<'src> {
@@ -109,6 +114,7 @@ impl<'src> Report<'src> {
 			Self::AnalyzeNumOutsideRange { .. } => Severity::Error,
 			Self::AnalyzeInvalidOptionalType { .. } => Severity::Error,
 			Self::AnalyzeUnboundedRecursiveType { .. } => Severity::Error,
+			Self::AnalyzeMissingOptValue { .. } => Severity::Error,
 		}
 	}
 
@@ -136,6 +142,7 @@ impl<'src> Report<'src> {
 			Self::AnalyzeNumOutsideRange { .. } => "number outside range".to_string(),
 			Self::AnalyzeInvalidOptionalType { .. } => "invalid optional type".to_string(),
 			Self::AnalyzeUnboundedRecursiveType { .. } => "unbounded recursive type".to_string(),
+			Self::AnalyzeMissingOptValue { .. } => "missing option expected".to_string(),
 		}
 	}
 
@@ -160,6 +167,7 @@ impl<'src> Report<'src> {
 			Self::AnalyzeNumOutsideRange { .. } => "3010",
 			Self::AnalyzeInvalidOptionalType { .. } => "3011",
 			Self::AnalyzeUnboundedRecursiveType { .. } => "3012",
+			Self::AnalyzeMissingOptValue { .. } => "3013",
 		}
 	}
 
@@ -244,6 +252,8 @@ impl<'src> Report<'src> {
 					Label::primary((), use_span.clone()).with_message("used recursively here"),
 				]
 			}
+
+			Self::AnalyzeMissingOptValue { .. } => vec![],
 		}
 	}
 
@@ -300,6 +310,12 @@ impl<'src> Report<'src> {
 				"this is an unbounded recursive type".to_string(),
 				"unbounded recursive types cause infinite loops".to_string(),
 			]),
+			Self::AnalyzeMissingOptValue {
+				expected,
+				required_when: required_by,
+			} => Some(vec![format!(
+				"the {expected} option should not be empty if {required_by}"
+			)]),
 		}
 	}
 }

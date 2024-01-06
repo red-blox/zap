@@ -112,7 +112,7 @@ const beforeMount = (monaco: Monaco) => {
 
 	const Calls = ["SingleSync", "SingleAsync", "ManySync", "ManyAsync"] as const;
 
-	const Options = ["typescript", "write_checks", "casing", "server_output", "client_output", "manual_event_loop", "yield_type"] as const;
+	const Options = ["typescript", "write_checks", "casing", "server_output", "client_output", "manual_event_loop", "yield_type", "async_lib"] as const;
 
 	const Casing = ["PascalCase", "camelCase", "snake_case"].map((value) => `"${value}"`);
 	const YieldType = ["yield", "future", "promise"].map((value) => `"${value}"`);
@@ -160,6 +160,7 @@ const beforeMount = (monaco: Monaco) => {
 
 		output_server: [],
 		output_client: [],
+		async_lib: [],
 	} as const;
 
 	monaco.languages.registerTokensProviderFactory("zapConfig", {

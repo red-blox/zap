@@ -232,19 +232,19 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line("local value");
 
-		if let Some(data) = &fndecl.args {
+		if let Some(data) = &fndecl.rets {
 			self.push_stmts(&des::gen(data, "value", true));
 		}
 
 		match self.config.yield_type {
 			YieldType::Yield | YieldType::Future => {
 				self.push_line(&format!(
-					"task.spawn(event_queue[{}][function_call_id], value)",
+					"task.spawn(event_queue[{}][call_id], value)",
 					fndecl.id
 				));
 			}
 			YieldType::Promise => {
-				self.push_line(&format!("event_queue[{}][function_call_id](value)", fndecl.id));
+				self.push_line(&format!("event_queue[{}][call_id](value)", fndecl.id));
 			}
 		}
 
@@ -418,7 +418,15 @@ impl<'src> ClientOutput<'src> {
 		));
 
 		if !self.config.fndecls.is_empty() {
-			self.push_line("local function_call_id = 0")
+			self.push_line("local function_call_id = 0");
+
+			if !self.config.async_lib.is_empty() {
+				if self.config.typescript {
+					self.push_line(&format!("local Promise = {}.Promise", self.config.async_lib))
+				} else {
+					self.push_line(&format!("local {} = {}", self.config.yield_type, self.config.async_lib))
+				}
+			}
 		}
 
 		for evdecl in self
