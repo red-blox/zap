@@ -238,10 +238,7 @@ impl<'src> ClientOutput<'src> {
 
 		match self.config.yield_type {
 			YieldType::Yield | YieldType::Future => {
-				self.push_line(&format!(
-					"task.spawn(event_queue[{}][call_id], value)",
-					fndecl.id
-				));
+				self.push_line(&format!("task.spawn(event_queue[{}][call_id], value)", fndecl.id));
 			}
 			YieldType::Promise => {
 				self.push_line(&format!("event_queue[{}][call_id](value)", fndecl.id));

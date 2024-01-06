@@ -212,15 +212,56 @@ impl<'a> ServerOutput<'a> {
 		}
 	}
 
+	pub fn push_return_functions(&mut self) {
+		for fndecl in self.config.fndecls.iter() {
+			self.push_line(&format!("export const {name}: {{", name = fndecl.name));
+			self.indent();
+
+			let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
+			let callback = self.config.casing.with("Callback", "callback", "callback");
+			let player = self.config.casing.with("Player", "player", "player");
+			let value = self.config.casing.with("Value", "value", "value");
+
+			self.push_indent();
+			self.push(&format!("{set_callback}: ({callback}: ({player}: Player"));
+
+			if let Some(data) = &fndecl.args {
+				self.push(&format!(", {value}"));
+
+				if let Ty::Opt(data) = data {
+					self.push("?: ");
+					self.push_ty(data);
+				} else {
+					self.push(": ");
+					self.push_ty(data);
+				}
+			}
+
+			self.push(") => ");
+
+			if let Some(data) = &fndecl.rets {
+				self.push_ty(data);
+			} else {
+				self.push("void");
+			}
+
+			self.push(") => void\n");
+
+			self.dedent();
+			self.push_line("};");
+		}
+	}
+
 	pub fn push_return(&mut self) {
 		self.push_return_outgoing();
 		self.push_return_listen();
+		self.push_return_functions();
 	}
 
 	pub fn output(mut self) -> String {
 		self.push_file_header("Server");
 
-		if self.config.evdecls.is_empty() {
+		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
 			return self.buf;
 		};
 
