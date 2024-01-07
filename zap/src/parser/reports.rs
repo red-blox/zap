@@ -312,9 +312,9 @@ impl<'src> Report<'src> {
 			]),
 			Self::AnalyzeMissingOptValue {
 				expected,
-				required_when: required_by,
+				required_when,
 			} => Some(vec![format!(
-				"the {expected} option should not be empty if {required_by}"
+				"the {expected} option should not be empty if {required_when}"
 			)]),
 		}
 	}
