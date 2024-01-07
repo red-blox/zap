@@ -266,10 +266,21 @@ impl Ser {
 			}
 
 			Ty::CFrame => {
+				// local axis, angle = Value:ToAxisAngle()
+				self.push_stmt(Stmt::LocalTuple(
+					vec!["axis", "angle"],
+					Some(Expr::Call(from.clone().into(), Some("ToAxisAngle".into()), vec![])),
+				));
+
+				// axis = axis * angle
+				// store the angle into the axis, as it is a unit vector, so the magnitude can be used to encode a number
+				self.push_stmt(Stmt::Assign(
+					Var::Name("axis".into()),
+					Expr::Mul(Box::new("axis".into()), Box::new("angle".into())),
+				));
+
 				self.push_ty(&Ty::Vector3, from.clone().nindex("Position"));
-				self.push_ty(&Ty::Vector3, from.clone().nindex("XVector"));
-				self.push_ty(&Ty::Vector3, from.clone().nindex("YVector"));
-				self.push_ty(&Ty::Vector3, from.clone().nindex("ZVector"));
+				self.push_ty(&Ty::Vector3, "axis".into());
 			}
 
 			Ty::Boolean => self.push_writeu8(from_expr.and(1.0.into()).or(0.0.into())),

@@ -281,18 +281,38 @@ impl Des {
 			}
 			Ty::CFrame => {
 				self.push_local("pos", Some(self.readvector3()));
-				self.push_local("vX", Some(self.readvector3()));
-				self.push_local("vY", Some(self.readvector3()));
-				self.push_local("vZ", Some(self.readvector3()));
+				self.push_local("axisangle", Some(self.readvector3()));
+				self.push_local("angle", Some(Var::from("axisangle").nindex("Magnitude").into()));
 
+				// We don't need to convert the axis back to a unit vector as the constructor does that for us
+				// The angle is the magnitude of the axis vector
+				// If the magnitude is 0, there is no rotation, so just make a cframe at the right position.
+				// 	Trying to use fromAxisAngle in this situation gives NAN which is not ideal, so the branch is required.
+
+				// if angle ~= 0 then
+				//		value = CFrame.fromAxisAngle(axisangle, angle) + pos
+				// else
+				//		value = CFrame.new(pos)
+				// end
+
+				self.push_stmt(Stmt::If(Expr::Neq(Box::new("angle".into()), Box::new("0".into()))));
 				self.push_assign(
-					into,
-					Expr::Call(
-						Box::new(Var::from("CFrame").nindex("fromMatrix")),
-						None,
-						vec!["pos".into(), "vX".into(), "vY".into(), "vZ".into()],
+					into.clone(),
+					Expr::Add(
+						Box::new(Expr::Call(
+							Box::new(Var::from("CFrame").nindex("fromAxisAngle")),
+							None,
+							vec!["axisangle".into(), "angle".into()],
+						)),
+						Box::new("pos".into()),
 					),
 				);
+				self.push_stmt(Stmt::Else);
+				self.push_assign(
+					into,
+					Expr::Call(Box::new(Var::from("CFrame").nindex("new")), None, vec!["pos".into()]),
+				);
+				self.push_stmt(Stmt::End);
 			}
 		}
 	}

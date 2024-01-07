@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::Parser;
 use codespan_reporting::{
+	diagnostic::Severity,
 	files::SimpleFile,
 	term::{
 		self,
@@ -75,8 +76,12 @@ fn main() -> Result<()> {
 	let writer = StandardStream::stderr(ColorChoice::Auto);
 	let config_term = codespan_reporting::term::Config::default();
 
-	for diagnostic in diagnostics {
-		term::emit(&mut writer.lock(), &config_term, &file, &diagnostic)?;
+	for diagnostic in &diagnostics {
+		term::emit(&mut writer.lock(), &config_term, &file, diagnostic)?;
+	}
+
+	if diagnostics.iter().any(|diag| diag.severity == Severity::Error) {
+		std::process::exit(1)
 	}
 
 	Ok(())
