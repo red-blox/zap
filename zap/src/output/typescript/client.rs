@@ -114,7 +114,7 @@ impl<'src> ClientOutput<'src> {
 			self.indent();
 
 			self.push_indent();
-			self.push(&format!("{set_callback}: ({callback}: ({value}: "));
+			self.push(&format!("{set_callback}: ({callback}: ("));
 
 			if let Some(data) = &ev.data {
 				self.push(value);
