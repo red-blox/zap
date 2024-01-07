@@ -131,6 +131,8 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_reliable_callback(&mut self, first: bool, ev: &EvDecl) {
+		let id = ev.id;
+
 		self.push_indent();
 
 		if first {
@@ -142,7 +144,7 @@ impl<'a> ServerOutput<'a> {
 		// push_line is not used here as indent was pushed above
 		// and we don't want to push it twice, especially after
 		// the if/elseif
-		self.push(&format!("id == {} then", ev.id));
+		self.push(&format!("id == {id} then"));
 		self.push("\n");
 
 		self.indent();
@@ -154,16 +156,16 @@ impl<'a> ServerOutput<'a> {
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line(&format!("if events[{}] then", ev.id))
+			self.push_line(&format!("if events[{id}] then"))
 		} else {
-			self.push_line(&format!("for _, cb in events[{}] do", ev.id))
+			self.push_line(&format!("for _, cb in events[{id}] do"))
 		}
 
 		self.indent();
 
 		match ev.call {
-			EvCall::SingleSync => self.push_line(&format!("events[{}](player, value)", ev.id)),
-			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{}], player, value)", ev.id)),
+			EvCall::SingleSync => self.push_line(&format!("events[{id}](player, value)")),
+			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{id}], player, value)")),
 			EvCall::ManySync => self.push_line("cb(player, value)"),
 			EvCall::ManyAsync => self.push_line("task.spawn(cb, player, value)"),
 		}
@@ -175,6 +177,8 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_fn_callback(&mut self, first: bool, fndecl: &FnDecl) {
+		let id = fndecl.id;
+
 		self.push_indent();
 
 		if first {
@@ -183,7 +187,7 @@ impl<'a> ServerOutput<'a> {
 			self.push("elseif ");
 		}
 
-		self.push(&format!("id == {} then", fndecl.id));
+		self.push(&format!("id == {id} then"));
 		self.push("\n");
 
 		self.indent();
@@ -195,7 +199,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_stmts(&des::gen(data, "value", true));
 		}
 
-		self.push_line(&format!("if events[{}] then", fndecl.id));
+		self.push_line(&format!("if events[{id}] then"));
 
 		self.indent();
 
@@ -204,7 +208,7 @@ impl<'a> ServerOutput<'a> {
 			self.indent();
 		}
 
-		self.push_line(&format!("local rets = events[{}](player, value)", fndecl.id));
+		self.push_line(&format!("local rets = events[{id}](player, value)"));
 
 		self.push_line("load_player(player)");
 		self.push_write_event_id(fndecl.id);
@@ -280,6 +284,8 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_unreliable_callback(&mut self, first: bool, ev: &EvDecl) {
+		let id = ev.id;
+
 		self.push_indent();
 
 		if first {
@@ -291,7 +297,7 @@ impl<'a> ServerOutput<'a> {
 		// push_line is not used here as indent was pushed above
 		// and we don't want to push it twice, especially after
 		// the if/elseif
-		self.push(&format!("id == {} then", ev.id));
+		self.push(&format!("id == {id} then"));
 		self.push("\n");
 
 		self.indent();
@@ -303,16 +309,16 @@ impl<'a> ServerOutput<'a> {
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line(&format!("if events[{}] then", ev.id))
+			self.push_line(&format!("if events[{id}] then"))
 		} else {
-			self.push_line(&format!("for _, cb in events[{}] do", ev.id))
+			self.push_line(&format!("for _, cb in events[{id}] do"))
 		}
 
 		self.indent();
 
 		match ev.call {
-			EvCall::SingleSync => self.push_line(&format!("events[{}](player, value)", ev.id)),
-			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{}], player, value)", ev.id)),
+			EvCall::SingleSync => self.push_line(&format!("events[{id}](player, value)")),
+			EvCall::SingleAsync => self.push_line(&format!("task.spawn(events[{id}], player, value)")),
 			EvCall::ManySync => self.push_line("cb(player, value)"),
 			EvCall::ManyAsync => self.push_line("task.spawn(cb, player, value)"),
 		}
@@ -603,6 +609,8 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_return_setcallback(&mut self, ev: &EvDecl) {
+		let id = ev.id;
+
 		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
 		let callback = self.config.casing.with("Callback", "callback", "callback");
 
@@ -617,13 +625,15 @@ impl<'a> ServerOutput<'a> {
 		self.push(") -> ())\n");
 		self.indent();
 
-		self.push_line(&format!("events[{}] = {callback}", ev.id));
+		self.push_line(&format!("events[{id}] = {callback}"));
 
 		self.dedent();
 		self.push_line("end,");
 	}
 
 	fn push_return_on(&mut self, ev: &EvDecl) {
+		let id = ev.id;
+
 		let on = self.config.casing.with("On", "on", "on");
 		let callback = self.config.casing.with("Callback", "callback", "callback");
 
@@ -638,13 +648,15 @@ impl<'a> ServerOutput<'a> {
 		self.push(") -> ())\n");
 		self.indent();
 
-		self.push_line(&format!("table.insert(events[{}], {callback})", ev.id));
+		self.push_line(&format!("table.insert(events[{id}], {callback})"));
 
 		self.dedent();
 		self.push_line("end,");
 	}
 
 	fn push_fn_return(&mut self, fndecl: &FnDecl) {
+		let id = fndecl.id;
+
 		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
 		let callback = self.config.casing.with("Callback", "callback", "callback");
 
@@ -665,7 +677,7 @@ impl<'a> ServerOutput<'a> {
 		self.push("))\n");
 		self.indent();
 
-		self.push_line(&format!("events[{}] = {callback}", fndecl.id));
+		self.push_line(&format!("events[{id}] = {callback}"));
 
 		self.dedent();
 		self.push_line("end,");
