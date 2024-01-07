@@ -296,10 +296,10 @@ const beforeMount = (monaco: Monaco) => {
 						range: range,
 					},
 					{
-						label: "func",
+						label: "funct",
 						kind: monaco.languages.CompletionItemKind.Snippet,
 						insertText: [
-							"func ${1} = {",
+							"funct ${1} = {",
 							"\tcall: ${2},",
 							"\targs: ${3},",
 							"\trets: ${4},",

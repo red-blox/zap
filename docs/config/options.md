@@ -4,6 +4,9 @@ opt client_output = "path/to/client/output.lua"`
 
 const outputExample = `opt server_output = "./network/client.luau"
 opt client_output = "src/client/zap.luau"`
+
+const asyncLibExample = `opt yield_type = "promise"
+opt async_lib = "require(game:GetService('ReplicatedStorage').Promise)"`
 </script>
 
 # Options
@@ -42,7 +45,7 @@ This option does not change the casing of your event or type names. It only chan
 
 ### Default
 
-`PascalCase`
+`"PascalCase"`
 
 ### Options
 
@@ -98,7 +101,7 @@ When enabled, Zap will generate a `.d.ts` file for the server and client with th
 
 ## `manual_event_loop`
 
-This option determines if Zap automatically sends reliable events each Heartbeat.
+This option determines if Zap automatically sends reliable events and functions each Heartbeat.
 
 When enabled, a `SendEvents` function will be exported from the client and server modules that must be called manually.
 
@@ -140,3 +143,45 @@ Note that Zap uses `RunService.Heartbeat` and a 61 hz rate by default.
 ### Example
 
 <CodeBlock code="opt manual_event_loop = true" />
+
+## `yield_type`
+
+This option changes the way functions yield in zap.
+
+### Default
+
+`"yield"`
+
+### Options
+
+::: info
+The `"future"` option is not avaliable when `typescript` is enabled.
+:::
+
+- `"yield"`
+- `"future"`
+- `"promise"`
+
+### Example
+
+<CodeBlock code='opt yield_type = "promise"' />
+
+## `async_lib`
+
+::: info
+This option is not required when `yield_type` is set to `yield`
+:::
+
+::: tip WARNING
+When using `typescript`, provide the path to the RuntimeLib.
+:::
+
+This option provides the async library to zap. It must be a require statement, as it will be fed directly into the luau code.
+
+### Default
+
+The path is empty.
+
+### Example
+
+<CodeBlock :code="asyncLibExample" />
