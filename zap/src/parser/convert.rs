@@ -143,16 +143,7 @@ impl<'src> Converter<'src> {
 		match self.str_opt("yield_type", "yield", opts) {
 			("yield", ..) => YieldType::Yield,
 			("promise", ..) => YieldType::Promise,
-			("future", span) => {
-				if let Some(span) = span {
-					self.report(Report::AnalyzeInvalidOptValue {
-						span,
-						expected: "`yield`, or `promise`",
-					});
-				}
-
-				YieldType::Yield
-			}
+			("future", ..) => YieldType::Future,
 
 			(_, Some(span)) => {
 				self.report(Report::AnalyzeInvalidOptValue {
