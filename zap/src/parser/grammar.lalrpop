@@ -155,6 +155,7 @@ NumRangeKind: SyntaxRangeKind<'input> = {
 
 StrLit: SyntaxStrLit<'input> = {
     <start:@L> <value:r#""[^"]*""#> <end:@R> => SyntaxStrLit { start, value, end },
+    <start:@L> <value:r"'[^']*'"> <end:@R> => SyntaxStrLit { start, value, end },
 }
 
 IntLit: SyntaxNumLit<'input> = {
