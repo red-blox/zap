@@ -91,7 +91,7 @@ impl<'src> Converter<'src> {
 		let (client_output, ..) = self.str_opt("client_output", "network/client.lua", &config.opts);
 
 		let casing = self.casing_opt(&config.opts);
-		let yield_type = self.yield_type_opt(&config.opts);
+		let yield_type = self.yield_type_opt(typescript, &config.opts);
 		let async_lib = self.async_lib(yield_type, &config.opts);
 
 		let config = Config {
