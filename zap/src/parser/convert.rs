@@ -45,6 +45,8 @@ impl<'src> Converter<'src> {
 	fn convert(mut self) -> (Config<'src>, Vec<Report<'src>>) {
 		let config = self.config.clone();
 
+		self.check_duplicate_decls(&config.decls);
+
 		let mut tydecls = Vec::new();
 		let mut evdecls = Vec::new();
 		let mut fndecls = Vec::new();
