@@ -9,10 +9,8 @@ use super::{
 
 struct Converter<'src> {
 	config: SyntaxConfig<'src>,
-
 	tydecls: HashMap<&'src str, SyntaxTyDecl<'src>>,
-	evdecls: HashMap<&'src str, SyntaxEvDecl<'src>>,
-	fndecls: HashMap<&'src str, SyntaxFnDecl<'src>>,
+	max_unreliable_size: usize,
 
 	reports: Vec<Report<'src>>,
 }
@@ -20,8 +18,7 @@ struct Converter<'src> {
 impl<'src> Converter<'src> {
 	fn new(config: SyntaxConfig<'src>) -> Self {
 		let mut tydecls = HashMap::new();
-		let mut evdecls = HashMap::new();
-		let mut fndecls = HashMap::new();
+		let mut ntdecls = 0;
 
 		for decl in config.decls.iter() {
 			match decl {
@@ -29,22 +26,17 @@ impl<'src> Converter<'src> {
 					tydecls.insert(tydecl.name.name, tydecl.clone());
 				}
 
-				SyntaxDecl::Ev(evdecl) => {
-					evdecls.insert(evdecl.name.name, evdecl.clone());
-				}
-
-				SyntaxDecl::Fn(fndecl) => {
-					fndecls.insert(fndecl.name.name, fndecl.clone());
-				}
+				SyntaxDecl::Ev(_) | SyntaxDecl::Fn(_) => ntdecls += 1,
 			}
 		}
 
+		// We subtract two for the `inst` array.
+		let max_unreliable_size = 900 - NumTy::from_f64(1.0, ntdecls as f64).size() - 2;
+
 		Self {
 			config,
-
 			tydecls,
-			evdecls,
-			fndecls,
+			max_unreliable_size,
 
 			reports: Vec::new(),
 		}
@@ -53,35 +45,38 @@ impl<'src> Converter<'src> {
 	fn convert(mut self) -> (Config<'src>, Vec<Report<'src>>) {
 		let config = self.config.clone();
 
-		let mut tydecls = HashMap::new();
+		let mut tydecls = Vec::new();
 		let mut evdecls = Vec::new();
 		let mut fndecls = Vec::new();
 
-		let mut event_count = 0_usize;
+		let mut ntdecl_id = 0;
 
 		for tydecl in config.decls.iter().filter_map(|decl| match decl {
 			SyntaxDecl::Ty(tydecl) => Some(tydecl),
 			_ => None,
 		}) {
-			tydecls.insert(tydecl.name.name, self.tydecl(tydecl));
+			tydecls.push(self.tydecl(tydecl));
 		}
+
+		let tydecl_hashmap = tydecls
+			.iter()
+			.map(|tydecl| (tydecl.name, tydecl.clone()))
+			.collect::<HashMap<_, _>>();
 
 		for evdecl in config.decls.iter().filter_map(|decl| match decl {
 			SyntaxDecl::Ev(evdecl) => Some(evdecl),
 			_ => None,
 		}) {
-			event_count += 1;
-
-			evdecls.push(self.evdecl(evdecl, event_count, &tydecls));
+			ntdecl_id += 1;
+			evdecls.push(self.evdecl(evdecl, ntdecl_id, &tydecl_hashmap));
 		}
 
 		for fndecl in config.decls.iter().filter_map(|decl| match decl {
 			SyntaxDecl::Fn(fndecl) => Some(fndecl),
 			_ => None,
 		}) {
-			event_count += 1;
-
-			fndecls.push(self.fndecl(fndecl, event_count));
+			ntdecl_id += 1;
+			fndecls.push(self.fndecl(fndecl, ntdecl_id));
 		}
 
 		if evdecls.is_empty() && fndecls.is_empty() {
@@ -95,57 +90,35 @@ impl<'src> Converter<'src> {
 		let (server_output, ..) = self.str_opt("server_output", "network/server.lua", &config.opts);
 		let (client_output, ..) = self.str_opt("client_output", "network/client.lua", &config.opts);
 
-		let casing = match self.str_opt("casing", "PascalCase", &config.opts) {
-			("snake_case", ..) => Casing::Snake,
-			("camelCase", ..) => Casing::Camel,
-			("PascalCase", ..) => Casing::Pascal,
+		let casing = self.casing_opt(&config.opts);
+		let yield_type = self.yield_type_opt(&config.opts);
+		let async_lib = self.async_lib(yield_type, &config.opts);
 
-			(_, Some(span)) => {
-				self.report(Report::AnalyzeInvalidOptValue {
-					span,
-					expected: "`snake_case`, `camelCase`, or `PascalCase`",
-				});
+		let config = Config {
+			tydecls,
+			evdecls,
+			fndecls,
 
-				Casing::Pascal
-			}
+			write_checks,
+			typescript,
+			manual_event_loop,
 
-			_ => unreachable!(),
+			server_output,
+			client_output,
+
+			casing,
+			yield_type,
+			async_lib,
 		};
 
-		let yield_type = match self.str_opt("yield_type", "yield", &config.opts) {
-			("yield", ..) => YieldType::Yield,
-			("promise", ..) => YieldType::Promise,
-			("future", span) => {
-				if typescript {
-					if let Some(span) = span {
-						self.report(Report::AnalyzeInvalidOptValue {
-							span,
-							expected: "`yield`, or `promise`",
-						});
-					}
+		(config, self.reports)
+	}
 
-					YieldType::Yield
-				} else {
-					YieldType::Future
-				}
-			}
-
-			(_, Some(span)) => {
-				self.report(Report::AnalyzeInvalidOptValue {
-					span,
-					expected: "`yield`, `future`, or `promise`",
-				});
-
-				YieldType::Yield
-			}
-
-			_ => unreachable!(),
-		};
-
-		let (async_lib, async_lib_span) = self.str_opt("async_lib", "", &config.opts);
+	fn async_lib(&mut self, yield_type: YieldType, opts: &[SyntaxOpt<'src>]) -> &'src str {
+		let (async_lib, async_lib_span) = self.str_opt("async_lib", "", opts);
 
 		if let Some(span) = async_lib_span {
-			if !async_lib.starts_with("require(") {
+			if !async_lib.starts_with("require") {
 				self.report(Report::AnalyzeInvalidOptValue {
 					span,
 					expected: "that `async_lib` path must be a `require` statement",
@@ -163,24 +136,54 @@ impl<'src> Converter<'src> {
 			});
 		}
 
-		let config = Config {
-			tydecls: tydecls.into_values().collect(),
-			evdecls,
-			fndecls,
+		async_lib
+	}
 
-			write_checks,
-			typescript,
-			manual_event_loop,
+	fn yield_type_opt(&mut self, opts: &[SyntaxOpt<'src>]) -> YieldType {
+		match self.str_opt("yield_type", "yield", opts) {
+			("yield", ..) => YieldType::Yield,
+			("promise", ..) => YieldType::Promise,
+			("future", span) => {
+				if let Some(span) = span {
+					self.report(Report::AnalyzeInvalidOptValue {
+						span,
+						expected: "`yield`, or `promise`",
+					});
+				}
 
-			server_output,
-			client_output,
+				YieldType::Yield
+			}
 
-			casing,
-			yield_type,
-			async_lib,
-		};
+			(_, Some(span)) => {
+				self.report(Report::AnalyzeInvalidOptValue {
+					span,
+					expected: "`yield`, `future`, or `promise`",
+				});
 
-		(config, self.reports)
+				YieldType::Yield
+			}
+
+			_ => unreachable!(),
+		}
+	}
+
+	fn casing_opt(&mut self, opts: &[SyntaxOpt<'src>]) -> Casing {
+		match self.str_opt("casing", "PascalCase", opts) {
+			("snake_case", ..) => Casing::Snake,
+			("camelCase", ..) => Casing::Camel,
+			("PascalCase", ..) => Casing::Pascal,
+
+			(_, Some(span)) => {
+				self.report(Report::AnalyzeInvalidOptValue {
+					span,
+					expected: "`snake_case`, `camelCase`, or `PascalCase`",
+				});
+
+				Casing::Pascal
+			}
+
+			_ => unreachable!(),
+		}
 	}
 
 	fn boolean_opt(&mut self, name: &'static str, default: bool, opts: &[SyntaxOpt<'src>]) -> (bool, Option<Span>) {
@@ -246,6 +249,45 @@ impl<'src> Converter<'src> {
 		(value, span)
 	}
 
+	fn check_duplicate_decls(&mut self, decls: &[SyntaxDecl<'src>]) {
+		let mut tydecls = HashMap::new();
+		let mut ntdecls = HashMap::new();
+
+		for decl in decls.iter() {
+			match decl {
+				SyntaxDecl::Ev(ev) => {
+					if let Some(prev_span) = ntdecls.insert(ev.name.name, ev.span()) {
+						self.report(Report::AnalyzeDuplicateDecl {
+							prev_span,
+							dup_span: ev.span(),
+							name: ev.name.name,
+						});
+					}
+				}
+
+				SyntaxDecl::Fn(fn_) => {
+					if let Some(prev_span) = ntdecls.insert(fn_.name.name, fn_.span()) {
+						self.report(Report::AnalyzeDuplicateDecl {
+							prev_span,
+							dup_span: fn_.span(),
+							name: fn_.name.name,
+						});
+					}
+				}
+
+				SyntaxDecl::Ty(ty) => {
+					if let Some(prev_span) = tydecls.insert(ty.name.name, ty.span()) {
+						self.report(Report::AnalyzeDuplicateDecl {
+							prev_span,
+							dup_span: ty.span(),
+							name: ty.name.name,
+						});
+					}
+				}
+			}
+		}
+	}
+
 	fn evdecl(
 		&mut self,
 		evdecl: &SyntaxEvDecl<'src>,
@@ -258,28 +300,22 @@ impl<'src> Converter<'src> {
 		let call = evdecl.call;
 		let data = evdecl.data.as_ref().map(|ty| self.ty(ty));
 
-		if let Some(data) = &data {
-			if let EvType::Unreliable = evty {
-				let (min, max) = data.size(tydecls, &mut HashSet::new());
-				let event_id_size = NumTy::from_f64(1.0, self.evdecls.len() as f64).size();
+		if data.is_some() && evty == EvType::Unreliable {
+			let (min, max) = data.as_ref().unwrap().size(tydecls, &mut HashSet::new());
 
-				// We subtract two for the `inst` array.
-				let max_unreliable_size = 900 - event_id_size - 2;
-
-				if min > max_unreliable_size {
-					self.report(Report::AnalyzeOversizeUnreliable {
-						ev_span: evdecl.span(),
-						ty_span: evdecl.data.as_ref().unwrap().span(),
-						max_size: max_unreliable_size,
-						size: min,
-					});
-				} else if !max.is_some_and(|max| max < max_unreliable_size) {
-					self.report(Report::AnalyzePotentiallyOversizeUnreliable {
-						ev_span: evdecl.span(),
-						ty_span: evdecl.data.as_ref().unwrap().span(),
-						max_size: max_unreliable_size,
-					});
-				}
+			if min > self.max_unreliable_size {
+				self.report(Report::AnalyzeOversizeUnreliable {
+					ev_span: evdecl.span(),
+					ty_span: evdecl.data.as_ref().unwrap().span(),
+					max_size: self.max_unreliable_size,
+					size: min,
+				});
+			} else if !max.is_some_and(|max| max < self.max_unreliable_size) {
+				self.report(Report::AnalyzePotentiallyOversizeUnreliable {
+					ev_span: evdecl.span(),
+					ty_span: evdecl.data.as_ref().unwrap().span(),
+					max_size: self.max_unreliable_size,
+				});
 			}
 		}
 

@@ -90,6 +90,12 @@ pub enum Report<'src> {
 		expected: &'static str,
 		required_when: &'static str,
 	},
+
+	AnalyzeDuplicateDecl {
+		prev_span: Span,
+		dup_span: Span,
+		name: &'src str,
+	},
 }
 
 impl<'src> Report<'src> {
@@ -115,6 +121,7 @@ impl<'src> Report<'src> {
 			Self::AnalyzeInvalidOptionalType { .. } => Severity::Error,
 			Self::AnalyzeUnboundedRecursiveType { .. } => Severity::Error,
 			Self::AnalyzeMissingOptValue { .. } => Severity::Error,
+			Self::AnalyzeDuplicateDecl { .. } => Severity::Error,
 		}
 	}
 
@@ -143,6 +150,7 @@ impl<'src> Report<'src> {
 			Self::AnalyzeInvalidOptionalType { .. } => "invalid optional type".to_string(),
 			Self::AnalyzeUnboundedRecursiveType { .. } => "unbounded recursive type".to_string(),
 			Self::AnalyzeMissingOptValue { .. } => "missing option expected".to_string(),
+			Self::AnalyzeDuplicateDecl { name, .. } => format!("duplicate declaration '{}'", name),
 		}
 	}
 
@@ -168,6 +176,7 @@ impl<'src> Report<'src> {
 			Self::AnalyzeInvalidOptionalType { .. } => "3011",
 			Self::AnalyzeUnboundedRecursiveType { .. } => "3012",
 			Self::AnalyzeMissingOptValue { .. } => "3013",
+			Self::AnalyzeDuplicateDecl { .. } => "3014",
 		}
 	}
 
@@ -254,6 +263,15 @@ impl<'src> Report<'src> {
 			}
 
 			Self::AnalyzeMissingOptValue { .. } => vec![],
+
+			Self::AnalyzeDuplicateDecl {
+				prev_span, dup_span, ..
+			} => {
+				vec![
+					Label::secondary((), prev_span.clone()).with_message("previous declaration"),
+					Label::primary((), dup_span.clone()).with_message("duplicate declaration"),
+				]
+			}
 		}
 	}
 
@@ -316,6 +334,7 @@ impl<'src> Report<'src> {
 			} => Some(vec![format!(
 				"the {expected} option should not be empty if {required_when}"
 			)]),
+			Self::AnalyzeDuplicateDecl { .. } => None,
 		}
 	}
 }
