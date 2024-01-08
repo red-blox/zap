@@ -60,7 +60,7 @@ impl<'src> Converter<'src> {
 
 		let tydecl_hashmap = tydecls
 			.iter()
-			.map(|tydecl| (tydecl.name, tydecl.clone()))
+			.map(|tydecl| (tydecl.name, &tydecl.ty))
 			.collect::<HashMap<_, _>>();
 
 		for evdecl in config.decls.iter().filter_map(|decl| match decl {
@@ -292,7 +292,7 @@ impl<'src> Converter<'src> {
 		&mut self,
 		evdecl: &SyntaxEvDecl<'src>,
 		id: usize,
-		tydecls: &HashMap<&'src str, TyDecl<'src>>,
+		tydecls: &HashMap<&'src str, &Ty<'src>>,
 	) -> EvDecl<'src> {
 		let name = evdecl.name.name;
 		let from = evdecl.from;

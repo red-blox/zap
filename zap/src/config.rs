@@ -143,7 +143,7 @@ impl<'src> Ty<'src> {
 	/// size of the type in the buffer will be 0 bytes.
 	pub fn size(
 		&self,
-		tydecls: &HashMap<&'src str, TyDecl<'src>>,
+		tydecls: &HashMap<&'src str, &Ty<'src>>,
 		recursed: &mut HashSet<&'src str>,
 	) -> (usize, Option<usize>) {
 		match self {
@@ -205,7 +205,7 @@ impl<'src> Ty<'src> {
 
 					let tydecl = tydecls.get(name).unwrap();
 
-					tydecl.ty.size(tydecls, recursed)
+					tydecl.size(tydecls, recursed)
 				}
 			}
 
@@ -237,7 +237,7 @@ pub enum Enum<'src> {
 impl<'src> Enum<'src> {
 	pub fn size(
 		&self,
-		tydecls: &HashMap<&'src str, TyDecl<'src>>,
+		tydecls: &HashMap<&'src str, &Ty<'src>>,
 		recursed: &mut HashSet<&'src str>,
 	) -> (usize, Option<usize>) {
 		match self {
@@ -283,7 +283,7 @@ pub struct Struct<'src> {
 impl<'src> Struct<'src> {
 	pub fn size(
 		&self,
-		tydecls: &HashMap<&'src str, TyDecl<'src>>,
+		tydecls: &HashMap<&'src str, &Ty<'src>>,
 		recursed: &mut HashSet<&'src str>,
 	) -> (usize, Option<usize>) {
 		let mut min = 0;
