@@ -139,11 +139,20 @@ impl<'src> Converter<'src> {
 		async_lib
 	}
 
-	fn yield_type_opt(&mut self, opts: &[SyntaxOpt<'src>]) -> YieldType {
+	fn yield_type_opt(&mut self, typescript: bool, opts: &[SyntaxOpt<'src>]) -> YieldType {
 		match self.str_opt("yield_type", "yield", opts) {
 			("yield", ..) => YieldType::Yield,
 			("promise", ..) => YieldType::Promise,
-			("future", ..) => YieldType::Future,
+			("future", Some(span)) => {
+				if typescript {
+					self.report(Report::AnalyzeInvalidOptValue {
+						span,
+						expected: "`yield` or `promise`",
+					});
+				}
+
+				YieldType::Future
+			}
 
 			(_, Some(span)) => {
 				self.report(Report::AnalyzeInvalidOptValue {
