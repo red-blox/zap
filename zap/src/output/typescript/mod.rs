@@ -96,8 +96,9 @@ pub trait Output {
 					self.push("]>");
 				}
 				_ => {
+					self.push("(");
 					self.push_ty(ty);
-					self.push("[]");
+					self.push(")[]");
 				}
 			},
 
