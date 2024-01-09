@@ -91,12 +91,14 @@ const beforeMount = (monaco: Monaco) => {
 			{ open: "[", close: "]" },
 			{ open: "(", close: ")" },
 			{ open: '"', close: '"' },
+			{ open: "'", close: "'" },
 		],
 		surroundingPairs: [
 			{ open: "{", close: "}" },
 			{ open: "[", close: "]" },
 			{ open: "(", close: ")" },
 			{ open: '"', close: '"' },
+			{ open: "'", close: "'" },
 		],
 	});
 
