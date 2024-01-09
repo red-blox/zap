@@ -85,6 +85,17 @@ pub enum Report<'src> {
 		decl_span: Span,
 		use_span: Span,
 	},
+
+	AnalyzeMissingOptValue {
+		expected: &'static str,
+		required_when: &'static str,
+	},
+
+	AnalyzeDuplicateDecl {
+		prev_span: Span,
+		dup_span: Span,
+		name: &'src str,
+	},
 }
 
 impl<'src> Report<'src> {
@@ -109,6 +120,8 @@ impl<'src> Report<'src> {
 			Self::AnalyzeNumOutsideRange { .. } => Severity::Error,
 			Self::AnalyzeInvalidOptionalType { .. } => Severity::Error,
 			Self::AnalyzeUnboundedRecursiveType { .. } => Severity::Error,
+			Self::AnalyzeMissingOptValue { .. } => Severity::Error,
+			Self::AnalyzeDuplicateDecl { .. } => Severity::Error,
 		}
 	}
 
@@ -124,7 +137,7 @@ impl<'src> Report<'src> {
 			Self::ParserExtraToken { .. } => "extra token".to_string(),
 			Self::ParserExpectedInt { .. } => "expected integer".to_string(),
 
-			Self::AnalyzeEmptyEvDecls => "no event declarations".to_string(),
+			Self::AnalyzeEmptyEvDecls => "no event or function declarations".to_string(),
 			Self::AnalyzeOversizeUnreliable { .. } => "oversize unreliable".to_string(),
 			Self::AnalyzePotentiallyOversizeUnreliable { .. } => "potentially oversize unreliable".to_string(),
 			Self::AnalyzeInvalidRange { .. } => "invalid range".to_string(),
@@ -136,6 +149,8 @@ impl<'src> Report<'src> {
 			Self::AnalyzeNumOutsideRange { .. } => "number outside range".to_string(),
 			Self::AnalyzeInvalidOptionalType { .. } => "invalid optional type".to_string(),
 			Self::AnalyzeUnboundedRecursiveType { .. } => "unbounded recursive type".to_string(),
+			Self::AnalyzeMissingOptValue { .. } => "missing option expected".to_string(),
+			Self::AnalyzeDuplicateDecl { name, .. } => format!("duplicate declaration '{}'", name),
 		}
 	}
 
@@ -160,6 +175,8 @@ impl<'src> Report<'src> {
 			Self::AnalyzeNumOutsideRange { .. } => "3010",
 			Self::AnalyzeInvalidOptionalType { .. } => "3011",
 			Self::AnalyzeUnboundedRecursiveType { .. } => "3012",
+			Self::AnalyzeMissingOptValue { .. } => "3013",
+			Self::AnalyzeDuplicateDecl { .. } => "3014",
 		}
 	}
 
@@ -244,6 +261,17 @@ impl<'src> Report<'src> {
 					Label::primary((), use_span.clone()).with_message("used recursively here"),
 				]
 			}
+
+			Self::AnalyzeMissingOptValue { .. } => vec![],
+
+			Self::AnalyzeDuplicateDecl {
+				prev_span, dup_span, ..
+			} => {
+				vec![
+					Label::secondary((), prev_span.clone()).with_message("previous declaration"),
+					Label::primary((), dup_span.clone()).with_message("duplicate declaration"),
+				]
+			}
 		}
 	}
 
@@ -256,7 +284,9 @@ impl<'src> Report<'src> {
 			Self::ParserExtraToken { .. } => None,
 			Self::ParserExpectedInt { .. } => None,
 
-			Self::AnalyzeEmptyEvDecls => Some(vec!["add an event declaration to allow zap to output code".to_string()]),
+			Self::AnalyzeEmptyEvDecls => Some(vec![
+				"add an event or function declaration to allow zap to output code".to_string()
+			]),
 			Self::AnalyzeOversizeUnreliable { max_size, .. } => Some(vec![
 				format!("all unreliable events must be under {max_size} bytes in size"),
 				"consider adding a upper limit to any arrays or strings".to_string(),
@@ -298,6 +328,13 @@ impl<'src> Report<'src> {
 				"this is an unbounded recursive type".to_string(),
 				"unbounded recursive types cause infinite loops".to_string(),
 			]),
+			Self::AnalyzeMissingOptValue {
+				expected,
+				required_when,
+			} => Some(vec![format!(
+				"the {expected} option should not be empty if {required_when}"
+			)]),
+			Self::AnalyzeDuplicateDecl { .. } => None,
 		}
 	}
 }

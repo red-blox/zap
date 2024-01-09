@@ -1,4 +1,4 @@
-use crate::config::{Config, EvCall, EvSource, TyDecl};
+use crate::config::{Config, EvCall, EvSource, Ty, TyDecl, YieldType};
 
 use super::Output;
 
@@ -72,8 +72,20 @@ impl<'src> ClientOutput<'src> {
 			self.indent();
 
 			self.push_indent();
-			self.push(&format!("{fire}: ({value}: "));
-			self.push_ty(&ev.data);
+			self.push(&format!("{fire}: ("));
+
+			if let Some(data) = &ev.data {
+				self.push(value);
+
+				if let Ty::Opt(data) = data {
+					self.push("?: ");
+					self.push_ty(data);
+				} else {
+					self.push(": ");
+					self.push_ty(data);
+				}
+			}
+
 			self.push(") => void\n");
 
 			self.dedent();
@@ -102,10 +114,67 @@ impl<'src> ClientOutput<'src> {
 			self.indent();
 
 			self.push_indent();
-			self.push(&format!("{set_callback}: ({callback}: ({value}: "));
-			self.push_ty(&ev.data);
+			self.push(&format!("{set_callback}: ({callback}: ("));
+
+			if let Some(data) = &ev.data {
+				self.push(value);
+
+				if let Ty::Opt(data) = data {
+					self.push("?: ");
+					self.push_ty(data);
+				} else {
+					self.push(": ");
+					self.push_ty(data);
+				}
+			}
+
 			self.push(") => void) => void\n");
 
+			self.dedent();
+			self.push_line("};");
+		}
+	}
+
+	fn push_return_functions(&mut self) {
+		let call = self.config.casing.with("Call", "call", "call");
+		let value = self.config.casing.with("Value", "value", "value");
+
+		for fndecl in self.config.fndecls.iter() {
+			self.push_line(&format!("export const {}: {{", fndecl.name));
+			self.indent();
+
+			self.push_indent();
+			self.push(&format!("{call}: ("));
+
+			if let Some(data) = &fndecl.args {
+				self.push(value);
+
+				if let Ty::Opt(data) = data {
+					self.push("?: ");
+					self.push_ty(data);
+				} else {
+					self.push(": ");
+					self.push_ty(data);
+				}
+			}
+
+			self.push(") => ");
+
+			if self.config.yield_type == YieldType::Promise {
+				self.push("Promise<")
+			}
+
+			if let Some(data) = &fndecl.rets {
+				self.push_ty(data);
+			} else {
+				self.push("void");
+			}
+
+			if self.config.yield_type == YieldType::Promise {
+				self.push(">")
+			}
+
+			self.push("\n");
 			self.dedent();
 			self.push_line("};");
 		}
@@ -114,12 +183,13 @@ impl<'src> ClientOutput<'src> {
 	pub fn push_return(&mut self) {
 		self.push_return_outgoing();
 		self.push_return_listen();
+		self.push_return_functions();
 	}
 
 	pub fn output(mut self) -> String {
 		self.push_file_header("Client");
 
-		if self.config.evdecls.is_empty() {
+		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
 			return self.buf;
 		};
 

@@ -7,6 +7,7 @@ use std::{
 pub struct Config<'src> {
 	pub tydecls: Vec<TyDecl<'src>>,
 	pub evdecls: Vec<EvDecl<'src>>,
+	pub fndecls: Vec<FnDecl<'src>>,
 
 	pub write_checks: bool,
 	pub typescript: bool,
@@ -16,6 +17,8 @@ pub struct Config<'src> {
 	pub client_output: &'src str,
 
 	pub casing: Casing,
+	pub yield_type: YieldType,
+	pub async_lib: &'src str,
 }
 
 impl<'src> Config<'src> {
@@ -41,13 +44,47 @@ impl Casing {
 	}
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum YieldType {
+	Yield,
+	Future,
+	Promise,
+}
+
+impl std::fmt::Display for YieldType {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			// do nothing, as yield will never import
+			YieldType::Yield => Ok(()),
+			YieldType::Future => write!(f, "Future"),
+			YieldType::Promise => write!(f, "Promise"),
+		}
+	}
+}
+
+#[derive(Debug, Clone)]
+pub struct FnDecl<'src> {
+	pub name: &'src str,
+	pub call: FnCall,
+	pub args: Option<Ty<'src>>,
+	pub rets: Option<Ty<'src>>,
+	pub id: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FnCall {
+	Async,
+	Sync,
+}
+
 #[derive(Debug, Clone)]
 pub struct EvDecl<'src> {
 	pub name: &'src str,
 	pub from: EvSource,
 	pub evty: EvType,
 	pub call: EvCall,
-	pub data: Ty<'src>,
+	pub data: Option<Ty<'src>>,
+	pub id: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -106,7 +143,7 @@ impl<'src> Ty<'src> {
 	/// size of the type in the buffer will be 0 bytes.
 	pub fn size(
 		&self,
-		tydecls: &HashMap<&'src str, TyDecl<'src>>,
+		tydecls: &HashMap<&'src str, &Ty<'src>>,
 		recursed: &mut HashSet<&'src str>,
 	) -> (usize, Option<usize>) {
 		match self {
@@ -168,7 +205,7 @@ impl<'src> Ty<'src> {
 
 					let tydecl = tydecls.get(name).unwrap();
 
-					tydecl.ty.size(tydecls, recursed)
+					tydecl.size(tydecls, recursed)
 				}
 			}
 
@@ -200,7 +237,7 @@ pub enum Enum<'src> {
 impl<'src> Enum<'src> {
 	pub fn size(
 		&self,
-		tydecls: &HashMap<&'src str, TyDecl<'src>>,
+		tydecls: &HashMap<&'src str, &Ty<'src>>,
 		recursed: &mut HashSet<&'src str>,
 	) -> (usize, Option<usize>) {
 		match self {
@@ -246,7 +283,7 @@ pub struct Struct<'src> {
 impl<'src> Struct<'src> {
 	pub fn size(
 		&self,
-		tydecls: &HashMap<&'src str, TyDecl<'src>>,
+		tydecls: &HashMap<&'src str, &Ty<'src>>,
 		recursed: &mut HashSet<&'src str>,
 	) -> (usize, Option<usize>) {
 		let mut min = 0;

@@ -19,6 +19,7 @@ const sidebar = [
       { text: 'Options', link: '/config/options' },
       { text: 'Types', link: '/config/types' },
       { text: 'Events', link: '/config/events' },
+      { text: 'Functions', link: '/config/functions' },
     ]
   },
   {

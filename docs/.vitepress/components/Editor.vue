@@ -91,12 +91,14 @@ const beforeMount = (monaco: Monaco) => {
 			{ open: "[", close: "]" },
 			{ open: "(", close: ")" },
 			{ open: '"', close: '"' },
+			{ open: "'", close: "'" },
 		],
 		surroundingPairs: [
 			{ open: "{", close: "}" },
 			{ open: "[", close: "]" },
 			{ open: "(", close: ")" },
 			{ open: '"', close: '"' },
+			{ open: "'", close: "'" },
 		],
 	});
 
@@ -112,9 +114,10 @@ const beforeMount = (monaco: Monaco) => {
 
 	const Calls = ["SingleSync", "SingleAsync", "ManySync", "ManyAsync"] as const;
 
-	const Options = ["typescript", "write_checks", "casing", "server_output", "client_output", "manual_event_loop"] as const;
+	const Options = ["typescript", "write_checks", "casing", "server_output", "client_output", "manual_event_loop", "yield_type", "async_lib"] as const;
 
 	const Casing = ["PascalCase", "camelCase", "snake_case"].map((value) => `"${value}"`);
+	const YieldType = ["yield", "future", "promise"].map((value) => `"${value}"`);
 
 	const setting = [...Locations, ...Brand, ...Calls, ...Casing] as const;
 
@@ -151,6 +154,7 @@ const beforeMount = (monaco: Monaco) => {
 		opt: Options,
 
 		casing: Casing,
+		yield_type: YieldType,
 
 		typescript: Operators,
 		write_checks: Operators,
@@ -158,6 +162,7 @@ const beforeMount = (monaco: Monaco) => {
 
 		output_server: [],
 		output_client: [],
+		async_lib: [],
 	} as const;
 
 	monaco.languages.registerTokensProviderFactory("zapConfig", {
@@ -284,6 +289,22 @@ const beforeMount = (monaco: Monaco) => {
 							"\ttype: ${3},",
 							"\tcall: ${4},",
 							"\tdata: ${5}",
+							"}\n",
+						].join("\n"),
+						insertTextRules:
+							monaco.languages.CompletionItemInsertTextRule
+								.InsertAsSnippet,
+						documentation: "Event",
+						range: range,
+					},
+					{
+						label: "funct",
+						kind: monaco.languages.CompletionItemKind.Snippet,
+						insertText: [
+							"funct ${1} = {",
+							"\tcall: ${2},",
+							"\targs: ${3},",
+							"\trets: ${4},",
 							"}\n",
 						].join("\n"),
 						insertTextRules:
