@@ -1,7 +1,4 @@
-use crate::{
-	config::{Enum, Ty},
-	irgen::Stmt,
-};
+use crate::config::{Enum, NumTy, Range, Ty};
 
 pub mod client;
 pub mod server;
@@ -18,69 +15,533 @@ pub trait Output {
 		self.push("\n");
 	}
 
-	fn push_stmt(&mut self, stmt: &Stmt) {
-		if matches!(stmt, Stmt::ElseIf(..) | Stmt::Else | Stmt::End) {
-			self.dedent();
-		}
-
-		match &stmt {
-			Stmt::Local(name, expr) => {
-				if let Some(expr) = expr {
-					self.push_line(&format!("local {name} = {expr}"));
-				} else {
-					self.push_line(&format!("local {name}"));
-				}
-			}
-			Stmt::LocalTuple(var, expr) => {
-				let items = var.join(", ");
-
-				if let Some(expr) = expr {
-					self.push_line(&format!("local {items} = {expr}"));
-				} else {
-					self.push_line(&format!("local {items}"));
-				}
-			}
-
-			Stmt::Assign(var, expr) => self.push_line(&format!("{var} = {expr}")),
-			Stmt::Error(msg) => self.push_line(&format!("error(\"{msg}\")")),
-			Stmt::Assert(cond, msg) => match msg {
-				Some(msg) => self.push_line(&format!("assert({cond}, \"{msg}\")")),
-				None => self.push_line(&format!("assert({cond})")),
-			},
-
-			Stmt::Call(var, method, args) => match method {
-				Some(method) => self.push_line(&format!(
-					"{var}:{method}({})",
-					args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>().join(", ")
-				)),
-
-				None => self.push_line(&format!(
-					"{var}({})",
-					args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>().join(", ")
-				)),
-			},
-
-			Stmt::NumFor { var, from, to } => self.push_line(&format!("for {var} = {from}, {to} do")),
-			Stmt::GenFor { key, val, obj } => self.push_line(&format!("for {key}, {val} in {obj} do")),
-			Stmt::If(cond) => self.push_line(&format!("if {cond} then")),
-			Stmt::ElseIf(cond) => self.push_line(&format!("elseif {cond} then")),
-			Stmt::Else => self.push_line("else"),
-
-			Stmt::End => self.push_line("end"),
-		};
-
-		if matches!(
-			stmt,
-			Stmt::NumFor { .. } | Stmt::GenFor { .. } | Stmt::If(..) | Stmt::ElseIf(..) | Stmt::Else
-		) {
-			self.indent();
-		};
+	fn push_line_indent(&mut self, s: &str) {
+		self.push_indent();
+		self.push(s);
+		self.push("\n");
+		self.indent();
 	}
 
-	fn push_stmts(&mut self, stmts: &[Stmt]) {
-		for stmt in stmts {
-			self.push_stmt(stmt);
+	fn push_dedent_line(&mut self, s: &str) {
+		self.dedent();
+		self.push_indent();
+		self.push(s);
+		self.push("\n");
+	}
+
+	fn push_dedent_line_indent(&mut self, s: &str) {
+		self.dedent();
+		self.push_indent();
+		self.push(s);
+		self.push("\n");
+		self.indent();
+	}
+
+	fn push_range_check(&mut self, range: Range, val: &str) {
+		if let Some(exact) = range.exact() {
+			self.push_line(&format!("assert({val} == {exact})"));
+		} else {
+			if let Some(min) = range.min() {
+				self.push_line(&format!("assert({val} >= {min})"));
+			}
+
+			if let Some(max) = range.max() {
+				self.push_line(&format!("assert({val} <= {max})"));
+			}
 		}
+	}
+
+	fn push_ser(&mut self, from: &str, ty: &Ty<'_>, checks: bool) {
+		self.push_line("do");
+		self.indent();
+
+		match ty {
+			Ty::Num(numty, range) => {
+				if checks {
+					self.push_range_check(*range, from);
+				}
+
+				self.push_line(&format!("alloc({})", numty.size()));
+				self.push_line(&format!("buffer.write{numty}(outgoing_buff, outgoing_apos, {from})"));
+			}
+
+			Ty::Str(len) => {
+				if let Some(exact) = len.exact() {
+					if checks {
+						self.push_line(&format!("assert(#{from} == {exact})"));
+					}
+
+					self.push_line(&format!("alloc({exact})"));
+					self.push_line(&format!(
+						"buffer.writeu16(outgoing_buff, outgoing_apos, {from}, {exact})"
+					));
+				} else {
+					self.push_line(&format!("local len = #{from}"));
+
+					if checks {
+						self.push_range_check(*len, "len");
+					}
+
+					self.push_line("alloc(len)");
+					self.push_line("buffer.writeu16(outgoing_buff, outgoing_apos, len)");
+					self.push_line(&format!(
+						"buffer.writestring(outgoing_buff, outgoing_apos, {from}, len)"
+					));
+				}
+			}
+
+			Ty::Buf(len) => {
+				if let Some(exact) = len.exact() {
+					if checks {
+						self.push_line(&format!("assert(#{from} == {exact})"));
+					}
+
+					self.push_line(&format!("alloc({exact})"));
+					self.push_line(&format!(
+						"buffer.copy(outgoing_buff, outgoing_apos, {from}, 0, {exact})"
+					));
+				} else {
+					self.push_line(&format!("local len = #{from}"));
+
+					if checks {
+						self.push_range_check(*len, "len");
+					}
+
+					self.push_line("alloc(len)");
+					self.push_line(&format!("buffer.copy(outgoing_buff, outgoing_apos, {from}, 0, len)"));
+				}
+			}
+
+			Ty::Arr(ty, len) => {
+				if let Some(exact) = len.exact() {
+					if checks {
+						self.push_line(&format!("assert(#{from} == {exact})"));
+					}
+
+					self.push_line_indent(&format!("for i = 1, {exact} do"));
+					self.push_ser(&format!("{from}[i]"), ty, checks);
+					self.push_dedent_line("end");
+				} else {
+					self.push_line(&format!("local len = #{from}"));
+
+					if checks {
+						self.push_range_check(*len, "len");
+					}
+
+					self.push_line("alloc(len)");
+					self.push_line_indent("buffer.writeu16(outgoing_buff, outgoing_apos, len)");
+					self.push_line_indent("for i = 1, len do");
+					self.push_ser(&format!("{from}[i]"), ty, checks);
+					self.push_dedent_line("end");
+				}
+			}
+
+			Ty::Map(key, val) => {
+				self.push_line("local len = 0");
+				self.push_line("local len_pos = alloc(2)");
+
+				self.push_line_indent(&format!("for k, v in {from} do"));
+				self.push_ser("k", key, checks);
+				self.push_ser("v", val, checks);
+				self.push_line("len += 1");
+				self.push_dedent_line("end");
+
+				self.push_line_indent("buffer.writeu16(outgoing_buff, len_pos, len)");
+			}
+
+			Ty::Opt(ty) => {
+				self.push_line(&format!("if {from} == nil then"));
+				self.push_line_indent("buffer.writeu8(outgoing_buff, outgoing_apos, 0)");
+				self.push_line("else");
+				self.push_line_indent("buffer.writeu8(outgoing_buff, outgoing_apos, 1)");
+				self.push_ser(from, ty, checks);
+				self.push_dedent_line("end");
+			}
+
+			Ty::Ref(name) => {
+				self.push_line(&format!("types.write_{name}({from})"));
+			}
+
+			Ty::Enum(enum_ty) => match enum_ty {
+				Enum::Unit(enumerators) => {
+					let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
+
+					for (i, enumerator) in enumerators.iter().enumerate() {
+						if i == 0 {
+							self.push_line_indent(&format!("if {from} == \"{enumerator}\" then"));
+						} else {
+							self.push_dedent_line_indent(&format!("elseif {from} == \"{enumerator}\" then"));
+							self.indent();
+						}
+
+						self.push_line(&format!("buffer.write{numty}(outgoing_buff, outgoing_apos, {i})"));
+					}
+
+					self.push_line_indent("else");
+					self.push_line("error(\"invalid enumerator value\"");
+					self.push_dedent_line("end");
+				}
+
+				Enum::Tagged { tag, variants } => {
+					let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
+
+					for (i, (variant_name, variant_struct)) in variants.iter().enumerate() {
+						if i == 0 {
+							self.push_line(&format!("if {from}.{tag} == \"{variant_name}\" then"));
+						} else {
+							self.push_dedent_line(&format!("elseif {from}.{tag} == \"{variant_name}\" then"));
+						}
+
+						self.push_line(&format!("alloc({})", numty.size()));
+						self.push_line(&format!("buffer.write{numty}(outgoing_buff, outgoing_apos, {i}"));
+
+						for (field_name, field_ty) in &variant_struct.fields {
+							self.push_ser(&format!("{from}.{field_name}"), field_ty, checks);
+						}
+					}
+
+					self.push_line_indent("else");
+					self.push_line("error(\"invalid variant value\"");
+					self.push_dedent_line("end");
+				}
+			},
+
+			Ty::Struct(struct_ty) => {
+				for (field_name, field_ty) in &struct_ty.fields {
+					self.push_ser(&format!("{from}.{field_name}"), field_ty, checks);
+				}
+			}
+
+			Ty::Instance(class) => {
+				if checks && class.is_some() {
+					self.push_line(&format!("assert({from}:IsA(\"{}\")", class.unwrap()));
+				}
+
+				self.push_line(&format!("table.insert(outgoing_inst, {from})"));
+			}
+
+			Ty::Color3 => {
+				self.push_line("alloc(1)");
+				self.push_line(&format!("buffer.writeu8(outgoing_buff, outgoing_apos, {from}.R * 255)"));
+				self.push_line("alloc(1)");
+				self.push_line(&format!("buffer.writeu8(outgoing_buff, outgoing_apos, {from}.G * 255)"));
+				self.push_line("alloc(1)");
+				self.push_line(&format!("buffer.writeu8(outgoing_buff, outgoing_apos, {from}.B * 255)"));
+			}
+
+			Ty::Vector3 => {
+				self.push_line("alloc(4)");
+				self.push_line(&format!("buffer.writef32(outgoing_buff, outgoing_apos, {from}.X)"));
+				self.push_line("alloc(4)");
+				self.push_line(&format!("buffer.writef32(outgoing_buff, outgoing_apos, {from}.Y)"));
+				self.push_line("alloc(4)");
+				self.push_line(&format!("buffer.writef32(outgoing_buff, outgoing_apos, {from}.Z)"));
+			}
+
+			Ty::AlignedCFrame => {
+				self.push_line(&format!(
+					"local axis_alignment = table.find(CFrameSpecialCases, {from}.Rotation)"
+				));
+				self.push_line("assert(axis_alignment)");
+				self.push_line("alloc(1)");
+				self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, axis_alignment)");
+
+				self.push_line("alloc(4)");
+				self.push_line(&format!(
+					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.X)"
+				));
+				self.push_line("alloc(4)");
+				self.push_line(&format!(
+					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.Y)"
+				));
+				self.push_line("alloc(4)");
+				self.push_line(&format!(
+					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.Z)"
+				));
+			}
+
+			Ty::CFrame => {
+				self.push_line(&format!("local axis, angle = {from}:ToAxisAngle()"));
+				self.push_line("axis = axis * angle");
+
+				self.push_line("alloc(4)");
+				self.push_line(&format!(
+					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.X)"
+				));
+				self.push_line("alloc(4)");
+				self.push_line(&format!(
+					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.Y)"
+				));
+				self.push_line("alloc(4)");
+				self.push_line(&format!(
+					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.Z)"
+				));
+
+				self.push_line("alloc(4)");
+				self.push_line("buffer.writef32(outgoing_buff, outgoing_apos, axis.X)");
+				self.push_line("alloc(4)");
+				self.push_line("buffer.writef32(outgoing_buff, outgoing_apos, axis.Y)");
+				self.push_line("alloc(4)");
+				self.push_line("buffer.writef32(outgoing_buff, outgoing_apos, axis.Z)");
+			}
+
+			Ty::Boolean => {
+				self.push_line("alloc(1)");
+				self.push_line(&format!(
+					"buffer.writeu8(outgoing_buff, outgoing_apos, {from} and 1 or 0)"
+				))
+			}
+
+			Ty::Unknown => self.push_line(&format!("table.insert(outgoing_inst, {from}")),
+		}
+
+		self.push_dedent_line("end");
+	}
+
+	fn push_des(&mut self, into: &str, ty: &Ty<'_>, checks: bool) {
+		self.push_line_indent("do");
+
+		match ty {
+			Ty::Num(numty, range) => {
+				self.push_line(&format!(
+					"{into} = buffer.read{numty}(incoming_buff, read({}))",
+					numty.size()
+				));
+
+				if checks {
+					self.push_range_check(*range, into);
+				}
+			}
+
+			Ty::Str(len) => {
+				if let Some(exact) = len.exact() {
+					self.push_line(&format!(
+						"{into} = buffer.readstring(incoming_buff, read({exact}), {exact})"
+					));
+				} else {
+					self.push_line("local len = buffer.readu16(incoming_buff, read(2))");
+
+					if checks {
+						self.push_range_check(*len, "len");
+					}
+
+					self.push_line(&format!("{into} = buffer.readstring(incoming_buff, read(len), len)"));
+				}
+			}
+
+			Ty::Buf(len) => {
+				if let Some(exact) = len.exact() {
+					self.push_line(&format!("{into} = buffer.create({exact})"));
+					self.push_line(&format!("buffer.copy({into}, incoming_buff, read({exact}), {exact})"));
+				} else {
+					self.push_line("local len = buffer.readu16(incoming_buff, read(2))");
+
+					if checks {
+						self.push_range_check(*len, "len");
+					}
+
+					self.push_line(&format!("{into} = buffer.create(len)"));
+					self.push_line(&format!("buffer.copy({into}, incoming_buff, read(len), len)"));
+				}
+			}
+
+			Ty::Arr(ty, len) => {
+				if let Some(exact) = len.exact() {
+					self.push_line(&format!("{into} = table.create({exact})"));
+
+					self.push_line_indent(&format!("for i = 1, {exact} do"));
+					self.push_des(&format!("{into}[i]"), ty, checks);
+					self.push_dedent_line("end");
+				} else {
+					self.push_line("local len = buffer.readu16(incoming_buff, read(2))");
+
+					if checks {
+						self.push_range_check(*len, "len");
+					}
+
+					self.push_line(&format!("{into} = table.create(len)"));
+
+					self.push_line_indent("for i = 1, len do");
+					self.push_des(&format!("{into}[i]"), ty, checks);
+					self.push_dedent_line("end");
+				}
+			}
+
+			Ty::Map(key, val) => {
+				self.push_line(&format!("{into} = {{}}"));
+
+				self.push_line_indent("for i = 1, buffer.readu16(incoming_buff, read(2)) do");
+
+				self.push_line("local key, val");
+				self.push_des("key", key, checks);
+				self.push_des("val", val, checks);
+
+				self.push_line(&format!("{into}[key] = val"));
+
+				self.push_dedent_line("end");
+			}
+
+			Ty::Opt(ty) => {
+				self.push_line_indent("if buffer.readu8(incoming_buff, read(1)) == 0 then");
+				self.push_line(&format!("{into} = nil"));
+				self.push_dedent_line_indent("else");
+
+				if let Ty::Instance(class) = **ty {
+					self.push_line("incoming_ipos += 1");
+					self.push_line(&format!("{into} = incoming_inst[incoming_ipos]"));
+
+					if checks && class.is_some() {
+						self.push_line(&format!("assert({into} == nil or {into}:IsA(\"{}\")", class.unwrap()));
+					}
+				} else {
+					self.push_des(into, ty, checks);
+				}
+
+				self.push_dedent_line("end");
+			}
+
+			Ty::Ref(name) => {
+				self.push_line(&format!("{into} = types.read_{name}()"));
+			}
+
+			Ty::Enum(enum_ty) => match enum_ty {
+				Enum::Unit(enumerators) => {
+					let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
+
+					self.push_line(&format!(
+						"local enum_index = buffer.read{numty}(incoming_buff, {})",
+						numty.size()
+					));
+
+					for (i, enumerator) in enumerators.iter().enumerate() {
+						if i == 0 {
+							self.push_line_indent("if enum_index == 0 then");
+						} else {
+							self.push_dedent_line_indent(&format!("elseif enum_index == {i} then"));
+						}
+
+						self.push_line(&format!("{into} = \"{enumerator}\""));
+					}
+
+					self.push_dedent_line_indent("else");
+					self.push_line("error(\"unknown enum index\")");
+					self.push_dedent_line("end");
+				}
+
+				Enum::Tagged { tag, variants } => {
+					let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
+
+					self.push_line(&format!("{into} = {{}}"));
+					self.push_line(&format!(
+						"local enum_index = buffer.read{numty}(incoming_buff, {})",
+						numty.size()
+					));
+
+					for (i, (variant_name, variant_struct)) in variants.iter().enumerate() {
+						if i == 0 {
+							self.push_line_indent("if enum_index == 0 then");
+						} else {
+							self.push_dedent_line_indent(&format!("elseif enum_index == {i} then"));
+						}
+
+						self.push_line(&format!("{into}.{tag} = \"{variant_name}\""));
+
+						for (field_name, field_ty) in &variant_struct.fields {
+							self.push_des(&format!("{into}.{field_name}"), field_ty, checks);
+						}
+					}
+
+					self.push_dedent_line_indent("else");
+					self.push_line("error(\"unknown enum index\")");
+					self.push_dedent_line("end");
+				}
+			},
+
+			Ty::Struct(struct_ty) => {
+				self.push_line(&format!("{into} = {{}}"));
+
+				for (field_name, field_ty) in &struct_ty.fields {
+					self.push_des(&format!("{into}.{field_name}"), field_ty, checks);
+				}
+			}
+
+			Ty::Instance(class) => {
+				self.push_line("incoming_ipos += 1");
+				self.push_line(&format!("{into} = incoming_inst[incoming_ipos]"));
+
+				if checks && class.is_some() {
+					self.push_line(&format!("assert({into} and {into}:IsA(\"{}\")", class.unwrap()));
+				} else {
+					// we always assert that the instance is not nil
+					// because roblox will sometimes just turn instances into nil
+					// Ty::Opt covers the nil-able cases
+					self.push_line(&format!("assert({into})"));
+				}
+			}
+
+			Ty::Color3 => {
+				self.push_line_indent(&format!("{into} = Color3.fromRGB("));
+				self.push_line("buffer.readu8(incoming_buff, read(1)),");
+				self.push_line("buffer.readu8(incoming_buff, read(1)),");
+				self.push_line("buffer.readu8(incoming_buff, read(1))");
+				self.push_dedent_line(")");
+			}
+
+			Ty::Vector3 => {
+				self.push_line_indent(&format!("{into} = Vector3.new("));
+				self.push_line("buffer.readf32(incoming_buff, read(4)),");
+				self.push_line("buffer.readf32(incoming_buff, read(4)),");
+				self.push_line("buffer.readf32(incoming_buff, read(4))");
+				self.push_dedent_line(")");
+			}
+
+			Ty::AlignedCFrame => {
+				self.push_line("local axis_alignment = buffer.readu8(incoming_buff, read(1))");
+
+				self.push_line_indent("local pos = Vector3.new(");
+				self.push_line("buffer.readf32(incoming_buff, read(4)),");
+				self.push_line("buffer.readf32(incoming_buff, read(4)),");
+				self.push_line("buffer.readf32(incoming_buff, read(4))");
+				self.push_dedent_line(")");
+
+				self.push_line(&format!(
+					"{into} = CFrame.new(pos) * CFrameSpecialCases[axis_alignment]"
+				));
+			}
+
+			Ty::CFrame => {
+				self.push_line_indent("local pos = Vector3.new(");
+				self.push_line("buffer.readf32(incoming_buff, read(4)),");
+				self.push_line("buffer.readf32(incoming_buff, read(4)),");
+				self.push_line("buffer.readf32(incoming_buff, read(4))");
+				self.push_dedent_line(")");
+
+				self.push_line_indent("local axis_angle = Vector3.new(");
+				self.push_line("buffer.readf32(incoming_buff, read(4)),");
+				self.push_line("buffer.readf32(incoming_buff, read(4)),");
+				self.push_line("buffer.readf32(incoming_buff, read(4))");
+				self.push_dedent_line(")");
+
+				self.push_line("local angle = axis_angle.Magnitude");
+
+				self.push_line_indent("if angle ~= 0 then");
+				self.push_line_indent(&format!("{into} = CFrame.fromAxisAngle(axis_angle, angle) + pos"));
+				self.push_dedent_line_indent("else");
+				self.push_line(&format!("{into} = CFrame.new(pos)"));
+				self.push_dedent_line("end");
+			}
+
+			Ty::Boolean => {
+				self.push_line_indent(&format!("{into} = buffer.readu8(incoming_buff, read(1)) == 1"));
+			}
+
+			Ty::Unknown => {
+				self.push_line("incoming_ipos += 1");
+				self.push_line(&format!("{into} = incoming_inst[incoming_ipos]"))
+			}
+		}
+
+		self.push_dedent_line("end");
 	}
 
 	fn push_ty(&mut self, ty: &Ty) {
