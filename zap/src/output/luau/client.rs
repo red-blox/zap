@@ -551,7 +551,7 @@ impl<'src> ClientOutput<'src> {
 
 			self.push_line(&format!("event_queue[{id}] = {{}}"));
 		} else {
-			self.push_line(&format!("for 1, event_queue[{id}] do"));
+			self.push_line(&format!("for _ = 1, event_queue[{id}] do"));
 			self.indent();
 
 			if ev.call == EvCall::SingleSync {
@@ -603,7 +603,7 @@ impl<'src> ClientOutput<'src> {
 
 			self.push_line(&format!("event_queue[{id}] = {{}}"));
 		} else {
-			self.push_line(&format!("for 1, event_queue[{id}] do"));
+			self.push_line(&format!("for _ = 1, event_queue[{id}] do"));
 			self.indent();
 
 			if ev.call == EvCall::ManySync {
