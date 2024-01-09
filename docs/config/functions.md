@@ -11,7 +11,7 @@ const example = `funct Test = {
 
 # Functions
 
-Events are another method of communication where the client can send arguments and have them returned by the server. For security, Zap only supports Client -> Server -> Client functions, not Server -> Client -> Server.
+Functions are another method of communication where the client can send arguments and have them returned by the server. For security, Zap only supports Client -> Server -> Client functions, not Server -> Client -> Server.
 
 ## Defining Events
 
