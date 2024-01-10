@@ -214,7 +214,7 @@ pub trait Output {
 
 			Ty::Instance(class) => {
 				if checks && class.is_some() {
-					self.push_line(&format!("assert({from}:IsA(\"{}\")", class.unwrap()));
+					self.push_line(&format!("assert({from}:IsA(\"{}\"))", class.unwrap()));
 				}
 
 				self.push_line(&format!("table.insert(outgoing_inst, {from})"));
