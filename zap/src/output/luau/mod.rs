@@ -292,7 +292,7 @@ pub trait Output {
 				))
 			}
 
-			Ty::Unknown => self.push_line(&format!("table.insert(outgoing_inst, {from}")),
+			Ty::Unknown => self.push_line(&format!("table.insert(outgoing_inst, {from})")),
 		}
 
 		self.push_dedent_line("end");
@@ -395,7 +395,7 @@ pub trait Output {
 					self.push_line(&format!("{into} = incoming_inst[incoming_ipos]"));
 
 					if checks && class.is_some() {
-						self.push_line(&format!("assert({into} == nil or {into}:IsA(\"{}\")", class.unwrap()));
+						self.push_line(&format!("assert({into} == nil or {into}:IsA(\"{}\"))", class.unwrap()));
 					}
 				} else {
 					self.push_des(into, ty, checks);
@@ -529,7 +529,7 @@ pub trait Output {
 				self.push_line("local angle = axis_angle.Magnitude");
 
 				self.push_line_indent("if angle ~= 0 then");
-				self.push_line_indent(&format!("{into} = CFrame.fromAxisAngle(axis_angle, angle) + pos"));
+				self.push_line(&format!("{into} = CFrame.fromAxisAngle(axis_angle, angle) + pos"));
 				self.push_dedent_line_indent("else");
 				self.push_line(&format!("{into} = CFrame.new(pos)"));
 				self.push_dedent_line("end");
