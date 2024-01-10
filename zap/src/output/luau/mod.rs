@@ -52,8 +52,7 @@ pub trait Output {
 	}
 
 	fn push_ser(&mut self, from: &str, ty: &Ty<'_>, checks: bool) {
-		self.push_line("do");
-		self.indent();
+		self.push_line_indent("do");
 
 		match ty {
 			Ty::Num(numty, range) => {
@@ -130,7 +129,7 @@ pub trait Output {
 					}
 
 					self.push_line("alloc(len)");
-					self.push_line_indent("buffer.writeu16(outgoing_buff, outgoing_apos, len)");
+					self.push_line("buffer.writeu16(outgoing_buff, outgoing_apos, len)");
 					self.push_line_indent("for i = 1, len do");
 					self.push_line(&format!("local value = {from}[i]"));
 					self.push_ser("value", ty, checks);
@@ -148,14 +147,14 @@ pub trait Output {
 				self.push_ser("v", val, checks);
 				self.push_dedent_line("end");
 
-				self.push_line_indent("buffer.writeu16(outgoing_buff, len_pos, len)");
+				self.push_line("buffer.writeu16(outgoing_buff, len_pos, len)");
 			}
 
 			Ty::Opt(ty) => {
-				self.push_line(&format!("if {from} == nil then"));
-				self.push_line_indent("buffer.writeu8(outgoing_buff, outgoing_apos, 0)");
-				self.push_line("else");
-				self.push_line_indent("buffer.writeu8(outgoing_buff, outgoing_apos, 1)");
+				self.push_line_indent(&format!("if {from} == nil then"));
+				self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, 0)");
+				self.push_dedent_line_indent("else");
+				self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, 1)");
 				self.push_ser(from, ty, checks);
 				self.push_dedent_line("end");
 			}
@@ -173,14 +172,13 @@ pub trait Output {
 							self.push_line_indent(&format!("if {from} == \"{enumerator}\" then"));
 						} else {
 							self.push_dedent_line_indent(&format!("elseif {from} == \"{enumerator}\" then"));
-							self.indent();
 						}
 
 						self.push_line(&format!("buffer.write{numty}(outgoing_buff, outgoing_apos, {i})"));
 					}
 
-					self.push_line_indent("else");
-					self.push_line("error(\"invalid enumerator value\"");
+					self.push_dedent_line_indent("else");
+					self.push_line("error(\"invalid enumerator value\")");
 					self.push_dedent_line("end");
 				}
 
@@ -191,19 +189,19 @@ pub trait Output {
 						if i == 0 {
 							self.push_line_indent(&format!("if {from}.{tag} == \"{variant_name}\" then"));
 						} else {
-							self.push_dedent_line(&format!("elseif {from}.{tag} == \"{variant_name}\" then"));
+							self.push_dedent_line_indent(&format!("elseif {from}.{tag} == \"{variant_name}\" then"));
 						}
 
 						self.push_line(&format!("alloc({})", numty.size()));
-						self.push_line(&format!("buffer.write{numty}(outgoing_buff, outgoing_apos, {i}"));
+						self.push_line(&format!("buffer.write{numty}(outgoing_buff, outgoing_apos, {i})"));
 
 						for (field_name, field_ty) in &variant_struct.fields {
 							self.push_ser(&format!("{from}.{field_name}"), field_ty, checks);
 						}
 					}
 
-					self.push_line_indent("else");
-					self.push_line("error(\"invalid variant value\"");
+					self.push_dedent_line_indent("else");
+					self.push_line("error(\"invalid variant value\")");
 					self.push_dedent_line("end");
 				}
 			},
@@ -352,7 +350,9 @@ pub trait Output {
 					self.push_line(&format!("{into} = table.create({exact})"));
 
 					self.push_line_indent(&format!("for i = 1, {exact} do"));
-					self.push_des(&format!("{into}[i]"), ty, checks);
+					self.push_line("local v");
+					self.push_des("v", ty, checks);
+					self.push_line(&format!("{into}[i] = v"));
 					self.push_dedent_line("end");
 				} else {
 					self.push_line("local len = buffer.readu16(incoming_buff, read(2))");
@@ -364,7 +364,9 @@ pub trait Output {
 					self.push_line(&format!("{into} = table.create(len)"));
 
 					self.push_line_indent("for i = 1, len do");
-					self.push_des(&format!("{into}[i]"), ty, checks);
+					self.push_line("local v");
+					self.push_des("v", ty, checks);
+					self.push_line(&format!("{into}[i] = v"));
 					self.push_dedent_line("end");
 				}
 			}
@@ -472,7 +474,7 @@ pub trait Output {
 				self.push_line(&format!("{into} = incoming_inst[incoming_ipos]"));
 
 				if checks && class.is_some() {
-					self.push_line(&format!("assert({into} and {into}:IsA(\"{}\")", class.unwrap()));
+					self.push_line(&format!("assert({into} and {into}:IsA(\"{}\"))", class.unwrap()));
 				} else {
 					// we always assert that the instance is not nil
 					// because roblox will sometimes just turn instances into nil
@@ -534,7 +536,7 @@ pub trait Output {
 			}
 
 			Ty::Boolean => {
-				self.push_line_indent(&format!("{into} = buffer.readu8(incoming_buff, read(1)) == 1"));
+				self.push_line(&format!("{into} = buffer.readu8(incoming_buff, read(1)) == 1"));
 			}
 
 			Ty::Unknown => {
