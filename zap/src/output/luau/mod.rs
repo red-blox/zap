@@ -119,7 +119,8 @@ pub trait Output {
 					}
 
 					self.push_line_indent(&format!("for i = 1, {exact} do"));
-					self.push_ser(&format!("{from}[i]"), ty, checks);
+					self.push_line(&format!("local value = {from}[i]"));
+					self.push_ser("value", ty, checks);
 					self.push_dedent_line("end");
 				} else {
 					self.push_line(&format!("local len = #{from}"));
@@ -131,7 +132,8 @@ pub trait Output {
 					self.push_line("alloc(len)");
 					self.push_line_indent("buffer.writeu16(outgoing_buff, outgoing_apos, len)");
 					self.push_line_indent("for i = 1, len do");
-					self.push_ser(&format!("{from}[i]"), ty, checks);
+					self.push_line(&format!("local value = {from}[i]"));
+					self.push_ser("value", ty, checks);
 					self.push_dedent_line("end");
 				}
 			}
@@ -141,9 +143,9 @@ pub trait Output {
 				self.push_line("local len_pos = alloc(2)");
 
 				self.push_line_indent(&format!("for k, v in {from} do"));
+				self.push_line("len += 1");
 				self.push_ser("k", key, checks);
 				self.push_ser("v", val, checks);
-				self.push_line("len += 1");
 				self.push_dedent_line("end");
 
 				self.push_line_indent("buffer.writeu16(outgoing_buff, len_pos, len)");
