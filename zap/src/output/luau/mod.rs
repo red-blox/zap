@@ -189,7 +189,7 @@ pub trait Output {
 
 					for (i, (variant_name, variant_struct)) in variants.iter().enumerate() {
 						if i == 0 {
-							self.push_line(&format!("if {from}.{tag} == \"{variant_name}\" then"));
+							self.push_line_indent(&format!("if {from}.{tag} == \"{variant_name}\" then"));
 						} else {
 							self.push_dedent_line(&format!("elseif {from}.{tag} == \"{variant_name}\" then"));
 						}
