@@ -151,6 +151,7 @@ pub trait Output {
 			}
 
 			Ty::Opt(ty) => {
+				self.push_line("alloc(1)");
 				self.push_line_indent(&format!("if {from} == nil then"));
 				self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, 0)");
 				self.push_dedent_line_indent("else");
@@ -221,21 +222,21 @@ pub trait Output {
 			}
 
 			Ty::Color3 => {
-				self.push_line("alloc(1)");
+				self.push_line("alloc(3)");
 				self.push_line(&format!("buffer.writeu8(outgoing_buff, outgoing_apos, {from}.R * 255)"));
-				self.push_line("alloc(1)");
-				self.push_line(&format!("buffer.writeu8(outgoing_buff, outgoing_apos, {from}.G * 255)"));
-				self.push_line("alloc(1)");
-				self.push_line(&format!("buffer.writeu8(outgoing_buff, outgoing_apos, {from}.B * 255)"));
+				self.push_line(&format!(
+					"buffer.writeu8(outgoing_buff, outgoing_apos + 1, {from}.G * 255)"
+				));
+				self.push_line(&format!(
+					"buffer.writeu8(outgoing_buff, outgoing_apos + 1, {from}.B * 255)"
+				));
 			}
 
 			Ty::Vector3 => {
-				self.push_line("alloc(4)");
+				self.push_line("alloc(12)");
 				self.push_line(&format!("buffer.writef32(outgoing_buff, outgoing_apos, {from}.X)"));
-				self.push_line("alloc(4)");
-				self.push_line(&format!("buffer.writef32(outgoing_buff, outgoing_apos, {from}.Y)"));
-				self.push_line("alloc(4)");
-				self.push_line(&format!("buffer.writef32(outgoing_buff, outgoing_apos, {from}.Z)"));
+				self.push_line(&format!("buffer.writef32(outgoing_buff, outgoing_apos + 4, {from}.Y)"));
+				self.push_line(&format!("buffer.writef32(outgoing_buff, outgoing_apos + 8, {from}.Z)"));
 			}
 
 			Ty::AlignedCFrame => {
@@ -246,17 +247,15 @@ pub trait Output {
 				self.push_line("alloc(1)");
 				self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, axis_alignment)");
 
-				self.push_line("alloc(4)");
+				self.push_line("alloc(12)");
 				self.push_line(&format!(
 					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.X)"
 				));
-				self.push_line("alloc(4)");
 				self.push_line(&format!(
-					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.Y)"
+					"buffer.writef32(outgoing_buff, outgoing_apos + 4, {from}.Position.Y)"
 				));
-				self.push_line("alloc(4)");
 				self.push_line(&format!(
-					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.Z)"
+					"buffer.writef32(outgoing_buff, outgoing_apos + 8, {from}.Position.Z)"
 				));
 			}
 
@@ -264,25 +263,21 @@ pub trait Output {
 				self.push_line(&format!("local axis, angle = {from}:ToAxisAngle()"));
 				self.push_line("axis = axis * angle");
 
-				self.push_line("alloc(4)");
+				self.push_line("alloc(12)");
 				self.push_line(&format!(
 					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.X)"
 				));
-				self.push_line("alloc(4)");
 				self.push_line(&format!(
-					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.Y)"
+					"buffer.writef32(outgoing_buff, outgoing_apos + 4, {from}.Position.Y)"
 				));
-				self.push_line("alloc(4)");
 				self.push_line(&format!(
-					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.Z)"
+					"buffer.writef32(outgoing_buff, outgoing_apos + 8, {from}.Position.Z)"
 				));
 
-				self.push_line("alloc(4)");
+				self.push_line("alloc(12)");
 				self.push_line("buffer.writef32(outgoing_buff, outgoing_apos, axis.X)");
-				self.push_line("alloc(4)");
-				self.push_line("buffer.writef32(outgoing_buff, outgoing_apos, axis.Y)");
-				self.push_line("alloc(4)");
-				self.push_line("buffer.writef32(outgoing_buff, outgoing_apos, axis.Z)");
+				self.push_line("buffer.writef32(outgoing_buff, outgoing_apos + 4, axis.Y)");
+				self.push_line("buffer.writef32(outgoing_buff, outgoing_apos + 8, axis.Z)");
 			}
 
 			Ty::Boolean => {
