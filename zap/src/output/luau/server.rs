@@ -653,8 +653,8 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("return function()");
 		self.indent();
 		
-		self.pushline(&format!("table.remove(events[{id}], table.find(events[{id}], Callback))"));
-			
+		self.push_line(&format!("table.remove(events[{id}], table.find(events[{id}], {callback}))"));
+		
 		self.dedent();
 		self.push_line("end");
 
