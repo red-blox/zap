@@ -17,6 +17,15 @@ use zap::run;
 struct Args {
 	#[arg(default_value = "net.zap")]
 	config: Option<PathBuf>,
+
+	#[arg(long, short)]
+	mode: Option<String>,
+}
+
+// this is stupid - but I dont want more messy
+// lifetimes and its like 100 bytes once at most
+fn string_to_static_str(s: String) -> &'static str {
+	Box::leak(s.into_boxed_str())
 }
 
 fn main() -> Result<()> {
@@ -26,7 +35,7 @@ fn main() -> Result<()> {
 
 	let config = std::fs::read_to_string(&config_path)?;
 
-	let ret = run(config.as_str());
+	let ret = run(config.as_str(), args.mode.map(string_to_static_str));
 
 	let code = ret.code;
 	let diagnostics = ret.diagnostics;

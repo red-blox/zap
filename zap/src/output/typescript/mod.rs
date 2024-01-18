@@ -206,7 +206,7 @@ pub trait Output {
 	}
 
 	fn push_manual_event_loop(&mut self, config: &Config) {
-		let send_events = config.casing.with("SendEvents", "sendEvents", "send_events");
+		let send_events = config.opts.casing.with("SendEvents", "sendEvents", "send_events");
 
 		self.push_line(&format!("export const {send_events}: () => void"))
 	}

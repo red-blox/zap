@@ -48,7 +48,7 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line(&format!("function types.write_{name}(value: {name})"));
 		self.indent();
-		self.push_ser("value", ty, self.config.write_checks);
+		self.push_ser("value", ty, self.config.opts.write_checks);
 		self.dedent();
 		self.push_line("end");
 
@@ -70,8 +70,8 @@ impl<'a> ServerOutput<'a> {
 	fn push_event_loop(&mut self) {
 		self.push("\n");
 
-		if self.config.manual_event_loop {
-			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+		if self.config.opts.manual_event_loop {
+			let send_events = self.config.opts.casing.with("SendEvents", "sendEvents", "send_events");
 
 			self.push_line(&format!("local function {send_events}()"));
 		} else {
@@ -98,7 +98,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("end");
 		self.dedent();
 
-		if self.config.manual_event_loop {
+		if self.config.opts.manual_event_loop {
 			self.push_line("end");
 		} else {
 			self.push_line("end)");
@@ -214,7 +214,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, call_id)");
 
 		if let Some(ty) = &fndecl.rets {
-			self.push_ser("rets", ty, self.config.write_checks);
+			self.push_ser("rets", ty, self.config.opts.write_checks);
 		}
 
 		self.push_line("player_map[player] = save()");
@@ -378,9 +378,9 @@ impl<'a> ServerOutput<'a> {
 	fn push_return_fire(&mut self, ev: &EvDecl) {
 		let ty = &ev.data;
 
-		let fire = self.config.casing.with("Fire", "fire", "fire");
-		let player = self.config.casing.with("Player", "player", "player");
-		let value = self.config.casing.with("Value", "value", "value");
+		let fire = self.config.opts.casing.with("Fire", "fire", "fire");
+		let player = self.config.opts.casing.with("Player", "player", "player");
+		let value = self.config.opts.casing.with("Value", "value", "value");
 
 		self.push_indent();
 		self.push(&format!("{fire} = function({player}: Player"));
@@ -401,7 +401,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_event_id(ev.id);
 
 		if let Some(ty) = ty {
-			self.push_ser(value, ty, self.config.write_checks);
+			self.push_ser(value, ty, self.config.opts.write_checks);
 		}
 
 		match ev.evty {
@@ -420,8 +420,8 @@ impl<'a> ServerOutput<'a> {
 	fn push_return_fire_all(&mut self, ev: &EvDecl) {
 		let ty = &ev.data;
 
-		let fire_all = self.config.casing.with("FireAll", "fireAll", "fire_all");
-		let value = self.config.casing.with("Value", "value", "value");
+		let fire_all = self.config.opts.casing.with("FireAll", "fireAll", "fire_all");
+		let value = self.config.opts.casing.with("Value", "value", "value");
 
 		self.push_indent();
 		self.push(&format!("{fire_all} = function("));
@@ -439,7 +439,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_event_id(ev.id);
 
 		if let Some(ty) = ty {
-			self.push_ser(value, ty, self.config.write_checks);
+			self.push_ser(value, ty, self.config.opts.write_checks);
 		}
 
 		match ev.evty {
@@ -470,9 +470,9 @@ impl<'a> ServerOutput<'a> {
 	fn push_return_fire_except(&mut self, ev: &EvDecl) {
 		let ty = &ev.data;
 
-		let fire_except = self.config.casing.with("FireExcept", "fireExcept", "fire_except");
-		let except = self.config.casing.with("Except", "except", "except");
-		let value = self.config.casing.with("Value", "value", "value");
+		let fire_except = self.config.opts.casing.with("FireExcept", "fireExcept", "fire_except");
+		let except = self.config.opts.casing.with("Except", "except", "except");
+		let value = self.config.opts.casing.with("Value", "value", "value");
 
 		self.push_indent();
 		self.push(&format!("{fire_except} = function({except}: Player"));
@@ -490,7 +490,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_event_id(ev.id);
 
 		if let Some(ty) = ty {
-			self.push_ser(value, ty, self.config.write_checks);
+			self.push_ser(value, ty, self.config.opts.write_checks);
 		}
 
 		match ev.evty {
@@ -533,9 +533,9 @@ impl<'a> ServerOutput<'a> {
 	fn push_return_fire_list(&mut self, ev: &EvDecl) {
 		let ty = &ev.data;
 
-		let fire_list = self.config.casing.with("FireList", "fireList", "fire_list");
-		let list = self.config.casing.with("List", "list", "list");
-		let value = self.config.casing.with("Value", "value", "value");
+		let fire_list = self.config.opts.casing.with("FireList", "fireList", "fire_list");
+		let list = self.config.opts.casing.with("List", "list", "list");
+		let value = self.config.opts.casing.with("Value", "value", "value");
 
 		self.push_indent();
 		self.push(&format!("{fire_list} = function({list}: {{ Player }}"));
@@ -553,7 +553,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_event_id(ev.id);
 
 		if let Some(ty) = ty {
-			self.push_ser(value, ty, self.config.write_checks);
+			self.push_ser(value, ty, self.config.opts.write_checks);
 		}
 
 		match ev.evty {
@@ -608,8 +608,13 @@ impl<'a> ServerOutput<'a> {
 	fn push_return_setcallback(&mut self, ev: &EvDecl) {
 		let id = ev.id;
 
-		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
-		let callback = self.config.casing.with("Callback", "callback", "callback");
+		let set_callback = self
+			.config
+			.opts
+			.casing
+			.with("SetCallback", "setCallback", "set_callback");
+
+		let callback = self.config.opts.casing.with("Callback", "callback", "callback");
 
 		self.push_indent();
 		self.push(&format!("{set_callback} = function({callback}: (Player"));
@@ -631,8 +636,8 @@ impl<'a> ServerOutput<'a> {
 	fn push_return_on(&mut self, ev: &EvDecl) {
 		let id = ev.id;
 
-		let on = self.config.casing.with("On", "on", "on");
-		let callback = self.config.casing.with("Callback", "callback", "callback");
+		let on = self.config.opts.casing.with("On", "on", "on");
+		let callback = self.config.opts.casing.with("Callback", "callback", "callback");
 
 		self.push_indent();
 		self.push(&format!("{on} = function({callback}: (Player"));
@@ -654,8 +659,13 @@ impl<'a> ServerOutput<'a> {
 	fn push_fn_return(&mut self, fndecl: &FnDecl) {
 		let id = fndecl.id;
 
-		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
-		let callback = self.config.casing.with("Callback", "callback", "callback");
+		let set_callback = self
+			.config
+			.opts
+			.casing
+			.with("SetCallback", "setCallback", "set_callback");
+
+		let callback = self.config.opts.casing.with("Callback", "callback", "callback");
 
 		self.push_indent();
 		self.push(&format!("{set_callback} = function({callback}: (Player"));
@@ -714,8 +724,8 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("return {");
 		self.indent();
 
-		if self.config.manual_event_loop {
-			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+		if self.config.opts.manual_event_loop {
+			let send_events = self.config.opts.casing.with("SendEvents", "sendEvents", "send_events");
 
 			self.push_line(&format!("{send_events} = {send_events},"));
 		}

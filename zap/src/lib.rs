@@ -55,19 +55,19 @@ pub struct Return {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run(input: &str) -> Return {
-	let (config, reports) = parser::parse(input);
+pub fn run(input: &str, mode: Option<&'static str>) -> Return {
+	let (config, reports) = parser::parse(input, mode);
 
 	if let Some(config) = config {
 		Return {
 			code: Some(Code {
 				server: Output {
-					path: config.server_output.into(),
+					path: config.opts.output_server.into(),
 					code: output::luau::server::code(&config),
 					defs: output::typescript::server::code(&config),
 				},
 				client: Output {
-					path: config.client_output.into(),
+					path: config.opts.output_client.into(),
 					code: output::luau::client::code(&config),
 					defs: output::typescript::client::code(&config),
 				},
@@ -85,7 +85,7 @@ pub fn run(input: &str) -> Return {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn run(input: &str) -> Return {
-	let (config, reports) = parser::parse(input);
+	let (config, reports) = parser::parse(input, None);
 
 	let mut writer = NoColor::new(Vec::new());
 

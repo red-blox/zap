@@ -11,11 +11,11 @@ mod syntax_tree;
 
 lalrpop_mod!(pub grammar);
 
-pub fn parse(input: &str) -> (Option<Config<'_>>, Vec<Report<'_>>) {
+pub fn parse<'src>(input: &'src str, mode: Option<&'static str>) -> (Option<Config<'src>>, Vec<Report<'src>>) {
 	let parse_result = grammar::ConfigParser::new().parse(input);
 
 	if let Ok(syntax_config) = parse_result {
-		let (config, reports) = convert::convert(syntax_config);
+		let (config, reports) = convert::convert(syntax_config, mode);
 
 		if reports.iter().any(|report| report.severity() == Severity::Error) {
 			(None, reports)

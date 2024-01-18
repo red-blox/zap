@@ -21,7 +21,7 @@ pub trait Spanned {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SyntaxConfig<'src> {
 	pub start: usize,
-	pub opts: Vec<SyntaxOpt<'src>>,
+	pub opts: Vec<SyntaxOpts<'src>>,
 	pub decls: Vec<SyntaxDecl<'src>>,
 	pub end: usize,
 }
@@ -33,14 +33,14 @@ impl<'src> Spanned for SyntaxConfig<'src> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct SyntaxOpt<'src> {
+pub struct SyntaxOpts<'src> {
 	pub start: usize,
-	pub name: SyntaxIdentifier<'src>,
-	pub value: SyntaxOptValue<'src>,
+	pub mode: Option<SyntaxStrLit<'src>>,
+	pub opts: Vec<(SyntaxIdentifier<'src>, SyntaxOptValue<'src>)>,
 	pub end: usize,
 }
 
-impl<'src> Spanned for SyntaxOpt<'src> {
+impl<'src> Spanned for SyntaxOpts<'src> {
 	fn span(&self) -> Span {
 		self.start..self.end
 	}
@@ -61,9 +61,12 @@ impl<'src> Spanned for SyntaxOptValue<'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SyntaxOptValueKind<'src> {
+	Call(SyntaxIdentifier<'src>, Vec<SyntaxOptValue<'src>>),
+	Name(SyntaxIdentifier<'src>),
+	Bool(SyntaxBoolLit),
 	Str(SyntaxStrLit<'src>),
 	Num(SyntaxNumLit<'src>),
-	Bool(SyntaxBoolLit),
+	Obj(Vec<(SyntaxIdentifier<'src>, SyntaxOptValue<'src>)>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

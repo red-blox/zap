@@ -17,11 +17,11 @@ match {
 }
 
 pub Config: SyntaxConfig<'input> = {
-    <start:@L> <opts:Opt*> <decls:Decl*> <end:@R> => SyntaxConfig { start, opts, decls, end },
+    <start:@L> <opts:Opts*> <decls:Decl*> <end:@R> => SyntaxConfig { start, opts, decls, end },
 }
 
-Opt: SyntaxOpt<'input> = {
-    <start:@L> "opt" <name:Identifier> "=" <value:OptValue> ";"? <end:@R> => SyntaxOpt { start, name, value, end },
+Opts: SyntaxOpts<'input> = {
+    <start:@L> "opts" <mode:StrLit?> "=" "{" <opts:Comma<(<Identifier> ":" <OptValue>)>> "}" ";"? <end:@R> => SyntaxOpts { start, mode, opts, end },
 }
 
 OptValue: SyntaxOptValue<'input> = {
@@ -29,9 +29,13 @@ OptValue: SyntaxOptValue<'input> = {
 }
 
 OptValueKind: SyntaxOptValueKind<'input> = {
+    BoolLit => SyntaxOptValueKind::Bool(<>),
     StrLit => SyntaxOptValueKind::Str(<>),
     NumLit => SyntaxOptValueKind::Num(<>),
-    BoolLit => SyntaxOptValueKind::Bool(<>),
+
+    <name:Identifier> => SyntaxOptValueKind::Name(name),
+    <name:Identifier> "(" <args:Comma<OptValue>> ")" => SyntaxOptValueKind::Call(name, args),
+    "{" <Comma<(<Identifier> ":" <OptValue>)>> "}" => SyntaxOptValueKind::Obj(<>),
 }
 
 Decl: SyntaxDecl<'input> = {
@@ -200,8 +204,6 @@ Identifier: SyntaxIdentifier<'input> = {
     <start:@L> "enum" <end:@R> => SyntaxIdentifier { start, name: "enum", end },
     <start:@L> "struct" <end:@R> => SyntaxIdentifier { start, name: "struct", end },
     <start:@L> "map" <end:@R> => SyntaxIdentifier { start, name: "map", end },
-    <start:@L> "true" <end:@R> => SyntaxIdentifier { start, name: "true", end },
-    <start:@L> "false" <end:@R> => SyntaxIdentifier { start, name: "false", end },
 }
 
 Comma<T>: Vec<T> = {

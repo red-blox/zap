@@ -8,23 +8,64 @@ pub struct Config<'src> {
 	pub tydecls: Vec<TyDecl<'src>>,
 	pub evdecls: Vec<EvDecl<'src>>,
 	pub fndecls: Vec<FnDecl<'src>>,
-
-	pub write_checks: bool,
-	pub typescript: bool,
-	pub manual_event_loop: bool,
-
-	pub server_output: &'src str,
-	pub client_output: &'src str,
-
-	pub casing: Casing,
-	pub yield_type: YieldType,
-	pub async_lib: &'src str,
+	pub opts: Opts<'src>,
 }
 
 impl<'src> Config<'src> {
 	pub fn event_id_ty(&self) -> NumTy {
 		NumTy::from_f64(1.0, self.evdecls.len() as f64)
 	}
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct Opts<'src> {
+	pub write_checks: bool,
+
+	pub output_typescript: bool,
+	pub output_server: &'src str,
+	pub output_client: &'src str,
+
+	pub remote_name_reliable: &'src str,
+	pub remote_name_unreliable: &'src str,
+
+	pub manual_event_loop: bool,
+
+	pub queue_type: QueueType,
+
+	pub casing: Casing,
+
+	pub yield_type: YieldType<'src>,
+}
+
+impl<'src> Default for Opts<'src> {
+	fn default() -> Self {
+		Self {
+			write_checks: false,
+
+			output_typescript: false,
+			output_server: "network/server.luau",
+			output_client: "network/client.luau",
+
+			remote_name_reliable: "ZAP_RELIABLE",
+			remote_name_unreliable: "ZAP_UNRELIABLE",
+
+			manual_event_loop: false,
+
+			queue_type: QueueType::Event(32),
+
+			casing: Casing::Pascal,
+
+			yield_type: YieldType::Yield,
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum QueueType {
+	None,
+	Time(f64),
+	Event(usize),
+	Frames(usize),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -45,21 +86,10 @@ impl Casing {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum YieldType {
+pub enum YieldType<'src> {
 	Yield,
-	Future,
-	Promise,
-}
-
-impl std::fmt::Display for YieldType {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			// do nothing, as yield will never import
-			YieldType::Yield => Ok(()),
-			YieldType::Future => write!(f, "Future"),
-			YieldType::Promise => write!(f, "Promise"),
-		}
-	}
+	Future(&'src str),
+	Promise(&'src str),
 }
 
 #[derive(Debug, Clone)]

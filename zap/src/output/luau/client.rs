@@ -1,4 +1,4 @@
-use crate::config::{Config, EvCall, EvDecl, EvSource, EvType, FnDecl, TyDecl, YieldType};
+use crate::config::{Config, EvCall, EvDecl, EvSource, EvType, FnDecl, QueueType, TyDecl, YieldType};
 
 use super::Output;
 
@@ -48,7 +48,7 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line(&format!("function types.write_{name}(value: {name})"));
 		self.indent();
-		self.push_ser("value", ty, self.config.write_checks);
+		self.push_ser("value", ty, self.config.opts.write_checks);
 		self.dedent();
 		self.push_line("end");
 
@@ -70,8 +70,8 @@ impl<'src> ClientOutput<'src> {
 	fn push_event_loop(&mut self) {
 		self.push("\n");
 
-		if self.config.manual_event_loop {
-			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+		if self.config.opts.manual_event_loop {
+			let send_events = self.config.opts.casing.with("SendEvents", "sendEvents", "send_events");
 
 			self.push_line(&format!("local function {send_events}()"));
 			self.indent();
@@ -101,7 +101,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("end");
 		self.dedent();
 
-		if self.config.manual_event_loop {
+		if self.config.opts.manual_event_loop {
 			self.push_line("end");
 		} else {
 			self.push_line("end");
@@ -132,24 +132,8 @@ impl<'src> ClientOutput<'src> {
 		));
 	}
 
-	fn push_reliable_callback(&mut self, first: bool, ev: &EvDecl) {
+	fn push_reliable_callback(&mut self, ev: &EvDecl) {
 		let id = ev.id;
-
-		self.push_indent();
-
-		if first {
-			self.push("if ");
-		} else {
-			self.push("elseif ");
-		}
-
-		// push_line is not used here as indent was pushed above
-		// and we don't want to push it twice, especially after
-		// the if/elseif
-		self.push(&format!("id == {id} then"));
-		self.push("\n");
-
-		self.indent();
 
 		self.push_line("local value");
 
@@ -158,16 +142,13 @@ impl<'src> ClientOutput<'src> {
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line(&format!("if events[{id}] then"));
-		} else {
-			self.push_line(&format!("if events[{id}][1] then"));
+			self.push_line_indent(&format!("if events[{id}] then"));
+		} else if !(self.config.opts.queue_type == QueueType::None) {
+			self.push_line_indent(&format!("if events[{id}][1] then"));
 		}
 
-		self.indent();
-
 		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
-			self.push_line(&format!("for _, cb in events[{id}] do"));
-			self.indent();
+			self.push_line_indent(&format!("for _, cb in events[{id}] do"));
 		}
 
 		match ev.call {
@@ -178,56 +159,33 @@ impl<'src> ClientOutput<'src> {
 		}
 
 		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
-			self.dedent();
-			self.push_line("end");
+			self.push_dedent_line("end");
 		}
 
-		self.dedent();
-		self.push_line("else");
-		self.indent();
+		if !(self.config.opts.queue_type == QueueType::None) {
+			self.push_dedent_line_indent("else");
 
-		if ev.data.is_some() {
-			self.push_line(&format!("table.insert(event_queue[{id}], value)"));
-			self.push_line(&format!("if #event_queue[{id}] > 64 then"));
-		} else {
-			self.push_line(&format!("event_queue[{id}] += 1"));
-			self.push_line(&format!("if event_queue[{id}] > 16 then"));
+			if ev.data.is_some() {
+				self.push_line(&format!("table.insert(event_queue[{id}], value)"));
+				self.push_line_indent(&format!("if #event_queue[{id}] > 64 then"));
+			} else {
+				self.push_line(&format!("event_queue[{id}] += 1"));
+				self.push_line_indent(&format!("if event_queue[{id}] > 16 then"));
+			}
+
+			self.push_line(&format!(
+				"warn(`[ZAP] {{#event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)",
+				ev.name
+			));
+
+			self.push_dedent_line("end");
 		}
 
-		self.indent();
-
-		self.push_line(&format!(
-			"warn(`[ZAP] {{#event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)",
-			ev.name
-		));
-
-		self.dedent();
-		self.push_line("end");
-
-		self.dedent();
-		self.push_line("end");
-
-		self.dedent();
+		self.push_dedent_line("end");
 	}
 
-	fn push_fn_callback(&mut self, first: bool, fndecl: &FnDecl) {
+	fn push_fn_callback(&mut self, fndecl: &FnDecl) {
 		let id = fndecl.id;
-
-		self.push_indent();
-
-		if first {
-			self.push("if ");
-		} else {
-			self.push("elseif ");
-		}
-
-		// push_line is not used here as indent was pushed above
-		// and we don't want to push it twice, especially after
-		// the if/elseif
-		self.push(&format!("id == {id} then"));
-		self.push("\n");
-
-		self.indent();
 
 		self.push_line("local call_id = buffer.readu8(incoming_buff, read(1))");
 
@@ -237,33 +195,37 @@ impl<'src> ClientOutput<'src> {
 			self.push_des("value", data, false);
 		}
 
-		match self.config.yield_type {
-			YieldType::Yield | YieldType::Future => {
+		match self.config.opts.yield_type {
+			YieldType::Yield | YieldType::Future(_) => {
 				self.push_line(&format!("task.spawn(event_queue[{id}][call_id], value)"));
 			}
-			YieldType::Promise => {
+			YieldType::Promise(_) => {
 				self.push_line(&format!("event_queue[{id}][call_id](value)"));
 			}
 		}
 
 		self.push_line(&format!("event_queue[{id}][call_id] = nil"));
-
-		self.dedent();
 	}
 
 	fn push_reliable_footer(&mut self) {
-		self.push_line("else");
-		self.indent();
+		self.push_dedent_line_indent("else");
 		self.push_line("error(\"Unknown event id\")");
-		self.dedent();
-		self.push_line("end");
-		self.dedent();
-		self.push_line("end");
-		self.dedent();
-		self.push_line("end)");
+		self.push_dedent_line("end");
+		self.push_dedent_line("end");
+		self.push_dedent_line("end)");
 	}
 
 	fn push_reliable(&mut self) {
+		if let QueueType::Time(time) = self.config.opts.queue_type {
+			self.push_line_indent(&format!("task.delay({time}, function()"));
+		} else if let QueueType::Frames(frames) = self.config.opts.queue_type {
+			self.push_line_indent("task.spawn(function()");
+
+			self.push_line_indent(&format!("for _ = 1, {frames} do"));
+			self.push_line("task.wait()");
+			self.push_dedent_line("end");
+		}
+
 		self.push_reliable_header();
 
 		let mut first = true;
@@ -274,16 +236,32 @@ impl<'src> ClientOutput<'src> {
 			.iter()
 			.filter(|evdecl| evdecl.from == EvSource::Server && evdecl.evty == EvType::Reliable)
 		{
-			self.push_reliable_callback(first, evdecl);
+			if first {
+				self.push_line_indent(&format!("if id == {} then", evdecl.id))
+			} else {
+				self.push_dedent_line_indent(&format!("elseif id == {} then", evdecl.id))
+			}
+
+			self.push_reliable_callback(evdecl);
 			first = false;
 		}
 
 		for fndecl in self.config.fndecls.iter() {
-			self.push_fn_callback(first, fndecl);
+			if first {
+				self.push_line_indent(&format!("if id == {} then", fndecl.id))
+			} else {
+				self.push_dedent_line_indent(&format!("elseif id == {} then", fndecl.id))
+			}
+
+			self.push_fn_callback(fndecl);
 			first = false;
 		}
 
 		self.push_reliable_footer();
+
+		if let QueueType::Time(_) | QueueType::Frames(_) = self.config.opts.queue_type {
+			self.push_dedent_line("end)");
+		}
 	}
 
 	fn push_unreliable_header(&mut self) {
@@ -301,24 +279,8 @@ impl<'src> ClientOutput<'src> {
 		));
 	}
 
-	fn push_unreliable_callback(&mut self, first: bool, ev: &EvDecl) {
+	fn push_unreliable_callback(&mut self, ev: &EvDecl) {
 		let id = ev.id;
-
-		self.push_indent();
-
-		if first {
-			self.push("if ");
-		} else {
-			self.push("elseif ");
-		}
-
-		// push_line is not used here as indent was pushed above
-		// and we don't want to push it twice, especially after
-		// the if/elseif
-		self.push(&format!("id == {id} then"));
-		self.push("\n");
-
-		self.indent();
 
 		self.push_line("local value");
 
@@ -327,16 +289,13 @@ impl<'src> ClientOutput<'src> {
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line(&format!("if events[{id}] then"));
-		} else {
-			self.push_line(&format!("if events[{id}][1] then"));
+			self.push_line_indent(&format!("if events[{id}] then"));
+		} else if !(self.config.opts.queue_type == QueueType::None) {
+			self.push_line_indent(&format!("if events[{id}][1] then"));
 		}
 
-		self.indent();
-
 		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
-			self.push_line(&format!("for _, cb in events[{id}] do"));
-			self.indent();
+			self.push_line_indent(&format!("for _, cb in events[{id}] do"));
 		}
 
 		match ev.call {
@@ -347,49 +306,52 @@ impl<'src> ClientOutput<'src> {
 		}
 
 		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
-			self.dedent();
-			self.push_line("end");
+			self.push_dedent_line("end");
 		}
 
-		self.dedent();
-		self.push_line("else");
-		self.indent();
+		if !(self.config.opts.queue_type == QueueType::None) {
+			self.push_dedent_line_indent("else");
 
-		if ev.data.is_some() {
-			self.push_line(&format!("table.insert(event_queue[{id}], value)"));
-			self.push_line(&format!("if #event_queue[{id}] > 64 then"));
-		} else {
-			self.push_line(&format!("event_queue[{id}] += 1"));
-			self.push_line(&format!("if event_queue[{id}] > 64 then"));
+			if ev.data.is_some() {
+				self.push_line(&format!("table.insert(event_queue[{id}], value)"));
+				self.push_line(&format!("if #event_queue[{id}] > 64 then"));
+			} else {
+				self.push_line(&format!("event_queue[{id}] += 1"));
+				self.push_line(&format!("if event_queue[{id}] > 64 then"));
+			}
+
+			self.indent();
+
+			self.push_line(&format!(
+				"warn(`[ZAP] {{#event_queue[{}]}} events in queue for {}. Did you forget to attach a listener?`)",
+				ev.id, ev.name
+			));
+
+			self.push_dedent_line("end");
 		}
 
-		self.indent();
-
-		self.push_line(&format!(
-			"warn(`[ZAP] {{#event_queue[{}]}} events in queue for {}. Did you forget to attach a listener?`)",
-			ev.id, ev.name
-		));
-
-		self.dedent();
-		self.push_line("end");
-
-		self.dedent();
-		self.push_line("end");
-
-		self.dedent();
+		self.push_dedent_line("end");
 	}
 
 	fn push_unreliable_footer(&mut self) {
-		self.push_line("else");
-		self.indent();
+		self.push_dedent_line_indent("else");
 		self.push_line("error(\"Unknown event id\")");
-		self.dedent();
-		self.push_line("end");
-		self.dedent();
-		self.push_line("end)");
+		self.push_dedent_line("end");
+		self.push_dedent_line("end");
+		self.push_dedent_line("end)");
 	}
 
 	fn push_unreliable(&mut self) {
+		if let QueueType::Time(time) = self.config.opts.queue_type {
+			self.push_line_indent(&format!("task.delay({time}, function()"));
+		} else if let QueueType::Frames(frames) = self.config.opts.queue_type {
+			self.push_line_indent("task.spawn(function()");
+
+			self.push_line_indent(&format!("for _ = 1, {frames} do"));
+			self.push_line("task.wait()");
+			self.push_dedent_line("end");
+		}
+
 		self.push_unreliable_header();
 
 		let mut first = true;
@@ -400,51 +362,57 @@ impl<'src> ClientOutput<'src> {
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Server && ev_decl.evty == EvType::Unreliable)
 		{
-			self.push_unreliable_callback(first, ev);
+			if first {
+				self.push_line_indent(&format!("if id == {} then", ev.id))
+			} else {
+				self.push_dedent_line_indent(&format!("elseif id == {} then", ev.id))
+			}
+
+			self.push_unreliable_callback(ev);
 			first = false;
 		}
 
 		self.push_unreliable_footer();
+
+		if let QueueType::Time(_) | QueueType::Frames(_) = self.config.opts.queue_type {
+			self.push_dedent_line("end)");
+		}
 	}
 
 	fn push_callback_lists(&mut self) {
-		self.push_line(&format!(
-			"local events = table.create({})",
-			self.config.evdecls.len() + self.config.fndecls.len()
-		));
-		self.push_line(&format!(
-			"local event_queue: {{ [number]: {{ any }} }} = table.create({})",
-			self.config.evdecls.len() + self.config.fndecls.len()
-		));
+		let ntdecls_len = self.config.evdecls.len() + self.config.fndecls.len();
+
+		self.push_line(&format!("local events = table.create({})", ntdecls_len));
+
+		// This cannot be removed even when queue_type isn't Event, as it is used for function calls
+		self.push_line(&format!("local event_queue = table.create({})", ntdecls_len));
 
 		if !self.config.fndecls.is_empty() {
 			self.push_line("local function_call_id = 0");
 
-			if !self.config.async_lib.is_empty() {
-				if self.config.typescript {
-					self.push_line(&format!("local Promise = {}.Promise", self.config.async_lib))
-				} else {
-					self.push_line(&format!("local {} = {}", self.config.yield_type, self.config.async_lib))
-				}
+			if let YieldType::Future(import) | YieldType::Promise(import) = self.config.opts.yield_type {
+				self.push_line(&format!("local async_lib = {import}"))
 			}
 		}
 
-		for evdecl in self
-			.config
-			.evdecls
-			.iter()
-			.filter(|ev_decl| ev_decl.from == EvSource::Server)
-		{
-			let id = evdecl.id;
+		if let QueueType::Event(size) = self.config.opts.queue_type {
+			for evdecl in self
+				.config
+				.evdecls
+				.iter()
+				.filter(|ev_decl| ev_decl.from == EvSource::Server)
+			{
+				let id = evdecl.id;
 
-			if evdecl.call == EvCall::ManyAsync || evdecl.call == EvCall::ManySync {
-				self.push_line(&format!("events[{id}] = {{}}"));
-			}
+				if evdecl.call == EvCall::ManyAsync || evdecl.call == EvCall::ManySync {
+					self.push_line(&format!("events[{id}] = {{}}"));
+				}
 
-			if evdecl.data.is_some() {
-				self.push_line(&format!("event_queue[{id}] = {{}}"));
-			} else {
-				self.push_line(&format!("event_queue[{id}] = 0"));
+				if evdecl.data.is_some() {
+					self.push_line(&format!("event_queue[{id}] = table.create({size})"));
+				} else {
+					self.push_line(&format!("event_queue[{id}] = 0"));
+				}
 			}
 		}
 
@@ -462,8 +430,8 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_return_fire(&mut self, ev: &EvDecl) {
-		let fire = self.config.casing.with("Fire", "fire", "fire");
-		let value = self.config.casing.with("Value", "value", "value");
+		let fire = self.config.opts.casing.with("Fire", "fire", "fire");
+		let value = self.config.opts.casing.with("Value", "value", "value");
 
 		self.push_indent();
 		self.push(&format!("{fire} = function("));
@@ -484,7 +452,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_write_event_id(ev.id);
 
 		if let Some(data) = &ev.data {
-			self.push_ser(value, data, self.config.write_checks);
+			self.push_ser(value, data, self.config.opts.write_checks);
 		}
 
 		if ev.evty == EvType::Unreliable {
@@ -518,8 +486,13 @@ impl<'src> ClientOutput<'src> {
 	fn push_return_setcallback(&mut self, ev: &EvDecl) {
 		let id = ev.id;
 
-		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
-		let callback = self.config.casing.with("Callback", "callback", "callback");
+		let set_callback = self
+			.config
+			.opts
+			.casing
+			.with("SetCallback", "setCallback", "set_callback");
+
+		let callback = self.config.opts.casing.with("Callback", "callback", "callback");
 
 		self.push_indent();
 		self.push(&format!("{set_callback} = function({callback}: ("));
@@ -533,34 +506,36 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line(&format!("events[{id}] = {callback}"));
 
-		if ev.data.is_some() {
-			self.push_line(&format!("for _, value in event_queue[{id}] do"));
-			self.indent();
+		if let QueueType::Event(_) = self.config.opts.queue_type {
+			if ev.data.is_some() {
+				self.push_line(&format!("for _, value in event_queue[{id}] do"));
+				self.indent();
 
-			if ev.call == EvCall::SingleSync {
-				self.push_line(&format!("{callback}(value)"))
+				if ev.call == EvCall::SingleSync {
+					self.push_line(&format!("{callback}(value)"))
+				} else {
+					self.push_line(&format!("task.spawn({callback}, value)"))
+				}
+
+				self.dedent();
+				self.push_line("end");
+
+				self.push_line(&format!("event_queue[{id}] = {{}}"));
 			} else {
-				self.push_line(&format!("task.spawn({callback}, value)"))
+				self.push_line(&format!("for _ = 1, event_queue[{id}] do"));
+				self.indent();
+
+				if ev.call == EvCall::SingleSync {
+					self.push_line(&format!("{callback}()"))
+				} else {
+					self.push_line(&format!("task.spawn({callback})"))
+				}
+
+				self.dedent();
+				self.push_line("end");
+
+				self.push_line(&format!("event_queue[{id}] = 0"));
 			}
-
-			self.dedent();
-			self.push_line("end");
-
-			self.push_line(&format!("event_queue[{id}] = {{}}"));
-		} else {
-			self.push_line(&format!("for _ = 1, event_queue[{id}] do"));
-			self.indent();
-
-			if ev.call == EvCall::SingleSync {
-				self.push_line(&format!("{callback}()"))
-			} else {
-				self.push_line(&format!("task.spawn({callback})"))
-			}
-
-			self.dedent();
-			self.push_line("end");
-
-			self.push_line(&format!("event_queue[{id}] = 0"));
 		}
 
 		self.dedent();
@@ -570,8 +545,8 @@ impl<'src> ClientOutput<'src> {
 	fn push_return_on(&mut self, ev: &EvDecl) {
 		let id = ev.id;
 
-		let on = self.config.casing.with("On", "on", "on");
-		let callback = self.config.casing.with("Callback", "callback", "callback");
+		let on = self.config.opts.casing.with("On", "on", "on");
+		let callback = self.config.opts.casing.with("Callback", "callback", "callback");
 
 		self.push_indent();
 		self.push(&format!("{on} = function({callback}: ("));
@@ -585,34 +560,36 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line(&format!("table.insert(events[{id}], {callback})"));
 
-		if ev.data.is_some() {
-			self.push_line(&format!("for _, value in event_queue[{id}] do"));
-			self.indent();
+		if let QueueType::Event(_) = self.config.opts.queue_type {
+			if ev.data.is_some() {
+				self.push_line(&format!("for _, value in event_queue[{id}] do"));
+				self.indent();
 
-			if ev.call == EvCall::ManySync {
-				self.push_line(&format!("{callback}(value)"))
+				if ev.call == EvCall::ManySync {
+					self.push_line(&format!("{callback}(value)"))
+				} else {
+					self.push_line(&format!("task.spawn({callback}, value)"))
+				}
+
+				self.dedent();
+				self.push_line("end");
+
+				self.push_line(&format!("event_queue[{id}] = {{}}"));
 			} else {
-				self.push_line(&format!("task.spawn({callback}, value)"))
+				self.push_line(&format!("for _ = 1, event_queue[{id}] do"));
+				self.indent();
+
+				if ev.call == EvCall::ManySync {
+					self.push_line(&format!("{callback}()"))
+				} else {
+					self.push_line(&format!("task.spawn({callback})"))
+				}
+
+				self.dedent();
+				self.push_line("end");
+
+				self.push_line(&format!("event_queue[{id}] = 0"));
 			}
-
-			self.dedent();
-			self.push_line("end");
-
-			self.push_line(&format!("event_queue[{id}] = {{}}"));
-		} else {
-			self.push_line(&format!("for _ = 1, event_queue[{id}] do"));
-			self.indent();
-
-			if ev.call == EvCall::ManySync {
-				self.push_line(&format!("{callback}()"))
-			} else {
-				self.push_line(&format!("task.spawn({callback})"))
-			}
-
-			self.dedent();
-			self.push_line("end");
-
-			self.push_line(&format!("event_queue[{id}] = 0"));
 		}
 
 		self.dedent();
@@ -640,8 +617,8 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_return_functions(&mut self) {
-		let call = self.config.casing.with("Call", "call", "call");
-		let value = self.config.casing.with("Value", "value", "value");
+		let call = self.config.opts.casing.with("Call", "call", "call");
+		let value = self.config.opts.casing.with("Value", "value", "value");
 
 		for fndecl in self.config.fndecls.iter() {
 			let id = fndecl.id;
@@ -679,16 +656,17 @@ impl<'src> ClientOutput<'src> {
 			self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, function_call_id)");
 
 			if let Some(data) = &fndecl.args {
-				self.push_ser(value, data, self.config.write_checks);
+				self.push_ser(value, data, self.config.opts.write_checks);
 			}
 
-			match self.config.yield_type {
+			match self.config.opts.yield_type {
 				YieldType::Yield => {
 					self.push_line(&format!("event_queue[{id}][function_call_id] = coroutine.running()",));
 					self.push_line("local value = coroutine.yield()");
 				}
-				YieldType::Future => {
-					self.push_line("local value = Future.new(function()");
+
+				YieldType::Future(_) => {
+					self.push_line("local value = async_lib.new(function()");
 					self.indent();
 
 					self.push_line(&format!("event_queue[{id}][function_call_id] = coroutine.running()",));
@@ -697,8 +675,9 @@ impl<'src> ClientOutput<'src> {
 					self.dedent();
 					self.push_line("end)");
 				}
-				YieldType::Promise => {
-					self.push_line("local value = Promise.new(function(resolve)");
+
+				YieldType::Promise(_) => {
+					self.push_line("local value = async_lib.new(function(resolve)");
 					self.indent();
 
 					self.push_line(&format!("event_queue[{id}][function_call_id] = resolve"));
@@ -722,8 +701,8 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("return {");
 		self.indent();
 
-		if self.config.manual_event_loop {
-			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+		if self.config.opts.manual_event_loop {
+			let send_events = self.config.opts.casing.with("SendEvents", "sendEvents", "send_events");
 
 			self.push_line(&format!("{send_events} = {send_events},"));
 		}

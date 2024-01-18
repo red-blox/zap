@@ -1,14 +1,15 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::config::{Casing, Config, Enum, EvDecl, EvType, FnDecl, NumTy, Range, Struct, Ty, TyDecl, YieldType};
-
-use super::{
-	reports::{Report, Span},
-	syntax_tree::*,
+use crate::config::{
+	Casing, Config, Enum, EvDecl, EvType, FnDecl, NumTy, Opts, QueueType, Range, Struct, Ty, TyDecl, YieldType,
 };
+
+use super::{reports::Report, syntax_tree::*};
 
 struct Converter<'src> {
 	config: SyntaxConfig<'src>,
+	mode: Option<&'static str>,
+
 	tydecls: HashMap<&'src str, SyntaxTyDecl<'src>>,
 	max_unreliable_size: usize,
 
@@ -16,7 +17,7 @@ struct Converter<'src> {
 }
 
 impl<'src> Converter<'src> {
-	fn new(config: SyntaxConfig<'src>) -> Self {
+	fn new(config: SyntaxConfig<'src>, mode: Option<&'static str>) -> Self {
 		let mut tydecls = HashMap::new();
 		let mut ntdecls = 0;
 
@@ -35,6 +36,8 @@ impl<'src> Converter<'src> {
 
 		Self {
 			config,
+			mode,
+
 			tydecls,
 			max_unreliable_size,
 
@@ -44,6 +47,22 @@ impl<'src> Converter<'src> {
 
 	fn convert(mut self) -> (Config<'src>, Vec<Report<'src>>) {
 		let config = self.config.clone();
+
+		let mut opts = Opts::default();
+
+		for default_opts in config.opts.iter().filter(|opt| opt.mode.is_none()) {
+			self.apply_opts(&mut opts, &default_opts.opts);
+		}
+
+		if let Some(mode) = self.mode {
+			for mode_opts in config
+				.opts
+				.iter()
+				.filter(|opt| opt.mode.is_some_and(|opts_mode| Self::str(&opts_mode) == mode))
+			{
+				self.apply_opts(&mut opts, &mode_opts.opts);
+			}
+		};
 
 		self.check_duplicate_decls(&config.decls);
 
@@ -85,170 +104,286 @@ impl<'src> Converter<'src> {
 			self.report(Report::AnalyzeEmptyEvDecls);
 		}
 
-		let (write_checks, ..) = self.boolean_opt("write_checks", true, &config.opts);
-		let (typescript, ..) = self.boolean_opt("typescript", false, &config.opts);
-		let (manual_event_loop, ..) = self.boolean_opt("manual_event_loop", false, &config.opts);
-
-		let (server_output, ..) = self.str_opt("server_output", "network/server.lua", &config.opts);
-		let (client_output, ..) = self.str_opt("client_output", "network/client.lua", &config.opts);
-
-		let casing = self.casing_opt(&config.opts);
-		let yield_type = self.yield_type_opt(typescript, &config.opts);
-		let async_lib = self.async_lib(yield_type, &config.opts);
-
 		let config = Config {
 			tydecls,
 			evdecls,
 			fndecls,
-
-			write_checks,
-			typescript,
-			manual_event_loop,
-
-			server_output,
-			client_output,
-
-			casing,
-			yield_type,
-			async_lib,
+			opts,
 		};
 
 		(config, self.reports)
 	}
 
-	fn async_lib(&mut self, yield_type: YieldType, opts: &[SyntaxOpt<'src>]) -> &'src str {
-		let (async_lib, async_lib_span) = self.str_opt("async_lib", "", opts);
+	fn apply_opts(&mut self, onto: &mut Opts<'src>, opts: &[(SyntaxIdentifier<'src>, SyntaxOptValue<'src>)]) {
+		let mut name_map = HashMap::new();
 
-		if let Some(span) = async_lib_span {
-			if !async_lib.starts_with("require") {
-				self.report(Report::AnalyzeInvalidOptValue {
-					span,
-					expected: "that `async_lib` path must be a `require` statement",
-				});
-			} else if yield_type == YieldType::Yield {
-				self.report(Report::AnalyzeInvalidOptValue {
-					span,
-					expected: "that `async_lib` cannot be defined when using a `yield_type` of `yield`",
+		for (name, opt) in opts {
+			if let Some(prev_span) = name_map.insert(name.name, name.span()) {
+				self.report(Report::AnalyzeDuplicateOpt {
+					prev_span,
+					dup_span: name.span(),
+					name: name.name,
 				});
 			}
-		} else if async_lib.is_empty() && yield_type != YieldType::Yield {
-			self.report(Report::AnalyzeMissingOptValue {
-				expected: "`async_lib`",
-				required_when: "`yield_type` is set to `promise` or `future`.",
-			});
-		}
 
-		async_lib
-	}
-
-	fn yield_type_opt(&mut self, typescript: bool, opts: &[SyntaxOpt<'src>]) -> YieldType {
-		match self.str_opt("yield_type", "yield", opts) {
-			("yield", ..) => YieldType::Yield,
-			("promise", ..) => YieldType::Promise,
-			("future", Some(span)) => {
-				if typescript {
-					self.report(Report::AnalyzeInvalidOptValue {
-						span,
-						expected: "`yield` or `promise`",
-					});
+			match name.name {
+				"write_checks" => {
+					if let SyntaxOptValueKind::Bool(value) = opt.kind {
+						onto.write_checks = value.value;
+					} else {
+						self.report(Report::AnalyzeInvalidOptValue {
+							span: opt.span(),
+							expected: "boolean",
+						});
+					}
 				}
 
-				YieldType::Future
+				"output" => {
+					if let SyntaxOptValueKind::Obj(value) = &opt.kind {
+						let mut name_map = HashMap::new();
+
+						for (name, value) in value.iter() {
+							if let Some(prev_span) = name_map.insert(name.name, name.span()) {
+								self.report(Report::AnalyzeDuplicateOpt {
+									prev_span,
+									dup_span: name.span(),
+									name: name.name,
+								});
+							}
+
+							match name.name {
+								"typescript" => {
+									if let SyntaxOptValueKind::Bool(value) = value.kind {
+										onto.output_typescript = value.value;
+									} else {
+										self.report(Report::AnalyzeInvalidOptValue {
+											span: value.span(),
+											expected: "boolean",
+										});
+									}
+								}
+
+								"server" => {
+									if let SyntaxOptValueKind::Str(value) = value.kind {
+										onto.output_server = Self::str(&value);
+									} else {
+										self.report(Report::AnalyzeInvalidOptValue {
+											span: value.span(),
+											expected: "string",
+										});
+									}
+								}
+
+								"client" => {
+									if let SyntaxOptValueKind::Str(value) = value.kind {
+										onto.output_client = Self::str(&value);
+									} else {
+										self.report(Report::AnalyzeInvalidOptValue {
+											span: value.span(),
+											expected: "string",
+										});
+									}
+								}
+
+								_ => {
+									self.report(Report::AnalyzeUnknownOptName { span: name.span() });
+								}
+							}
+						}
+					} else {
+						self.report(Report::AnalyzeInvalidOptValue {
+							span: opt.span(),
+							expected: "object",
+						});
+					}
+				}
+
+				"remote_name" => {
+					if let SyntaxOptValueKind::Obj(value) = &opt.kind {
+						let mut name_map = HashMap::new();
+
+						for (name, value) in value.iter() {
+							if let Some(prev_span) = name_map.insert(name.name, name.span()) {
+								self.report(Report::AnalyzeDuplicateOpt {
+									prev_span,
+									dup_span: name.span(),
+									name: name.name,
+								});
+							}
+
+							match name.name {
+								"reliable" => {
+									if let SyntaxOptValueKind::Str(value) = value.kind {
+										onto.remote_name_reliable = Self::str(&value);
+									} else {
+										self.report(Report::AnalyzeInvalidOptValue {
+											span: value.span(),
+											expected: "string",
+										});
+									}
+								}
+
+								"unreliable" => {
+									if let SyntaxOptValueKind::Str(value) = value.kind {
+										onto.remote_name_unreliable = Self::str(&value);
+									} else {
+										self.report(Report::AnalyzeInvalidOptValue {
+											span: value.span(),
+											expected: "string",
+										});
+									}
+								}
+
+								_ => {
+									self.report(Report::AnalyzeInvalidOptValue {
+										span: name.span(),
+										expected: "reliable or unreliable",
+									});
+								}
+							}
+						}
+					} else {
+						self.report(Report::AnalyzeInvalidOptValue {
+							span: opt.span(),
+							expected: "object",
+						});
+					}
+				}
+
+				"manual_event_loop" => {
+					if let SyntaxOptValueKind::Bool(value) = opt.kind {
+						onto.manual_event_loop = value.value;
+					} else {
+						self.report(Report::AnalyzeInvalidOptValue {
+							span: opt.span(),
+							expected: "boolean",
+						});
+					}
+				}
+
+				"queue" => {
+					if let SyntaxOptValueKind::Call(name, args) = &opt.kind {
+						let arg = if let Some(arg) = args.get(0) {
+							if let SyntaxOptValueKind::Num(num) = arg.kind {
+								Self::num(&num)
+							} else {
+								self.report(Report::AnalyzeInvalidOptValue {
+									span: arg.span(),
+									expected: "number",
+								});
+
+								0.0
+							}
+						} else {
+							self.report(Report::AnalyzeInvalidOptValue {
+								span: opt.span(),
+								expected: "number argument",
+							});
+
+							0.0
+						};
+
+						match name.name {
+							"time" => onto.queue_type = QueueType::Time(arg),
+							"event" => onto.queue_type = QueueType::Event(arg as usize),
+							"frames" => onto.queue_type = QueueType::Frames(arg as usize),
+
+							_ => {
+								self.report(Report::AnalyzeInvalidOptValue {
+									span: name.span(),
+									expected: "time, event, or frames",
+								});
+							}
+						}
+					} else if let SyntaxOptValueKind::Name(name) = opt.kind {
+						if name.name == "none" {
+							onto.queue_type = QueueType::None;
+						} else {
+							self.report(Report::AnalyzeInvalidOptValue {
+								span: name.span(),
+								expected: "time(<num>), event(<num>), frames(<num>), or none",
+							});
+						}
+					}
+				}
+
+				"casing" => {
+					if let SyntaxOptValueKind::Name(name) = opt.kind {
+						match name.name {
+							"snake_case" => onto.casing = Casing::Snake,
+							"camelCase" => onto.casing = Casing::Camel,
+							"PascalCase" => onto.casing = Casing::Pascal,
+
+							_ => {
+								self.report(Report::AnalyzeInvalidOptValue {
+									span: name.span(),
+									expected: "snake_case, camelCase, or PascalCase",
+								});
+							}
+						}
+					} else {
+						self.report(Report::AnalyzeInvalidOptValue {
+							span: opt.span(),
+							expected: "snake_case, camelCase, or PascalCase",
+						});
+					}
+				}
+
+				"yield" => {
+					if let SyntaxOptValueKind::Call(name, args) = &opt.kind {
+						let arg = if let Some(arg) = args.get(0) {
+							if let SyntaxOptValueKind::Str(str) = arg.kind {
+								Self::str(&str)
+							} else {
+								self.report(Report::AnalyzeInvalidOptValue {
+									span: arg.span(),
+									expected: "string",
+								});
+
+								""
+							}
+						} else {
+							self.report(Report::AnalyzeInvalidOptValue {
+								span: opt.span(),
+								expected: "string argument",
+							});
+
+							""
+						};
+
+						match name.name {
+							"promise" => onto.yield_type = YieldType::Promise(arg),
+							"future" => onto.yield_type = YieldType::Future(arg),
+
+							_ => {
+								self.report(Report::AnalyzeInvalidOptValue {
+									span: name.span(),
+									expected: "promise(<str>), future(<str>), or yield",
+								});
+							}
+						}
+					} else if let SyntaxOptValueKind::Name(name) = opt.kind {
+						if name.name == "yield" {
+							onto.yield_type = YieldType::Yield;
+						} else {
+							self.report(Report::AnalyzeInvalidOptValue {
+								span: name.span(),
+								expected: "promise(<str>), future(<str>), or yield",
+							});
+						}
+					} else {
+						self.report(Report::AnalyzeInvalidOptValue {
+							span: opt.span(),
+							expected: "promise(<str>), future(<str>), or yield",
+						});
+					}
+				}
+
+				_ => {
+					self.report(Report::AnalyzeUnknownOptName { span: name.span() });
+				}
 			}
-
-			(_, Some(span)) => {
-				self.report(Report::AnalyzeInvalidOptValue {
-					span,
-					expected: "`yield`, `future`, or `promise`",
-				});
-
-				YieldType::Yield
-			}
-
-			_ => unreachable!(),
 		}
-	}
-
-	fn casing_opt(&mut self, opts: &[SyntaxOpt<'src>]) -> Casing {
-		match self.str_opt("casing", "PascalCase", opts) {
-			("snake_case", ..) => Casing::Snake,
-			("camelCase", ..) => Casing::Camel,
-			("PascalCase", ..) => Casing::Pascal,
-
-			(_, Some(span)) => {
-				self.report(Report::AnalyzeInvalidOptValue {
-					span,
-					expected: "`snake_case`, `camelCase`, or `PascalCase`",
-				});
-
-				Casing::Pascal
-			}
-
-			_ => unreachable!(),
-		}
-	}
-
-	fn boolean_opt(&mut self, name: &'static str, default: bool, opts: &[SyntaxOpt<'src>]) -> (bool, Option<Span>) {
-		let mut value = default;
-		let mut span = None;
-
-		for opt in opts.iter().filter(|opt| opt.name.name == name) {
-			if let SyntaxOptValueKind::Bool(opt_value) = &opt.value.kind {
-				value = opt_value.value;
-				span = Some(opt_value.span());
-			} else {
-				self.report(Report::AnalyzeInvalidOptValue {
-					span: opt.value.span(),
-					expected: "boolean",
-				});
-			}
-		}
-
-		(value, span)
-	}
-
-	fn str_opt(
-		&mut self,
-		name: &'static str,
-		default: &'static str,
-		opts: &[SyntaxOpt<'src>],
-	) -> (&'src str, Option<Span>) {
-		let mut value = default;
-		let mut span = None;
-
-		for opt in opts.iter().filter(|opt| opt.name.name == name) {
-			if let SyntaxOptValueKind::Str(opt_value) = &opt.value.kind {
-				value = self.str(opt_value);
-				span = Some(opt_value.span());
-			} else {
-				self.report(Report::AnalyzeInvalidOptValue {
-					span: opt.value.span(),
-					expected: "string",
-				});
-			}
-		}
-
-		(value, span)
-	}
-
-	#[allow(dead_code)]
-	fn num_opt(&mut self, name: &'static str, default: f64, opts: &[SyntaxOpt<'src>]) -> (f64, Option<Span>) {
-		let mut value = default;
-		let mut span = None;
-
-		for opt in opts.iter().filter(|opt| opt.name.name == name) {
-			if let SyntaxOptValueKind::Num(opt_value) = &opt.value.kind {
-				value = self.num(opt_value);
-				span = Some(opt_value.span());
-			} else {
-				self.report(Report::AnalyzeInvalidOptValue {
-					span: opt.value.span(),
-					expected: "number",
-				});
-			}
-		}
-
-		(value, span)
 	}
 
 	fn check_duplicate_decls(&mut self, decls: &[SyntaxDecl<'src>]) {
@@ -461,7 +596,7 @@ impl<'src> Converter<'src> {
 			}
 
 			SyntaxEnumKind::Tagged { tag, variants } => {
-				let tag_name = self.str(tag);
+				let tag_name = Self::str(tag);
 
 				let variants = variants
 					.iter()
@@ -633,15 +768,15 @@ impl<'src> Converter<'src> {
 	fn range(&self, range: &SyntaxRange<'src>) -> Range {
 		match range.kind {
 			SyntaxRangeKind::None => Range::new(None, None),
-			SyntaxRangeKind::Exact(num) => Range::new(Some(self.num(&num)), Some(self.num(&num))),
-			SyntaxRangeKind::WithMin(min) => Range::new(Some(self.num(&min)), None),
-			SyntaxRangeKind::WithMax(max) => Range::new(None, Some(self.num(&max))),
-			SyntaxRangeKind::WithMinMax(min, max) => Range::new(Some(self.num(&min)), Some(self.num(&max))),
+			SyntaxRangeKind::Exact(num) => Range::new(Some(Self::num(&num)), Some(Self::num(&num))),
+			SyntaxRangeKind::WithMin(min) => Range::new(Some(Self::num(&min)), None),
+			SyntaxRangeKind::WithMax(max) => Range::new(None, Some(Self::num(&max))),
+			SyntaxRangeKind::WithMinMax(min, max) => Range::new(Some(Self::num(&min)), Some(Self::num(&max))),
 		}
 	}
 
 	fn num_within(&mut self, num: &SyntaxNumLit<'src>, min: f64, max: f64) -> f64 {
-		let value = self.num(num);
+		let value = Self::num(num);
 
 		if value < min || value > max {
 			self.report(Report::AnalyzeNumOutsideRange {
@@ -654,17 +789,17 @@ impl<'src> Converter<'src> {
 		value
 	}
 
-	fn str(&self, str: &SyntaxStrLit<'src>) -> &'src str {
+	fn str(str: &SyntaxStrLit<'src>) -> &'src str {
 		// unwrapping here is safe because the parser already validated the string earlier
 		str.value[1..str.value.len() - 1].as_ref()
 	}
 
-	fn num(&self, num: &SyntaxNumLit<'src>) -> f64 {
+	fn num(num: &SyntaxNumLit<'src>) -> f64 {
 		// unwrapping here is safe because the parser already validated the number earlier
 		num.value.parse().unwrap()
 	}
 }
 
-pub fn convert(config: SyntaxConfig<'_>) -> (Config<'_>, Vec<Report<'_>>) {
-	Converter::new(config).convert()
+pub fn convert<'src>(config: SyntaxConfig<'src>, mode: Option<&'static str>) -> (Config<'src>, Vec<Report<'src>>) {
+	Converter::new(config, mode).convert()
 }

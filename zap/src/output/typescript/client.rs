@@ -65,8 +65,8 @@ impl<'src> ClientOutput<'src> {
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client)
 		{
-			let fire = self.config.casing.with("Fire", "fire", "fire");
-			let value = self.config.casing.with("Value", "value", "value");
+			let fire = self.config.opts.casing.with("Fire", "fire", "fire");
+			let value = self.config.opts.casing.with("Value", "value", "value");
 
 			self.push_line(&format!("export const {name}: {{", name = ev.name));
 			self.indent();
@@ -103,12 +103,17 @@ impl<'src> ClientOutput<'src> {
 		{
 			let set_callback = match ev.call {
 				EvCall::SingleSync | EvCall::SingleAsync => {
-					self.config.casing.with("SetCallback", "setCallback", "set_callback")
+					self.config
+						.opts
+						.casing
+						.with("SetCallback", "setCallback", "set_callback")
 				}
-				EvCall::ManySync | EvCall::ManyAsync => self.config.casing.with("On", "on", "on"),
+
+				EvCall::ManySync | EvCall::ManyAsync => self.config.opts.casing.with("On", "on", "on"),
 			};
-			let callback = self.config.casing.with("Callback", "callback", "callback");
-			let value = self.config.casing.with("Value", "value", "value");
+
+			let callback = self.config.opts.casing.with("Callback", "callback", "callback");
+			let value = self.config.opts.casing.with("Value", "value", "value");
 
 			self.push_line(&format!("export const {name}: {{", name = ev.name));
 			self.indent();
@@ -136,8 +141,8 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_return_functions(&mut self) {
-		let call = self.config.casing.with("Call", "call", "call");
-		let value = self.config.casing.with("Value", "value", "value");
+		let call = self.config.opts.casing.with("Call", "call", "call");
+		let value = self.config.opts.casing.with("Value", "value", "value");
 
 		for fndecl in self.config.fndecls.iter() {
 			self.push_line(&format!("export const {}: {{", fndecl.name));
@@ -160,7 +165,7 @@ impl<'src> ClientOutput<'src> {
 
 			self.push(") => ");
 
-			if self.config.yield_type == YieldType::Promise {
+			if let YieldType::Promise(_) = self.config.opts.yield_type {
 				self.push("Promise<")
 			}
 
@@ -170,7 +175,7 @@ impl<'src> ClientOutput<'src> {
 				self.push("void");
 			}
 
-			if self.config.yield_type == YieldType::Promise {
+			if let YieldType::Promise(_) = self.config.opts.yield_type {
 				self.push(">")
 			}
 
@@ -193,7 +198,7 @@ impl<'src> ClientOutput<'src> {
 			return self.buf;
 		};
 
-		if self.config.manual_event_loop {
+		if self.config.opts.manual_event_loop {
 			self.push_manual_event_loop(self.config);
 		}
 
@@ -206,7 +211,7 @@ impl<'src> ClientOutput<'src> {
 }
 
 pub fn code(config: &Config) -> Option<String> {
-	if !config.typescript {
+	if !config.opts.output_typescript {
 		return None;
 	}
 
