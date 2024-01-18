@@ -5,7 +5,7 @@ const example = `funct Test = {
         foo: u8,
         bar: string
     },
-    rets: enum { "Success", "Fail" }
+    rets: enum { Success, Fail }
 }`
 </script>
 
