@@ -16,24 +16,18 @@ pub trait Output {
 	}
 
 	fn push_line_indent(&mut self, s: &str) {
-		self.push_indent();
-		self.push(s);
-		self.push("\n");
+		self.push_line(s);
 		self.indent();
 	}
 
 	fn push_dedent_line(&mut self, s: &str) {
 		self.dedent();
-		self.push_indent();
-		self.push(s);
-		self.push("\n");
+		self.push_line(s);
 	}
 
 	fn push_dedent_line_indent(&mut self, s: &str) {
 		self.dedent();
-		self.push_indent();
-		self.push(s);
-		self.push("\n");
+		self.push_line(s);
 		self.indent();
 	}
 
