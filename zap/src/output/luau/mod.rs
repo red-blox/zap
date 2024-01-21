@@ -33,14 +33,14 @@ pub trait Output {
 
 	fn push_range_check(&mut self, range: Range, val: &str) {
 		if let Some(exact) = range.exact() {
-			self.push_line(&format!("assert({val} == {exact})"));
+			self.push_line(&format!("assert({val} == {exact}, \"value not {exact}\")"));
 		} else {
 			if let Some(min) = range.min() {
-				self.push_line(&format!("assert({val} >= {min})"));
+				self.push_line(&format!("assert({val} >= {min}, \"value outside range\")"));
 			}
 
 			if let Some(max) = range.max() {
-				self.push_line(&format!("assert({val} <= {max})"));
+				self.push_line(&format!("assert({val} <= {max}, \"value outside range\")"));
 			}
 		}
 	}
@@ -61,12 +61,12 @@ pub trait Output {
 			Ty::Str(len) => {
 				if let Some(exact) = len.exact() {
 					if checks {
-						self.push_line(&format!("assert(#{from} == {exact})"));
+						self.push_line(&format!("assert(#{from} == {exact}, \"length not {exact}\")"));
 					}
 
 					self.push_line(&format!("alloc({exact})"));
 					self.push_line(&format!(
-						"buffer.writeu16(outgoing_buff, outgoing_apos, {from}, {exact})"
+						"buffer.writestring(outgoing_buff, outgoing_apos, {from}, {exact})"
 					));
 				} else {
 					self.push_line(&format!("local len = #{from}"));
@@ -75,8 +75,10 @@ pub trait Output {
 						self.push_range_check(*len, "len");
 					}
 
-					self.push_line("alloc(len)");
+					self.push_line("alloc(2)");
 					self.push_line("buffer.writeu16(outgoing_buff, outgoing_apos, len)");
+
+					self.push_line("alloc(len)");
 					self.push_line(&format!(
 						"buffer.writestring(outgoing_buff, outgoing_apos, {from}, len)"
 					));
@@ -86,7 +88,7 @@ pub trait Output {
 			Ty::Buf(len) => {
 				if let Some(exact) = len.exact() {
 					if checks {
-						self.push_line(&format!("assert(#{from} == {exact})"));
+						self.push_line(&format!("assert(#{from} == {exact}, \"length not {exact}\")"));
 					}
 
 					self.push_line(&format!("alloc({exact})"));
@@ -94,11 +96,14 @@ pub trait Output {
 						"buffer.copy(outgoing_buff, outgoing_apos, {from}, 0, {exact})"
 					));
 				} else {
-					self.push_line(&format!("local len = #{from}"));
+					self.push_line(&format!("local len = buffer.len({from})"));
 
 					if checks {
 						self.push_range_check(*len, "len");
 					}
+
+					self.push_line("alloc(2)");
+					self.push_line("buffer.writeu16(outgoing_buff, outgoing_apos, len)");
 
 					self.push_line("alloc(len)");
 					self.push_line(&format!("buffer.copy(outgoing_buff, outgoing_apos, {from}, 0, len)"));
@@ -108,7 +113,7 @@ pub trait Output {
 			Ty::Arr(ty, len) => {
 				if let Some(exact) = len.exact() {
 					if checks {
-						self.push_line(&format!("assert(#{from} == {exact})"));
+						self.push_line(&format!("assert(#{from} == {exact}, \"length not {exact}\")"));
 					}
 
 					self.push_line_indent(&format!("for i = 1, {exact} do"));
@@ -122,8 +127,9 @@ pub trait Output {
 						self.push_range_check(*len, "len");
 					}
 
-					self.push_line("alloc(len)");
+					self.push_line("alloc(2)");
 					self.push_line("buffer.writeu16(outgoing_buff, outgoing_apos, len)");
+
 					self.push_line_indent("for i = 1, len do");
 					self.push_line(&format!("local value = {from}[i]"));
 					self.push_ser("value", ty, checks);
@@ -209,7 +215,10 @@ pub trait Output {
 
 			Ty::Instance(class) => {
 				if checks && class.is_some() {
-					self.push_line(&format!("assert({from}:IsA(\"{}\"))", class.unwrap()));
+					self.push_line(&format!(
+						"assert({from}:IsA(\"{class}\"), \"instance is not a {class}\")",
+						class = class.unwrap()
+					));
 				}
 
 				self.push_line(&format!("table.insert(outgoing_inst, {from})"));
@@ -237,47 +246,25 @@ pub trait Output {
 				self.push_line(&format!(
 					"local axis_alignment = table.find(CFrameSpecialCases, {from}.Rotation)"
 				));
-				self.push_line("assert(axis_alignment)");
+				self.push_line("assert(axis_alignment, \"invalid axis alignment\")");
 				self.push_line("alloc(1)");
 				self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, axis_alignment)");
 
-				self.push_line("alloc(12)");
-				self.push_line(&format!(
-					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.X)"
-				));
-				self.push_line(&format!(
-					"buffer.writef32(outgoing_buff, outgoing_apos + 4, {from}.Position.Y)"
-				));
-				self.push_line(&format!(
-					"buffer.writef32(outgoing_buff, outgoing_apos + 8, {from}.Position.Z)"
-				));
+				self.push_ser(&format!("{from}.Position"), &Ty::Vector3, checks);
 			}
 
 			Ty::CFrame => {
 				self.push_line(&format!("local axis, angle = {from}:ToAxisAngle()"));
 				self.push_line("axis = axis * angle");
 
-				self.push_line("alloc(12)");
-				self.push_line(&format!(
-					"buffer.writef32(outgoing_buff, outgoing_apos, {from}.Position.X)"
-				));
-				self.push_line(&format!(
-					"buffer.writef32(outgoing_buff, outgoing_apos + 4, {from}.Position.Y)"
-				));
-				self.push_line(&format!(
-					"buffer.writef32(outgoing_buff, outgoing_apos + 8, {from}.Position.Z)"
-				));
-
-				self.push_line("alloc(12)");
-				self.push_line("buffer.writef32(outgoing_buff, outgoing_apos, axis.X)");
-				self.push_line("buffer.writef32(outgoing_buff, outgoing_apos + 4, axis.Y)");
-				self.push_line("buffer.writef32(outgoing_buff, outgoing_apos + 8, axis.Z)");
+				self.push_ser(&format!("{from}.Position"), &Ty::Vector3, checks);
+				self.push_ser("axis", &Ty::Vector3, checks);
 			}
 
 			Ty::Boolean => {
 				self.push_line("alloc(1)");
 				self.push_line(&format!(
-					"buffer.writeu8(outgoing_buff, outgoing_apos, {from} and 1 or 0)"
+					"buffer.writeu8(outgoing_buff, outgoing_apos, if {from} theb 1 else 0)"
 				))
 			}
 
@@ -384,7 +371,10 @@ pub trait Output {
 					self.push_line(&format!("{into} = incoming_inst[incoming_ipos]"));
 
 					if checks && class.is_some() {
-						self.push_line(&format!("assert({into} == nil or {into}:IsA(\"{}\"))", class.unwrap()));
+						self.push_line(&format!(
+							"assert({into} == nil or {into}:IsA(\"{class}\"), \"Expected {into} to be nil or an instance of {class}\")",
+							class = class.unwrap(),
+						));
 					}
 				} else {
 					self.push_des(into, ty, checks);
@@ -463,12 +453,15 @@ pub trait Output {
 				self.push_line(&format!("{into} = incoming_inst[incoming_ipos]"));
 
 				if checks && class.is_some() {
-					self.push_line(&format!("assert({into} and {into}:IsA(\"{}\"))", class.unwrap()));
+					self.push_line(&format!(
+						"assert({into} and {into}:IsA(\"{class}\"), \"instance does not exist or is not a {class}\")",
+						class = class.unwrap(),
+					));
 				} else {
 					// we always assert that the instance is not nil
 					// because roblox will sometimes just turn instances into nil
 					// Ty::Opt covers the nil-able cases
-					self.push_line(&format!("assert({into})"));
+					self.push_line(&format!("assert({into}, \"instance does not exist\")"));
 				}
 			}
 
@@ -491,11 +484,8 @@ pub trait Output {
 			Ty::AlignedCFrame => {
 				self.push_line("local axis_alignment = buffer.readu8(incoming_buff, read(1))");
 
-				self.push_line_indent("local pos = Vector3.new(");
-				self.push_line("buffer.readf32(incoming_buff, read(4)),");
-				self.push_line("buffer.readf32(incoming_buff, read(4)),");
-				self.push_line("buffer.readf32(incoming_buff, read(4))");
-				self.push_dedent_line(")");
+				self.push_line("local pos");
+				self.push_des("pos", &Ty::Vector3, checks);
 
 				self.push_line(&format!(
 					"{into} = CFrame.new(pos) * CFrameSpecialCases[axis_alignment]"
@@ -503,17 +493,9 @@ pub trait Output {
 			}
 
 			Ty::CFrame => {
-				self.push_line_indent("local pos = Vector3.new(");
-				self.push_line("buffer.readf32(incoming_buff, read(4)),");
-				self.push_line("buffer.readf32(incoming_buff, read(4)),");
-				self.push_line("buffer.readf32(incoming_buff, read(4))");
-				self.push_dedent_line(")");
-
-				self.push_line_indent("local axis_angle = Vector3.new(");
-				self.push_line("buffer.readf32(incoming_buff, read(4)),");
-				self.push_line("buffer.readf32(incoming_buff, read(4)),");
-				self.push_line("buffer.readf32(incoming_buff, read(4))");
-				self.push_dedent_line(")");
+				self.push_line("local pos, axis_angle");
+				self.push_des("pos", &Ty::Vector3, checks);
+				self.push_des("axis_angle", &Ty::Vector3, checks);
 
 				self.push_line("local angle = axis_angle.Magnitude");
 
