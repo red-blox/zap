@@ -88,7 +88,9 @@ pub trait Output {
 			Ty::Buf(len) => {
 				if let Some(exact) = len.exact() {
 					if checks {
-						self.push_line(&format!("assert(#{from} == {exact}, \"length not {exact}\")"));
+						self.push_line(&format!(
+							"assert(buffer.len({from}) == {exact}, \"length not {exact}\")"
+						));
 					}
 
 					self.push_line(&format!("alloc({exact})"));
@@ -167,6 +169,8 @@ pub trait Output {
 			Ty::Enum(enum_ty) => match enum_ty {
 				Enum::Unit(enumerators) => {
 					let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
+
+					self.push_line("alloc(1)");
 
 					for (i, enumerator) in enumerators.iter().enumerate() {
 						if i == 0 {
@@ -264,7 +268,7 @@ pub trait Output {
 			Ty::Boolean => {
 				self.push_line("alloc(1)");
 				self.push_line(&format!(
-					"buffer.writeu8(outgoing_buff, outgoing_apos, if {from} theb 1 else 0)"
+					"buffer.writeu8(outgoing_buff, outgoing_apos, if {from} then 1 else 0)"
 				))
 			}
 
@@ -392,7 +396,7 @@ pub trait Output {
 					let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
 
 					self.push_line(&format!(
-						"local enum_index = buffer.read{numty}(incoming_buff, {})",
+						"local enum_index = buffer.read{numty}(incoming_buff, read({}))",
 						numty.size()
 					));
 
@@ -416,7 +420,7 @@ pub trait Output {
 
 					self.push_line(&format!("{into} = {{}}"));
 					self.push_line(&format!(
-						"local enum_index = buffer.read{numty}(incoming_buff, {})",
+						"local enum_index = buffer.read{numty}(incoming_buff, read({}))",
 						numty.size()
 					));
 
