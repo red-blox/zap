@@ -43,7 +43,7 @@ local CFrameSpecialCases = {
 local function alloc(len: number)
 	if outgoing_used + len > outgoing_size then
 		while outgoing_used + len > outgoing_size do
-			outgoing_size = outgoing_size * 2
+			outgoing_size = outgoing_size * 1.5
 		end
 
 		local new_buff = buffer.create(outgoing_size)
