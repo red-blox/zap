@@ -75,12 +75,10 @@ pub trait Output {
 						self.push_range_check(*len, "len");
 					}
 
-					self.push_line("alloc(2)");
+					self.push_line("alloc(len + 2)");
 					self.push_line("buffer.writeu16(outgoing_buff, outgoing_apos, len)");
-
-					self.push_line("alloc(len)");
 					self.push_line(&format!(
-						"buffer.writestring(outgoing_buff, outgoing_apos, {from}, len)"
+						"buffer.writestring(outgoing_buff, outgoing_apos + 2, {from}, len)"
 					));
 				}
 			}
@@ -104,11 +102,11 @@ pub trait Output {
 						self.push_range_check(*len, "len");
 					}
 
-					self.push_line("alloc(2)");
+					self.push_line("alloc(len + 2)");
 					self.push_line("buffer.writeu16(outgoing_buff, outgoing_apos, len)");
-
-					self.push_line("alloc(len)");
-					self.push_line(&format!("buffer.copy(outgoing_buff, outgoing_apos, {from}, 0, len)"));
+					self.push_line(&format!(
+						"buffer.copy(outgoing_buff, outgoing_apos + 2, {from}, 0, len)"
+					));
 				}
 			}
 
@@ -162,15 +160,13 @@ pub trait Output {
 				self.push_dedent_line("end");
 			}
 
-			Ty::Ref(name) => {
-				self.push_line(&format!("types.write_{name}({from})"));
-			}
+			Ty::Ref(name) => self.push_line(&format!("types.write_{name}({from})")),
 
 			Ty::Enum(enum_ty) => match enum_ty {
 				Enum::Unit(enumerators) => {
 					let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
 
-					self.push_line("alloc(1)");
+					self.push_line(&format!("alloc({})", numty.size()));
 
 					for (i, enumerator) in enumerators.iter().enumerate() {
 						if i == 0 {
@@ -387,9 +383,7 @@ pub trait Output {
 				self.push_dedent_line("end");
 			}
 
-			Ty::Ref(name) => {
-				self.push_line(&format!("{into} = types.read_{name}()"));
-			}
+			Ty::Ref(name) => self.push_line(&format!("{into} = types.read_{name}()")),
 
 			Ty::Enum(enum_ty) => match enum_ty {
 				Enum::Unit(enumerators) => {
@@ -510,9 +504,7 @@ pub trait Output {
 				self.push_dedent_line("end");
 			}
 
-			Ty::Boolean => {
-				self.push_line(&format!("{into} = buffer.readu8(incoming_buff, read(1)) == 1"));
-			}
+			Ty::Boolean => self.push_line(&format!("{into} = buffer.readu8(incoming_buff, read(1)) == 1")),
 
 			Ty::Unknown => {
 				self.push_line("incoming_ipos += 1");
