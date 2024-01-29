@@ -1,5 +1,4 @@
 mod config;
-mod irgen;
 mod output;
 mod parser;
 

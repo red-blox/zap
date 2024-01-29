@@ -1,7 +1,4 @@
-use crate::{
-	config::{Config, EvCall, EvDecl, EvSource, EvType, FnDecl, TyDecl, YieldType},
-	irgen::{des, ser},
-};
+use crate::config::{Config, EvCall, EvDecl, EvSource, EvType, FnDecl, TyDecl, YieldType};
 
 use super::Output;
 
@@ -51,14 +48,14 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line(&format!("function types.write_{name}(value: {name})"));
 		self.indent();
-		self.push_stmts(&ser::gen(ty, "value", self.config.write_checks));
+		self.push_ser("value", ty, self.config.write_checks);
 		self.dedent();
 		self.push_line("end");
 
 		self.push_line(&format!("function types.read_{name}()"));
 		self.indent();
 		self.push_line("local value;");
-		self.push_stmts(&des::gen(ty, "value", false));
+		self.push_des("value", ty, false);
 		self.push_line("return value");
 		self.dedent();
 		self.push_line("end");
@@ -157,7 +154,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("local value");
 
 		if let Some(data) = &ev.data {
-			self.push_stmts(&des::gen(data, "value", true));
+			self.push_des("value", data, false);
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
@@ -237,7 +234,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("local value");
 
 		if let Some(data) = &fndecl.rets {
-			self.push_stmts(&des::gen(data, "value", true));
+			self.push_des("value", data, false);
 		}
 
 		match self.config.yield_type {
@@ -326,7 +323,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("local value");
 
 		if let Some(data) = &ev.data {
-			self.push_stmts(&des::gen(data, "value", self.config.write_checks));
+			self.push_des("value", data, false);
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
@@ -487,7 +484,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_write_event_id(ev.id);
 
 		if let Some(data) = &ev.data {
-			self.push_stmts(&ser::gen(data, value, self.config.write_checks));
+			self.push_ser(value, data, self.config.write_checks);
 		}
 
 		if ev.evty == EvType::Unreliable {
@@ -692,7 +689,7 @@ impl<'src> ClientOutput<'src> {
 			self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, function_call_id)");
 
 			if let Some(data) = &fndecl.args {
-				self.push_stmts(&ser::gen(data, value, self.config.write_checks));
+				self.push_ser(value, data, self.config.write_checks);
 			}
 
 			match self.config.yield_type {

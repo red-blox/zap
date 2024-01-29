@@ -1,7 +1,4 @@
-use crate::{
-	config::{Config, EvCall, EvDecl, EvSource, EvType, FnCall, FnDecl, TyDecl},
-	irgen::{des, ser},
-};
+use crate::config::{Config, EvCall, EvDecl, EvSource, EvType, FnCall, FnDecl, TyDecl};
 
 use super::Output;
 
@@ -51,14 +48,14 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line(&format!("function types.write_{name}(value: {name})"));
 		self.indent();
-		self.push_stmts(&ser::gen(ty, "value", self.config.write_checks));
+		self.push_ser("value", ty, self.config.write_checks);
 		self.dedent();
 		self.push_line("end");
 
 		self.push_line(&format!("function types.read_{name}()"));
 		self.indent();
 		self.push_line("local value;");
-		self.push_stmts(&des::gen(ty, "value", true));
+		self.push_des("value", ty, true);
 		self.push_line("return value");
 		self.dedent();
 		self.push_line("end");
@@ -152,7 +149,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("local value");
 
 		if let Some(data) = &ev.data {
-			self.push_stmts(&des::gen(data, "value", true));
+			self.push_des("value", data, true);
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
@@ -196,7 +193,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("local value");
 
 		if let Some(data) = &fndecl.args {
-			self.push_stmts(&des::gen(data, "value", true));
+			self.push_des("value", data, true);
 		}
 
 		self.push_line(&format!("if events[{id}] then"));
@@ -217,7 +214,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, call_id)");
 
 		if let Some(ty) = &fndecl.rets {
-			self.push_stmts(&ser::gen(ty, "rets", self.config.write_checks));
+			self.push_ser("rets", ty, self.config.write_checks);
 		}
 
 		self.push_line("player_map[player] = save()");
@@ -305,7 +302,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("local value");
 
 		if let Some(data) = &ev.data {
-			self.push_stmts(&des::gen(data, "value", true));
+			self.push_des("value", data, true);
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
@@ -404,7 +401,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_event_id(ev.id);
 
 		if let Some(ty) = ty {
-			self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+			self.push_ser(value, ty, self.config.write_checks);
 		}
 
 		match ev.evty {
@@ -442,7 +439,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_event_id(ev.id);
 
 		if let Some(ty) = ty {
-			self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+			self.push_ser(value, ty, self.config.write_checks);
 		}
 
 		match ev.evty {
@@ -493,7 +490,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_event_id(ev.id);
 
 		if let Some(ty) = ty {
-			self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+			self.push_ser(value, ty, self.config.write_checks);
 		}
 
 		match ev.evty {
@@ -556,7 +553,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_event_id(ev.id);
 
 		if let Some(ty) = ty {
-			self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+			self.push_ser(value, ty, self.config.write_checks);
 		}
 
 		match ev.evty {
