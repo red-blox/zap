@@ -224,4 +224,4 @@ The following Roblox Classes are also available as types in Zap:
 ## Optional Types
 
 A type can be made optional by appending a `?` after the **whole type**, such as:
-<CodeBlock code="type Character = Instance (Player)?" />
+<CodeBlock code="type Character = Instance (Model)?" />
