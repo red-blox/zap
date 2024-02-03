@@ -55,7 +55,7 @@ pub struct Return {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn run(input: &str, mode: Option<&'static str>) -> Return {
+pub fn run(input: &str, mode: Option<&str>) -> Return {
 	let (config, reports) = parser::parse(input, mode);
 
 	if let Some(config) = config {

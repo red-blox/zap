@@ -8,7 +8,7 @@ use super::{reports::Report, syntax_tree::*};
 
 struct Converter<'src> {
 	config: SyntaxConfig<'src>,
-	mode: Option<&'static str>,
+	mode: Option<&'src str>,
 
 	tydecls: HashMap<&'src str, SyntaxTyDecl<'src>>,
 	max_unreliable_size: usize,
@@ -17,7 +17,7 @@ struct Converter<'src> {
 }
 
 impl<'src> Converter<'src> {
-	fn new(config: SyntaxConfig<'src>, mode: Option<&'static str>) -> Self {
+	fn new(config: SyntaxConfig<'src>, mode: Option<&'src str>) -> Self {
 		let mut tydecls = HashMap::new();
 		let mut ntdecls = 0;
 
@@ -263,7 +263,7 @@ impl<'src> Converter<'src> {
 
 				"queue" => {
 					if let SyntaxOptValueKind::Call(name, args) = &opt.kind {
-						let arg = if let Some(arg) = args.get(0) {
+						let arg = if let Some(arg) = args.first() {
 							if let SyntaxOptValueKind::Num(num) = arg.kind {
 								Self::num(&num)
 							} else {
@@ -331,7 +331,7 @@ impl<'src> Converter<'src> {
 
 				"yield" => {
 					if let SyntaxOptValueKind::Call(name, args) = &opt.kind {
-						let arg = if let Some(arg) = args.get(0) {
+						let arg = if let Some(arg) = args.first() {
 							if let SyntaxOptValueKind::Str(str) = arg.kind {
 								Self::str(&str)
 							} else {
@@ -804,6 +804,6 @@ impl<'src> Converter<'src> {
 	}
 }
 
-pub fn convert<'src>(config: SyntaxConfig<'src>, mode: Option<&'static str>) -> (Config<'src>, Vec<Report<'src>>) {
+pub fn convert<'src>(config: SyntaxConfig<'src>, mode: Option<&'src str>) -> (Config<'src>, Vec<Report<'src>>) {
 	Converter::new(config, mode).convert()
 }

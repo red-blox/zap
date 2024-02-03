@@ -11,7 +11,7 @@ mod syntax_tree;
 
 lalrpop_mod!(pub grammar);
 
-pub fn parse<'src>(input: &'src str, mode: Option<&'static str>) -> (Option<Config<'src>>, Vec<Report<'src>>) {
+pub fn parse<'src>(input: &'src str, mode: Option<&'src str>) -> (Option<Config<'src>>, Vec<Report<'src>>) {
 	let parse_result = grammar::ConfigParser::new().parse(input);
 
 	if let Ok(syntax_config) = parse_result {
