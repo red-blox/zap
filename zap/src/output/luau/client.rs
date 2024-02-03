@@ -592,6 +592,16 @@ impl<'src> ClientOutput<'src> {
 			}
 		}
 
+		self.push_line("return function()");
+		self.indent();
+
+		self.push_line(&format!(
+			"table.remove(events[{id}], table.find(events[{id}], {callback}))"
+		));
+
+		self.dedent();
+		self.push_line("end");
+
 		self.dedent();
 		self.push_line("end,");
 	}

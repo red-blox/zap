@@ -598,6 +598,10 @@ impl<'src> Converter<'src> {
 			SyntaxEnumKind::Tagged { tag, variants } => {
 				let tag_name = Self::str(tag);
 
+				if variants.is_empty() {
+					self.report(Report::AnalyzeEmptyEnum { span });
+				}
+
 				let variants = variants
 					.iter()
 					.map(|(variant_name, variant_struct)| {
