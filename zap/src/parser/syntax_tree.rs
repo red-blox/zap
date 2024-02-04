@@ -168,6 +168,7 @@ pub enum SyntaxEnumKind<'src> {
 	Tagged {
 		tag: SyntaxStrLit<'src>,
 		variants: Vec<(SyntaxIdentifier<'src>, SyntaxStruct<'src>)>,
+		catch_all: Option<SyntaxStruct<'src>>,
 	},
 }
 

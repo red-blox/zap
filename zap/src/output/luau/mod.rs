@@ -183,8 +183,12 @@ pub trait Output {
 					self.push_dedent_line("end");
 				}
 
-				Enum::Tagged { tag, variants } => {
-					let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
+				Enum::Tagged {
+					tag,
+					variants,
+					catch_all,
+				} => {
+					let numty = NumTy::from_f64(0.0, variants.len() as f64);
 
 					for (i, (variant_name, variant_struct)) in variants.iter().enumerate() {
 						if i == 0 {
@@ -194,7 +198,7 @@ pub trait Output {
 						}
 
 						self.push_line(&format!("alloc({})", numty.size()));
-						self.push_line(&format!("buffer.write{numty}(outgoing_buff, outgoing_apos, {i})"));
+						self.push_line(&format!("buffer.write{numty}(outgoing_buff, outgoing_apos, {})", i + 1));
 
 						for (field_name, field_ty) in &variant_struct.fields {
 							self.push_ser(&format!("{from}.{field_name}"), field_ty, checks);
@@ -202,7 +206,20 @@ pub trait Output {
 					}
 
 					self.push_dedent_line_indent("else");
-					self.push_line("error(\"invalid variant value\")");
+
+					if let Some(catch_all) = catch_all {
+						self.push_line(&format!("alloc({})", numty.size()));
+						self.push_line(&format!("buffer.write{numty}(outgoing_buff, outgoing_apos, 0)"));
+
+						self.push_ser(&format!("{from}.{tag}"), &Ty::Str(Range::default()), checks);
+
+						for (field_name, field_ty) in &catch_all.fields {
+							self.push_ser(&format!("{from}.{field_name}"), field_ty, checks);
+						}
+					} else {
+						self.push_line("error(\"invalid variant value\")");
+					}
+
 					self.push_dedent_line("end");
 				}
 			},
@@ -409,8 +426,12 @@ pub trait Output {
 					self.push_dedent_line("end");
 				}
 
-				Enum::Tagged { tag, variants } => {
-					let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
+				Enum::Tagged {
+					tag,
+					variants,
+					catch_all,
+				} => {
+					let numty = NumTy::from_f64(0.0, variants.len() as f64);
 
 					self.push_line(&format!("{into} = {{}}"));
 					self.push_line(&format!(
@@ -420,9 +441,9 @@ pub trait Output {
 
 					for (i, (variant_name, variant_struct)) in variants.iter().enumerate() {
 						if i == 0 {
-							self.push_line_indent("if enum_index == 0 then");
+							self.push_line_indent("if enum_index == 1 then");
 						} else {
-							self.push_dedent_line_indent(&format!("elseif enum_index == {i} then"));
+							self.push_dedent_line_indent(&format!("elseif enum_index == {} then", i + 1));
 						}
 
 						self.push_line(&format!("{into}.{tag} = \"{variant_name}\""));
@@ -433,7 +454,17 @@ pub trait Output {
 					}
 
 					self.push_dedent_line_indent("else");
-					self.push_line("error(\"unknown enum index\")");
+
+					if let Some(catch_all) = catch_all {
+						self.push_des(&format!("{into}.{tag}"), &Ty::Str(Range::default()), checks);
+
+						for (field_name, field_ty) in &catch_all.fields {
+							self.push_des(&format!("{into}.{field_name}"), field_ty, checks);
+						}
+					} else {
+						self.push_line("error(\"unknown enum index\")");
+					}
+
 					self.push_dedent_line("end");
 				}
 			},
@@ -554,11 +585,18 @@ pub trait Output {
 						.to_string(),
 				),
 
-				Enum::Tagged { tag, variants } => {
-					for (i, (name, struct_ty)) in variants.iter().enumerate() {
-						if i != 0 {
+				Enum::Tagged {
+					tag,
+					variants,
+					catch_all,
+				} => {
+					let mut first = true;
+
+					for (name, struct_ty) in variants.iter() {
+						if !first {
 							self.push(" | ");
 						}
+						first = false;
 
 						self.push("{\n");
 						self.indent();
@@ -568,6 +606,31 @@ pub trait Output {
 						self.push(&format!("{tag}: \"{name}\",\n"));
 
 						for (name, ty) in struct_ty.fields.iter() {
+							self.push_indent();
+							self.push(&format!("{name}: "));
+							self.push_ty(ty);
+							self.push(",\n");
+						}
+
+						self.dedent();
+
+						self.push_indent();
+						self.push("}");
+					}
+
+					if let Some(catch_all) = catch_all {
+						if !first {
+							self.push(" | ");
+						}
+
+						self.push("{\n");
+						self.indent();
+
+						self.push_indent();
+
+						self.push(&format!("{tag}: string,\n"));
+
+						for (name, ty) in catch_all.fields.iter() {
 							self.push_indent();
 							self.push(&format!("{name}: "));
 							self.push_ty(ty);

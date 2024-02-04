@@ -460,8 +460,13 @@ impl<'src> Converter<'src> {
 				Enum::Unit(enumerators.iter().map(|e| e.name).collect())
 			}
 
-			SyntaxEnumKind::Tagged { tag, variants } => {
+			SyntaxEnumKind::Tagged {
+				tag,
+				variants,
+				catch_all,
+			} => {
 				let tag_name = self.str(tag);
+				let catch_all_struct = catch_all.as_ref().map(|syntax_struct| self.struct_ty(syntax_struct));
 
 				if variants.is_empty() {
 					self.report(Report::AnalyzeEmptyEnum { span });
@@ -485,6 +490,7 @@ impl<'src> Converter<'src> {
 				Enum::Tagged {
 					tag: tag_name,
 					variants,
+					catch_all: catch_all_struct,
 				}
 			}
 		}
