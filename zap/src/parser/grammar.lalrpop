@@ -122,7 +122,22 @@ Enum: SyntaxEnum<'input> = {
 EnumKind: SyntaxEnumKind<'input> = {
     "{" <enumerators:Comma<Identifier>> "}" => SyntaxEnumKind::Unit(enumerators),
 
-    <tag:StrLit> "{" <variants:Comma<(<Identifier> <Struct>)>> "}" => SyntaxEnumKind::Tagged { tag, variants },
+    <tag:StrLit> "{" <mut variants:(<Identifier> <Struct> ",")*> <lv:(<Identifier> <Struct>)?> "}" =>
+        SyntaxEnumKind::Tagged {
+            tag,
+            variants: match lv {
+                Some(lv) => { variants.push(lv); variants },
+                None => variants,
+            },
+            catch_all: None
+        },
+    
+    <tag:StrLit> "{" <variants:(<Identifier> <Struct> ",")*> <ca:("..." <Struct> ","?)> "}" =>
+        SyntaxEnumKind::Tagged {
+            tag,
+            variants,
+            catch_all: Some(ca),
+        },
 }
 
 Struct: SyntaxStruct<'input> = {
