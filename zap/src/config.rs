@@ -261,6 +261,7 @@ pub enum Enum<'src> {
 	Tagged {
 		tag: &'src str,
 		variants: Vec<(&'src str, Struct<'src>)>,
+		catch_all: Option<Struct<'src>>,
 	},
 }
 

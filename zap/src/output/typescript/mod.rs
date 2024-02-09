@@ -127,11 +127,18 @@ pub trait Output {
 						.to_string(),
 				),
 
-				Enum::Tagged { tag, variants } => {
-					for (i, (name, struct_ty)) in variants.iter().enumerate() {
-						if i != 0 {
+				Enum::Tagged {
+					tag,
+					variants,
+					catch_all,
+				} => {
+					let mut first = true;
+
+					for (name, struct_ty) in variants.iter() {
+						if !first {
 							self.push(" | ");
 						}
+						first = false;
 
 						self.push("{\n");
 						self.indent();
@@ -141,6 +148,39 @@ pub trait Output {
 						self.push(&format!("{tag}: \"{name}\",\n"));
 
 						for (name, ty) in struct_ty.fields.iter() {
+							self.push_indent();
+							self.push(name);
+
+							if let Ty::Opt(ty) = ty {
+								self.push("?: ");
+								self.push_ty(ty);
+							} else {
+								self.push(": ");
+								self.push_ty(ty);
+							}
+
+							self.push(",\n");
+						}
+
+						self.dedent();
+
+						self.push_indent();
+						self.push("}");
+					}
+
+					if let Some(catch_all) = catch_all {
+						if !first {
+							self.push(" | ");
+						}
+
+						self.push("{\n");
+						self.indent();
+
+						self.push_indent();
+
+						self.push(&format!("{tag}: string,\n"));
+
+						for (name, ty) in catch_all.fields.iter() {
 							self.push_indent();
 							self.push(name);
 

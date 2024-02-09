@@ -17,6 +17,23 @@ const enumExample = `enum "Type" {
 	},
 }`
 
+const enumCatchAllExample = `event UpdateStore = {
+    from: Server,
+    type: Reliable,
+    call: SingleSync,
+    data: enum "name" {
+        UpdateItem {
+            arguments: string[2]
+        },
+        SetPosition {
+            arguments: Vector3[1]
+        },
+        ... {
+            value: unknown[]
+        }
+    }
+}`
+
 const structExample = `type Item = struct {
 	name: string,
 	price: u16,
@@ -154,6 +171,10 @@ type t = { type: "number", value: number }
 
 Tagged enums allow you to pass different data depending on a variant. They are extremely powerful and can be used to represent many different types of data.
 
+Tagged enums also have a catch-all clause, for when you want to have optimisation paths for your data, but aren't always sure what shape it is. The an example usecase for a catch-all clause, is serialising [reflex](https://littensy.github.io/reflex/) state from a broadcaster:
+
+<CodeBlock :code="enumCatchAllExample" />
+
 ## Structs
 
 Structs are similar to Interfaces, and are a collection of statically named fields with different types.
@@ -179,6 +200,16 @@ You can also specify what kind of instance you want to accept, for example:
 <CodeBlock code="type Part = Instance (BasePart)" />
 
 Classes that inherit your specified class will be accepted, for example `Part`.
+
+## Unknown
+
+There are times where we do not know the shape that the data will be at runtime, and we'd like to have Roblox serialise it instead of Zap. This is where the `unknown` type comes in, and zap will serialise the value like instances - passing it to Roblox.
+ 
+::: warning
+As the `unknown` type extends every possible type - the value sent may be `nil`.
+:::
+
+<CodeBlock code="unknown" />
 
 ## CFrames
 
@@ -224,4 +255,4 @@ The following Roblox Classes are also available as types in Zap:
 ## Optional Types
 
 A type can be made optional by appending a `?` after the **whole type**, such as:
-<CodeBlock code="type Character = Instance (Player)?" />
+<CodeBlock code="type Character = Instance (Model)?" />
