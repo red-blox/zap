@@ -390,8 +390,10 @@ impl<'src> ClientOutput<'src> {
 		if !self.config.fndecls.is_empty() {
 			self.push_line("local function_call_id = 0");
 
-			if let YieldType::Future(import) | YieldType::Promise(import) = self.config.opts.yield_type {
-				self.push_line(&format!("local async_lib = {import}"))
+			if self.config.opts.output_typescript && matches!(self.config.opts.yield_type, YieldType::Promise(_)) {
+				self.push_line("local async_lib = _G[script].Promise");
+			} else if let YieldType::Future(import) | YieldType::Promise(import) = self.config.opts.yield_type {
+				self.push_line(&format!("local async_lib = {import}"));
 			}
 		}
 
