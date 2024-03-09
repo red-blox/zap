@@ -128,7 +128,7 @@ impl<'src> ClientOutput<'src> {
 				}
 			}
 
-			self.push(") => void) => void\n");
+			self.push(") => void) => () => void\n");
 
 			self.dedent();
 			self.push_line("};");

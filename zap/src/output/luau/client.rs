@@ -531,7 +531,7 @@ impl<'src> ClientOutput<'src> {
 			self.push_ty(data);
 		}
 
-		self.push(") -> ())\n");
+		self.push(") -> ()): () -> ()\n");
 		self.indent();
 
 		self.push_line(&format!("events[{id}] = {callback}"));
@@ -565,6 +565,14 @@ impl<'src> ClientOutput<'src> {
 
 			self.push_line(&format!("event_queue[{id}] = 0"));
 		}
+
+		self.push_line("return function()");
+		self.indent();
+
+		self.push_line(&format!("events[{id}] = nil"));
+
+		self.dedent();
+		self.push_line("end");
 
 		self.dedent();
 		self.push_line("end,");

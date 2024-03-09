@@ -622,10 +622,18 @@ impl<'a> ServerOutput<'a> {
 			self.push_ty(ty);
 		}
 
-		self.push(") -> ())\n");
+		self.push(") -> ()): () -> ()\n");
 		self.indent();
 
 		self.push_line(&format!("events[{id}] = {callback}"));
+
+		self.push_line("return function()");
+		self.indent();
+
+		self.push_line(&format!("events[{id}] = nil"));
+
+		self.dedent();
+		self.push_line("end");
 
 		self.dedent();
 		self.push_line("end,");
@@ -684,10 +692,18 @@ impl<'a> ServerOutput<'a> {
 			self.push_ty(ty);
 		}
 
-		self.push("))\n");
+		self.push(")): () -> ()\n");
 		self.indent();
 
 		self.push_line(&format!("events[{id}] = {callback}"));
+
+		self.push_line("return function()");
+		self.indent();
+
+		self.push_line(&format!("events[{id}] = nil"));
+
+		self.dedent();
+		self.push_line("end");
 
 		self.dedent();
 		self.push_line("end,");

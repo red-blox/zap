@@ -205,7 +205,7 @@ impl<'a> ServerOutput<'a> {
 				}
 			}
 
-			self.push(") => void) => void\n");
+			self.push(") => void) => () => void\n");
 
 			self.dedent();
 			self.push_line("};");
@@ -245,7 +245,7 @@ impl<'a> ServerOutput<'a> {
 				self.push("void");
 			}
 
-			self.push(") => void\n");
+			self.push(") => () => void\n");
 
 			self.dedent();
 			self.push_line("};");
