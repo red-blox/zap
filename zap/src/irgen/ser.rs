@@ -149,7 +149,14 @@ impl Ser {
 						to: "len".into(),
 					});
 
-					self.push_ty(ty, from.clone().eindex("i".into()));
+					let var_name = from.display_escaped();
+
+					self.push_stmt(Stmt::Local(
+						var_name.clone().leak(),
+						Some(from.clone().eindex("i".into()).into()),
+					));
+
+					self.push_ty(ty, Var::Name(var_name));
 					self.push_stmt(Stmt::End);
 				}
 			}

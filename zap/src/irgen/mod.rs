@@ -293,6 +293,14 @@ impl Var {
 	pub fn call(self, args: Vec<Expr>) -> Expr {
 		Expr::Call(Box::new(self), None, args)
 	}
+
+	pub fn display_escaped(&self) -> String {
+		match self {
+			Self::Name(name) => format!("{}_v", name),
+			Self::NameIndex(var, index) => format!("{}_{}_v", var, index),
+			Self::ExprIndex(var, index) => format!("{}_{}_v", var, index),
+		}
+	}
 }
 
 impl From<&str> for Var {

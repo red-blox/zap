@@ -135,7 +135,13 @@ impl Des {
 						to: "len".into(),
 					});
 
-					self.push_ty(ty, into.clone().eindex("i".into()));
+					let var_name = into.display_escaped();
+					self.push_local(var_name.clone().leak(), None);
+
+					self.push_ty(ty, Var::Name(var_name.clone()));
+
+					self.push_stmt(Stmt::Assign(into.eindex("i".into()), Var::Name(var_name).into()));
+
 					self.push_stmt(Stmt::End);
 				}
 			}
