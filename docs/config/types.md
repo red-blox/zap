@@ -161,12 +161,12 @@ Tagged enums are a set of possible variants, each with attached data. They are d
 
 <CodeBlock :code="enumExample" />
 
-This code would create the Luau type:
+The above code would create the following Luau type:
 
 ```lua
-type t = { type: "number", value: number }
-	| { type: "string", value: string }
-	| { type: "boolean", value: boolean }
+type t = { Type: "Number", Value: number }
+	| { Type: "String", Value: string }
+	| { Type: "Boolean", Value: boolean }
 ```
 
 Tagged enums allow you to pass different data depending on a variant. They are extremely powerful and can be used to represent many different types of data.
