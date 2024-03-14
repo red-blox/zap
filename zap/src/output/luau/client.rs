@@ -198,9 +198,16 @@ impl<'src> ClientOutput<'src> {
 		}
 
 		self.indent();
+		self.push_indent();
 
-		self.push_line(&format!(
-			"warn(`[ZAP] {{#event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)",
+		self.push("warn(`[ZAP] {");
+
+		if ev.data.is_some() {
+			self.push("#")
+		}
+
+		self.push(&format!(
+			"event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)\n",
 			ev.name
 		));
 
@@ -363,14 +370,21 @@ impl<'src> ClientOutput<'src> {
 			self.push_line(&format!("if #event_queue[{id}] > 64 then"));
 		} else {
 			self.push_line(&format!("event_queue[{id}] += 1"));
-			self.push_line(&format!("if event_queue[{id}] > 64 then"));
+			self.push_line(&format!("if event_queue[{id}] > 16 then"));
 		}
 
 		self.indent();
+		self.push_indent();
 
-		self.push_line(&format!(
-			"warn(`[ZAP] {{#event_queue[{}]}} events in queue for {}. Did you forget to attach a listener?`)",
-			ev.id, ev.name
+		self.push("warn(`[ZAP] {");
+
+		if ev.data.is_some() {
+			self.push("#")
+		}
+
+		self.push(&format!(
+			"event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)\n",
+			ev.name
 		));
 
 		self.dedent();
