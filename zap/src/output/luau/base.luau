@@ -40,7 +40,7 @@ local CFrameSpecialCases = {
 	CFrame.Angles(math.rad(-90), math.rad(90), 0),
 }
 
-local function alloc(len: number)
+local function alloc(len: number): number
 	if outgoing_used + len > outgoing_size then
 		while outgoing_used + len > outgoing_size do
 			outgoing_size *= 1.5
@@ -58,14 +58,19 @@ local function alloc(len: number)
 	return outgoing_apos
 end
 
-local function read(len: number)
+local function read(len: number): number
 	local pos = incoming_read
 	incoming_read += len
 
 	return pos
 end
 
-local function save()
+local function save(): {
+	buff: buffer,
+	used: number,
+	size: number,
+	inst: { Instance }
+}
 	return {
 		buff = outgoing_buff,
 		used = outgoing_used,

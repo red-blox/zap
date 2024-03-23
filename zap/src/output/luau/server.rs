@@ -79,7 +79,7 @@ impl<'a> ServerOutput<'a> {
 		}
 
 		self.indent();
-		self.push_line("for player, outgoing in player_map do");
+		self.push_line("for player: Player, outgoing in player_map do");
 		self.indent();
 		self.push_line("if outgoing.used > 0 then");
 		self.indent();
@@ -108,7 +108,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_reliable_header(&mut self) {
-		self.push_line("reliable.OnServerEvent:Connect(function(player, buff, inst)");
+		self.push_line("reliable.OnServerEvent:Connect(function(player: Player, buff: buffer, inst: Instance)");
 		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
@@ -201,7 +201,7 @@ impl<'a> ServerOutput<'a> {
 		self.indent();
 
 		if fndecl.call == FnCall::Async {
-			self.push_line("task.spawn(function(player, call_id, value)");
+			self.push_line("task.spawn(function(player: Player, call_id, value)");
 			self.indent();
 		}
 
@@ -266,7 +266,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_unreliable_header(&mut self) {
-		self.push_line("unreliable.OnServerEvent:Connect(function(player, buff, inst)");
+		self.push_line("unreliable.OnServerEvent:Connect(function(player: Player, buff, inst: Instance)");
 		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
@@ -496,7 +496,7 @@ impl<'a> ServerOutput<'a> {
 		match ev.evty {
 			EvType::Reliable => {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
-				self.push_line("for _, player in Players:GetPlayers() do");
+				self.push_line("for _, player: Player in Players:GetPlayers() do");
 				self.indent();
 				self.push_line(&format!("if player ~= {except} then"));
 				self.indent();
@@ -514,7 +514,7 @@ impl<'a> ServerOutput<'a> {
 			EvType::Unreliable => {
 				self.push_line("local buff = buffer.create(outgoing_used)");
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
-				self.push_line("for _, player in Players:GetPlayers() do");
+				self.push_line("for _, player: Player in Players:GetPlayers() do");
 				self.indent();
 				self.push_line(&format!("if player ~= {except} then"));
 				self.indent();
@@ -559,7 +559,7 @@ impl<'a> ServerOutput<'a> {
 		match ev.evty {
 			EvType::Reliable => {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
-				self.push_line(&format!("for _, player in {list} do"));
+				self.push_line(&format!("for _, player: Player in {list} do"));
 				self.indent();
 				self.push_line("load_player(player)");
 				self.push_line("alloc(used)");
@@ -573,7 +573,7 @@ impl<'a> ServerOutput<'a> {
 			EvType::Unreliable => {
 				self.push_line("local buff = buffer.create(outgoing_used)");
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
-				self.push_line(&format!("for _, player in {list} do"));
+				self.push_line(&format!("for _, player: Player in {list} do"));
 				self.indent();
 				self.push_line("unreliable:FireClient(player, buff, outgoing_inst)");
 				self.dedent();

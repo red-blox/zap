@@ -4,14 +4,14 @@ if RunService:IsClient() then
 	error("Cannot use the server module on the client!")
 end
 
-local reliable = ReplicatedStorage:FindFirstChild("ZAP_RELIABLE")
+local reliable: RemoteEvent? = ReplicatedStorage:FindFirstChild("ZAP_RELIABLE")
 if reliable == nil then
 	reliable = Instance.new("RemoteEvent")
 	reliable.Name = "ZAP_RELIABLE"
 	reliable.Parent = ReplicatedStorage
 end
 
-local unreliable = ReplicatedStorage:FindFirstChild("ZAP_UNRELIABLE")
+local unreliable: UnreliableRemoteEvent? = ReplicatedStorage:FindFirstChild("ZAP_UNRELIABLE")
 if unreliable == nil then
 	unreliable = Instance.new("UnreliableRemoteEvent")
 	unreliable.Name = "ZAP_UNRELIABLE"
@@ -28,6 +28,6 @@ local function load_player(player: Player)
 	end
 end
 
-Players.PlayerRemoving:Connect(function(player)
+Players.PlayerRemoving:Connect(function(player: Player)
 	player_map[player] = nil
 end)
