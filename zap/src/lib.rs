@@ -37,6 +37,7 @@ pub struct Output {
 pub struct Code {
 	pub server: Output,
 	pub client: Output,
+	pub types: Option<Output>,
 }
 
 #[derive(Debug)]
@@ -70,6 +71,15 @@ pub fn run(input: &str) -> Return {
 					path: config.client_output.into(),
 					code: output::luau::client::code(&config),
 					defs: output::typescript::client::code(&config),
+				},
+				types: if let Some(types_output) = &config.types_output {
+					Some(Output {
+						path: types_output.into(),
+						code: output::luau::types::code(&config),
+						defs: None,
+					})
+				} else {
+					None
 				},
 			}),
 			diagnostics: reports.into_iter().map(|report| report.into()).collect(),

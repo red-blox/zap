@@ -2,6 +2,7 @@ use crate::config::{Enum, NumTy, Range, Ty};
 
 pub mod client;
 pub mod server;
+pub mod types;
 
 pub trait Output {
 	fn push(&mut self, s: &str);

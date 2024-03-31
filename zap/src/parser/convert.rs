@@ -91,6 +91,7 @@ impl<'src> Converter<'src> {
 
 		let (server_output, ..) = self.str_opt("server_output", "network/server.lua", &config.opts);
 		let (client_output, ..) = self.str_opt("client_output", "network/client.lua", &config.opts);
+		let (types_output, ..) = self.optional_str_opt("types_output", &config.opts);
 
 		let casing = self.casing_opt(&config.opts);
 		let yield_type = self.yield_type_opt(typescript, &config.opts);
@@ -107,6 +108,7 @@ impl<'src> Converter<'src> {
 
 			server_output,
 			client_output,
+			types_output,
 
 			casing,
 			yield_type,
@@ -200,6 +202,25 @@ impl<'src> Converter<'src> {
 				self.report(Report::AnalyzeInvalidOptValue {
 					span: opt.value.span(),
 					expected: "boolean",
+				});
+			}
+		}
+
+		(value, span)
+	}
+
+	fn optional_str_opt(&mut self, name: &'static str, opts: &[SyntaxOpt<'src>]) -> (Option<String>, Option<Span>) {
+		let mut value = None;
+		let mut span = None;
+
+		for opt in opts.iter().filter(|opt| opt.name.name == name) {
+			if let SyntaxOptValueKind::Str(opt_value) = &opt.value.kind {
+				value = Some(self.str(opt_value).to_string());
+				span = Some(opt_value.span());
+			} else {
+				self.report(Report::AnalyzeInvalidOptValue {
+					span: opt.value.span(),
+					expected: "string",
 				});
 			}
 		}

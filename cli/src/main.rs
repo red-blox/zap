@@ -35,6 +35,16 @@ fn main() -> Result<()> {
 		let server_path = config_path.parent().unwrap().join(code.server.path);
 		let client_path = config_path.parent().unwrap().join(code.client.path);
 
+		if let Some(types_output) = code.types {
+			let types_path = config_path.parent().unwrap().join(types_output.path);
+
+			if let Some(parent) = types_path.parent() {
+				std::fs::create_dir_all(parent)?;
+			}
+
+			std::fs::write(types_path.clone(), types_output.code)?;
+		}
+
 		if let Some(parent) = server_path.parent() {
 			std::fs::create_dir_all(parent)?;
 		}
