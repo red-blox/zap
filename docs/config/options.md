@@ -3,7 +3,8 @@ const outputDefaults = `opt server_output = "./network/server.lua"
 opt client_output = "path/to/client/output.lua"`
 
 const outputExample = `opt server_output = "./network/client.luau"
-opt client_output = "src/client/zap.luau"`
+opt client_output = "src/client/zap.luau"
+opt types_output = "src/shared/types.luau"`
 
 const asyncLibExample = `opt yield_type = "promise"
 opt async_lib = "require(game:GetService('ReplicatedStorage').Promise)"`
@@ -13,11 +14,13 @@ opt async_lib = "require(game:GetService('ReplicatedStorage').Promise)"`
 
 Options are placed at the beginning of Zap config files and allow you to configure the way Zap generates code.
 
-## `server_output` & `client_output`
+## `server_output`, `client_output` & `types_output`
 
-These two options allow you to configure where Zap will output generated code. If you're not using the CLI these options can be ignored.
+These three options allow you to configure where Zap will output generated code. If you're not using the CLI these options can be ignored.
 
 The paths are relative to the configuration file and should point to a lua(u) file.
+
+The `types_output` option does not have a default value and is optional.
 
 ### Default
 
