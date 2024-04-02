@@ -113,7 +113,7 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_reliable_header(&mut self) {
-		self.push_line("reliable.OnClientEvent:Connect(function(buff: buffer, inst: Instance)");
+		self.push_line("reliable.OnClientEvent:Connect(function(buff: buffer, inst: { Instance })");
 		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
@@ -287,7 +287,7 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_unreliable_header(&mut self) {
-		self.push_line("unreliable.OnClientEvent:Connect(function(buff: buffer, inst: Instance)");
+		self.push_line("unreliable.OnClientEvent:Connect(function(buff: buffer, inst: { Instance })");
 		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");

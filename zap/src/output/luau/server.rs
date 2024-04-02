@@ -108,7 +108,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_reliable_header(&mut self) {
-		self.push_line("reliable.OnServerEvent:Connect(function(player: Player, buff: buffer, inst: Instance)");
+		self.push_line("reliable.OnServerEvent:Connect(function(player: Player, buff: buffer, inst: { Instance })");
 		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
@@ -266,7 +266,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_unreliable_header(&mut self) {
-		self.push_line("unreliable.OnServerEvent:Connect(function(player: Player, buff: buffer, inst: Instance)");
+		self.push_line("unreliable.OnServerEvent:Connect(function(player: Player, buff: buffer, inst: { Instance })");
 		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
