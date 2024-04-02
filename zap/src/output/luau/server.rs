@@ -201,7 +201,7 @@ impl<'a> ServerOutput<'a> {
 		self.indent();
 
 		if fndecl.call == FnCall::Async {
-			self.push_line("task.spawn(function(player: Player, call_id, value)");
+			self.push_line("task.spawn(function(player: Player, call_id: number, value)");
 			self.indent();
 		}
 
