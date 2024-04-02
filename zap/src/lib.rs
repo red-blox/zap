@@ -72,9 +72,9 @@ pub fn run(input: &str) -> Return {
 					code: output::luau::client::code(&config),
 					defs: output::typescript::client::code(&config),
 				},
-				types: if let Some(types_output) = &config.types_output {
+				types: if !config.types_output.is_empty() {
 					Some(Output {
-						path: types_output.into(),
+						path: config.types_output.into(),
 						code: output::luau::types::code(&config),
 						defs: None,
 					})
