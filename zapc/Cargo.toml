@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = [
+	"zapc_ast",
+	"zapc_ast_builder",
+	"zapc_ast_validate",
+	"zapc_driver",
+	"zapc_ir",
+	"zapc_meta",
+	"zapc_token",
+]

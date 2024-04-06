@@ -1,7 +1,6 @@
 target
 
 # Zap Input & Output
-network
 net.zap
 
 # Docs

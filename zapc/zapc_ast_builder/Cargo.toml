@@ -1,0 +1,14 @@
+[package]
+name = "zapc_ast_builder"
+version = "0.1.0"
+edition = "2021"
+private = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+zapc_token = { path = "../zapc_token" }
+zapc_meta = { path = "../zapc_meta" }
+zapc_ast = { path = "../zapc_ast" }
+chumsky = { version = "1.0.0-alpha.6", features = ["label"] }
+lasso = "0.7.2"
