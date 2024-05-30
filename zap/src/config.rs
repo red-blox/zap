@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+
 use std::{
 	collections::{HashMap, HashSet},
 	fmt::Display,
@@ -35,7 +37,7 @@ pub enum Casing {
 }
 
 impl Casing {
-	pub fn with(&self, pascal: &'static str, camel: &'static str, snake: &'static str) -> &'static str {
+	pub fn with(self, pascal: &'static str, camel: &'static str, snake: &'static str) -> &'static str {
 		match self {
 			Self::Pascal => pascal,
 			Self::Camel => camel,
@@ -386,7 +388,7 @@ impl NumTy {
 		}
 	}
 
-	pub fn size(&self) -> usize {
+	pub fn size(self) -> usize {
 		match self {
 			NumTy::F32 => 4,
 			NumTy::F64 => 8,
@@ -401,7 +403,7 @@ impl NumTy {
 		}
 	}
 
-	pub fn min(&self) -> f64 {
+	pub fn min(self) -> f64 {
 		match self {
 			NumTy::F32 => f32::MIN.into(),
 			NumTy::F64 => f64::MIN,
@@ -416,7 +418,7 @@ impl NumTy {
 		}
 	}
 
-	pub fn max(&self) -> f64 {
+	pub fn max(self) -> f64 {
 		match self {
 			NumTy::F32 => f32::MAX.into(),
 			NumTy::F64 => f64::MAX,
