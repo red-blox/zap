@@ -370,18 +370,18 @@ impl NumTy {
 		if min < 0.0 {
 			if max < 0.0 {
 				NumTy::I32
-			} else if max <= u8::MAX as f64 {
+			} else if max <= f64::from(u8::MAX) {
 				NumTy::I8
-			} else if max <= u16::MAX as f64 {
+			} else if max <= f64::from(u16::MAX) {
 				NumTy::I16
 			} else {
 				NumTy::I32
 			}
-		} else if max <= u8::MAX as f64 {
+		} else if max <= f64::from(u8::MAX) {
 			NumTy::U8
-		} else if max <= u16::MAX as f64 {
+		} else if max <= f64::from(u16::MAX) {
 			NumTy::U16
-		} else if max <= u32::MAX as f64 {
+		} else if max <= f64::from(u32::MAX) {
 			NumTy::U32
 		} else {
 			NumTy::F64
