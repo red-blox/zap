@@ -254,7 +254,7 @@ impl<'src> Enum<'src> {
 				let mut min = 0;
 				let mut max = Some(0);
 
-				for (_, ty) in variants.iter() {
+				for (_, ty) in variants {
 					let (ty_min, ty_max) = ty.size(tydecls, recursed);
 
 					if ty_min < min {
@@ -292,7 +292,7 @@ impl<'src> Struct<'src> {
 		let mut min = 0;
 		let mut max = Some(0);
 
-		for (_, ty) in self.fields.iter() {
+		for (_, ty) in &self.fields {
 			let (ty_min, ty_max) = ty.size(tydecls, recursed);
 
 			if ty_min < min {
