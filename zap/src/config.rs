@@ -343,9 +343,9 @@ impl Range {
 impl Display for Range {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match (self.min, self.max) {
-			(Some(min), Some(max)) => write!(f, "{}..{}", min, max),
-			(Some(min), None) => write!(f, "{}..", min),
-			(None, Some(max)) => write!(f, "..{}", max),
+			(Some(min), Some(max)) => write!(f, "{min}..{max}"),
+			(Some(min), None) => write!(f, "{min}.."),
+			(None, Some(max)) => write!(f, "..{max}"),
 			(None, None) => write!(f, ".."),
 		}
 	}
