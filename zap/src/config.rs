@@ -1,5 +1,3 @@
-#![warn(clippy::pedantic)]
-
 use std::{
 	collections::{HashMap, HashSet},
 	fmt::Display,
@@ -156,7 +154,7 @@ impl<'src> Ty<'src> {
 					(exact as usize, Some(exact as usize))
 				} else {
 					(
-						len.min().map(|min| (min as usize) + 2).unwrap_or(2),
+						len.min().map_or(2, |min| (min as usize) + 2),
 						len.max().map(|max| (max as usize) + 2),
 					)
 				}
@@ -167,7 +165,7 @@ impl<'src> Ty<'src> {
 					(exact as usize, Some(exact as usize))
 				} else {
 					(
-						len.min().map(|min| (min as usize) + 2).unwrap_or(2),
+						len.min().map_or(2, |min| (min as usize) + 2),
 						len.max().map(|max| (max as usize) + 2),
 					)
 				}
@@ -175,7 +173,7 @@ impl<'src> Ty<'src> {
 
 			Self::Arr(ty, len) => {
 				let (ty_min, ty_max) = ty.size(tydecls, recursed);
-				let len_min = len.min().map(|min| min as usize).unwrap_or(0);
+				let len_min = len.min().map_or(0, |min| min as usize);
 
 				if let Some(exact) = len.exact() {
 					(ty_min * (exact as usize), ty_max.map(|max| ty_max.unwrap() * max))
