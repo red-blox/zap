@@ -1,11 +1,10 @@
-[workspace]
-resolver = "2"
-members = [
-	"zapc_ast",
-	"zapc_ast_builder",
-	"zapc_ast_validate",
-	"zapc_driver",
-	"zapc_ir",
-	"zapc_meta",
-	"zapc_token",
-]
+[package]
+name = "zapc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chumsky = { version = "1.0.0-alpha.7", features = ["label"] }
+ariadne = "0.4.1"
+lasso = "0.7.2"
+logos = "0.14.0"
