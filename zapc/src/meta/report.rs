@@ -64,6 +64,13 @@ pub enum Report {
 		span: Span,
 		min: Box<dyn Display>,
 	},
+
+	DuplicateDecl {
+		decl_kind: String,
+		name: String,
+		span: Span,
+		first_decl_span: Span,
+	},
 }
 
 fn build<'a>(kind: ReportKind, span: Span) -> ariadne::ReportBuilder<'a, Span> {
@@ -87,6 +94,7 @@ impl Report {
 			Self::ExpectedIntegerFoundNumber { .. } => ReportKind::Error,
 			Self::NumberAboveRange { .. } => ReportKind::Error,
 			Self::NumberBelowRange { .. } => ReportKind::Error,
+			Self::DuplicateDecl { .. } => ReportKind::Error,
 		}
 	}
 
@@ -151,6 +159,30 @@ impl Report {
 				.with_message(format!("number is below minimum value of {}", ticks(&min).fg(INFO)))
 				.with_label(label(span).with_color(ERROR).with_message("number is below minimum"))
 				.with_help(format!("try raising your value to {}", ticks(&min).fg(INFO))),
+
+			Self::DuplicateDecl {
+				decl_kind,
+				name,
+				span,
+				first_decl_span,
+			} => build(kind, span)
+				.with_message(format!(
+					"the {} {} is defined multiple times in the same scope",
+					decl_kind,
+					ticks(&name)
+				))
+				.with_labels([
+					label(first_decl_span)
+						.with_message(format!(
+							"first definition of the {} {} here",
+							decl_kind,
+							ticks(&name).fg(INFO)
+						))
+						.with_color(INFO),
+					label(span)
+						.with_color(ERROR)
+						.with_message(format!("{} redefined here", ticks(&name).fg(ERROR))),
+				]),
 		}
 		.finish()
 	}
