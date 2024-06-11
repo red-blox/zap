@@ -26,8 +26,8 @@ impl ReportKind {
 impl<'a> From<ReportKind> for ariadne::ReportKind<'a> {
 	fn from(value: ReportKind) -> Self {
 		match value {
-			ReportKind::Error => Self::Error,
-			ReportKind::Warning => Self::Warning,
+			ReportKind::Error => Self::Custom("error", ERROR),
+			ReportKind::Warning => Self::Custom("warning", ERROR),
 		}
 	}
 }
