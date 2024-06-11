@@ -6,7 +6,8 @@ use crate::{
 		range::AstRange,
 		ty::{AstGeneric, AstStruct, AstTy},
 	},
-	hir::ty::{HirNumberTy, HirStruct, HirTy},
+	hir::ty::{HirStruct, HirTy},
+	ty::NumberTy,
 };
 
 use super::{scope::ScopeId, HirBuilder};
@@ -77,14 +78,14 @@ impl<'a> HirBuilder<'a> {
 		let range = self.generics_one_range(generics);
 
 		HirTy::Number(match segment.word(self.rodeo) {
-			"u8" => HirNumberTy::U8(range.map(|r| self.range_u8(r)).unwrap_or_default()),
-			"i8" => HirNumberTy::I8(range.map(|r| self.range_i8(r)).unwrap_or_default()),
-			"u16" => HirNumberTy::U16(range.map(|r| self.range_u16(r)).unwrap_or_default()),
-			"i16" => HirNumberTy::I16(range.map(|r| self.range_i16(r)).unwrap_or_default()),
-			"u32" => HirNumberTy::U32(range.map(|r| self.range_u32(r)).unwrap_or_default()),
-			"i32" => HirNumberTy::I32(range.map(|r| self.range_i32(r)).unwrap_or_default()),
-			"f32" => HirNumberTy::F32(range.map(|r| self.range_f32(r)).unwrap_or_default()),
-			"f64" => HirNumberTy::F64(range.map(|r| self.range_f64(r)).unwrap_or_default()),
+			"u8" => NumberTy::U8(range.map(|r| self.range_u8(r)).unwrap_or_default()),
+			"i8" => NumberTy::I8(range.map(|r| self.range_i8(r)).unwrap_or_default()),
+			"u16" => NumberTy::U16(range.map(|r| self.range_u16(r)).unwrap_or_default()),
+			"i16" => NumberTy::I16(range.map(|r| self.range_i16(r)).unwrap_or_default()),
+			"u32" => NumberTy::U32(range.map(|r| self.range_u32(r)).unwrap_or_default()),
+			"i32" => NumberTy::I32(range.map(|r| self.range_i32(r)).unwrap_or_default()),
+			"f32" => NumberTy::F32(range.map(|r| self.range_f32(r)).unwrap_or_default()),
+			"f64" => NumberTy::F64(range.map(|r| self.range_f64(r)).unwrap_or_default()),
 
 			_ => unreachable!(),
 		})

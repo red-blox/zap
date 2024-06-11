@@ -1,4 +1,3 @@
-use ariadne::Fmt;
 use hir_builder::HirBuilder;
 
 mod ast;
@@ -7,6 +6,7 @@ mod hir_builder;
 mod lexer;
 mod meta;
 mod parser;
+mod ty;
 
 pub fn test() {
 	let mut rodeo = lasso::Rodeo::new();

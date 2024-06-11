@@ -1,7 +1,7 @@
 use crate::{
 	ast::{primitive::AstNumber, range::AstRange},
 	meta::Report,
-	range::Range,
+	ty::Range,
 };
 
 use super::HirBuilder;
