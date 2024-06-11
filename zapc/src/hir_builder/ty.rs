@@ -53,6 +53,14 @@ impl<'a> HirBuilder<'a> {
 
 	fn single_segment_std_path(&mut self, segment: AstWord, generics: &[AstGeneric]) -> Option<HirTy> {
 		match segment.word(self.rodeo) {
+			"boolean" => {
+				if !generics.is_empty() {
+					// todo: report unexpected generics
+				}
+
+				Some(HirTy::Boolean)
+			}
+
 			"u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "f32" | "f64" => Some(self.std_number_ty(segment, generics)),
 
 			"buffer" => Some(HirTy::Buffer(

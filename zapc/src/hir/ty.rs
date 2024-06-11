@@ -8,6 +8,7 @@ use super::{decl::HirTyDeclId, range::HirRange};
 pub enum HirTy {
 	Reference(HirTyDeclId),
 
+	Boolean,
 	Number(HirNumberTy),
 	Buffer(HirRange<u16>),
 
