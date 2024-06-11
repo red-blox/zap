@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use lasso::Spur;
 
-use super::{decl::HirTyDeclId, range::HirRange};
+use crate::range::Range;
+
+use super::decl::HirTyDeclId;
 
 #[derive(Debug, Clone)]
 pub enum HirTy {
@@ -10,21 +12,21 @@ pub enum HirTy {
 
 	Boolean,
 	Number(HirNumberTy),
-	Buffer(HirRange<u16>),
+	Buffer(Range<u16>),
 
 	Struct(HirStruct),
 }
 
 #[derive(Debug, Clone)]
 pub enum HirNumberTy {
-	U8(HirRange<u8>),
-	I8(HirRange<i8>),
-	U16(HirRange<u16>),
-	I16(HirRange<i16>),
-	U32(HirRange<u32>),
-	I32(HirRange<i32>),
-	F32(HirRange<f32>),
-	F64(HirRange<f64>),
+	U8(Range<u8>),
+	I8(Range<i8>),
+	U16(Range<u16>),
+	I16(Range<i16>),
+	U32(Range<u32>),
+	I32(Range<i32>),
+	F32(Range<f32>),
+	F64(Range<f64>),
 }
 
 #[derive(Debug, Clone)]

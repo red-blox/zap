@@ -1,16 +1,16 @@
 #[derive(Debug, Clone)]
-pub struct HirRange<T: Clone + Copy + PartialEq> {
+pub struct Range<T: Clone + Copy + PartialEq> {
 	start: Option<T>,
 	end: Option<T>,
 }
 
-impl<T: Clone + Copy + PartialEq> Default for HirRange<T> {
+impl<T: Clone + Copy + PartialEq> Default for Range<T> {
 	fn default() -> Self {
 		Self { start: None, end: None }
 	}
 }
 
-impl<T: Clone + Copy + PartialEq> HirRange<T> {
+impl<T: Clone + Copy + PartialEq> Range<T> {
 	pub fn new(start: Option<T>, end: Option<T>) -> Self {
 		Self { start, end }
 	}

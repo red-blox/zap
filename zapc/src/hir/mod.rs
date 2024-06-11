@@ -3,7 +3,6 @@ use scope::HirScope;
 use ty::HirTy;
 
 pub mod decl;
-pub mod range;
 pub mod scope;
 pub mod ty;
 
