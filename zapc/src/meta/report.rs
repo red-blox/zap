@@ -167,21 +167,16 @@ impl Report {
 				first_decl_span,
 			} => build(kind, span)
 				.with_message(format!(
-					"the {} {} is defined multiple times in the same scope",
-					decl_kind,
-					ticks(&name)
+					"the {decl_kind} {} is defined multiple times in the same scope",
+					ticks(&name).fg(ERROR)
 				))
 				.with_labels([
 					label(first_decl_span)
-						.with_message(format!(
-							"first definition of the {} {} here",
-							decl_kind,
-							ticks(&name).fg(INFO)
-						))
+						.with_message(format!("{decl_kind} {} is first defined here", ticks(&name).fg(INFO)))
 						.with_color(INFO),
 					label(span)
 						.with_color(ERROR)
-						.with_message(format!("{} redefined here", ticks(&name).fg(ERROR))),
+						.with_message(format!("{decl_kind} {} later redefined here", ticks(&name).fg(ERROR))),
 				]),
 		}
 		.finish()

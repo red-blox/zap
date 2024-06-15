@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use lasso::Spur;
+
 use crate::{
 	ast::{
 		decl::{AstConfig, AstConfigValue, AstDecl},
@@ -12,56 +14,31 @@ use crate::{
 use super::{scope::ScopeId, HirBuilder};
 
 impl<'a> HirBuilder<'a> {
-	fn report_duplicates<T>(&mut self, decl_kind: &str, decls: &[AstDecl], f: T)
-	where
-		T: FnMut(&AstDecl) -> Option<(&AstWord, Span)>,
-	{
-		let mut seen = HashMap::new();
-
-		for (name, span) in decls.iter().filter_map(f) {
-			if let Some(prev_span) = seen.insert(name.spur(), span) {
-				self.report(Report::DuplicateDecl {
-					decl_kind: decl_kind.to_string(),
-					name: name.word(self.rodeo).to_string(),
-					span,
-					first_decl_span: prev_span,
-				});
-			}
+	fn report_duplicate(&mut self, decl_kind: &str, seen: &mut HashMap<Spur, Span>, name: &AstWord, span: Span) {
+		if let Some(prev_span) = seen.insert(name.spur(), span) {
+			self.report(Report::DuplicateDecl {
+				decl_kind: decl_kind.to_string(),
+				name: name.word(self.rodeo).to_string(),
+				span,
+				first_decl_span: prev_span,
+			});
 		}
 	}
 
 	pub fn decls(&mut self, scope: &ScopeId, decls: Vec<AstDecl>) {
-		self.report_duplicates("type", &decls, |d| {
-			if let AstDecl::Ty { name, .. } = d {
-				Some((name, name.span()))
-			} else {
-				None
-			}
-		});
+		let mut seen_types = HashMap::new();
+		let mut seen_scopes = HashMap::new();
+		let mut seen_events = HashMap::new();
+		let mut seen_remotes = HashMap::new();
 
-		self.report_duplicates("scope", &decls, |d| {
-			if let AstDecl::Scope { name, .. } = d {
-				Some((name, name.span()))
-			} else {
-				None
+		for decl in &decls {
+			match decl {
+				AstDecl::Ty { name, span, .. } => self.report_duplicate("type", &mut seen_types, name, *span),
+				AstDecl::Scope { name, span } => self.report_duplicate("scope", &mut seen_scopes, name, *span),
+				AstDecl::Event { name, span, .. } => self.report_duplicate("event", &mut seen_events, name, *span),
+				AstDecl::Remote { name, span, .. } => self.report_duplicate("remote", &mut seen_remotes, name, *span),
 			}
-		});
-
-		self.report_duplicates("event", &decls, |d| {
-			if let AstDecl::Event { name, .. } = d {
-				Some((name, name.span()))
-			} else {
-				None
-			}
-		});
-
-		self.report_duplicates("remote", &decls, |d| {
-			if let AstDecl::Remote { name, .. } = d {
-				Some((name, name.span()))
-			} else {
-				None
-			}
-		});
+		}
 
 		for decl in decls.into_iter() {
 			self.decl(scope, decl);
