@@ -14,7 +14,7 @@ use crate::{
 use super::{scope::ScopeId, HirBuilder};
 
 impl<'a> HirBuilder<'a> {
-	fn report_duplicate(&mut self, decl_kind: &str, seen: &mut HashMap<Spur, Span>, name: &AstWord, span: Span) {
+	fn report_duplicate_decl(&mut self, decl_kind: &str, seen: &mut HashMap<Spur, Span>, name: &AstWord, span: Span) {
 		if let Some(prev_span) = seen.insert(name.spur(), span) {
 			self.report(Report::DuplicateDecl {
 				decl_kind: decl_kind.to_string(),
@@ -33,10 +33,12 @@ impl<'a> HirBuilder<'a> {
 
 		for decl in &decls {
 			match decl {
-				AstDecl::Ty { name, span, .. } => self.report_duplicate("type", &mut seen_types, name, *span),
-				AstDecl::Scope { name, span } => self.report_duplicate("scope", &mut seen_scopes, name, *span),
-				AstDecl::Event { name, span, .. } => self.report_duplicate("event", &mut seen_events, name, *span),
-				AstDecl::Remote { name, span, .. } => self.report_duplicate("remote", &mut seen_remotes, name, *span),
+				AstDecl::Ty { name, span, .. } => self.report_duplicate_decl("type", &mut seen_types, name, *span),
+				AstDecl::Scope { name, span } => self.report_duplicate_decl("scope", &mut seen_scopes, name, *span),
+				AstDecl::Event { name, span, .. } => self.report_duplicate_decl("event", &mut seen_events, name, *span),
+				AstDecl::Remote { name, span, .. } => {
+					self.report_duplicate_decl("remote", &mut seen_remotes, name, *span)
+				}
 			}
 		}
 
@@ -73,14 +75,20 @@ impl<'a> HirBuilder<'a> {
 
 	fn event_config(&mut self, scope: &ScopeId, ast: AstConfig) -> HirEvent {
 		let mut seen = HashMap::new();
-		let span = ast.span();
 
 		let mut from = None;
 		let mut over = None;
 
 		for (field, value) in ast.into_fields() {
-			if let Some(prev_span) = seen.insert(field.spur(), field.span().merge(value.span())) {
-				// todo: report error
+			let span = field.span().merge(value.span());
+
+			if let Some(prev_span) = seen.insert(field.spur(), span) {
+				self.report(Report::DuplicateField {
+					span,
+					first_field_span: prev_span,
+					field: field.word(self.rodeo).to_string(),
+				});
+
 				continue;
 			}
 
@@ -164,14 +172,20 @@ impl<'a> HirBuilder<'a> {
 
 	fn remote_config(&mut self, ast: AstConfig) -> HirRemote {
 		let mut seen = HashMap::new();
-		let span = ast.span();
 
 		let mut reliable = None;
 		let mut batching = None;
 
 		for (field, value) in ast.into_fields() {
-			if let Some(prev_span) = seen.insert(field.spur(), field.span().merge(value.span())) {
-				// todo: report error
+			let span = field.span().merge(value.span());
+
+			if let Some(prev_span) = seen.insert(field.spur(), span) {
+				self.report(Report::DuplicateField {
+					span,
+					first_field_span: prev_span,
+					field: field.word(self.rodeo).to_string(),
+				});
+
 				continue;
 			}
 

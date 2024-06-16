@@ -72,6 +72,12 @@ pub enum Report {
 		first_decl_span: Span,
 	},
 
+	DuplicateField {
+		span: Span,
+		first_field_span: Span,
+		field: String,
+	},
+
 	IncorrectGenericCount {
 		type_span: Span,
 		type_name: String,
@@ -104,6 +110,7 @@ impl Report {
 			Self::NumberAboveRange { .. } => ReportKind::Error,
 			Self::NumberBelowRange { .. } => ReportKind::Error,
 			Self::DuplicateDecl { .. } => ReportKind::Error,
+			Self::DuplicateField { .. } => ReportKind::Error,
 			Self::IncorrectGenericCount { .. } => ReportKind::Error,
 		}
 	}
@@ -187,6 +194,21 @@ impl Report {
 					label(span)
 						.with_color(ERROR)
 						.with_message(format!("{decl_kind} {} later redefined here", ticks(&name).fg(ERROR))),
+				]),
+
+			Self::DuplicateField {
+				span,
+				first_field_span,
+				field,
+			} => build(kind, span)
+				.with_message(format!("field {} is already declared", ticks(&field).fg(ERROR)))
+				.with_labels([
+					label(first_field_span)
+						.with_message(format!("{} first declared here", ticks(&field).fg(INFO)))
+						.with_color(INFO),
+					label(span)
+						.with_message(format!("{} is already declared", ticks(&field).fg(ERROR)))
+						.with_color(ERROR),
 				]),
 
 			Self::IncorrectGenericCount {
