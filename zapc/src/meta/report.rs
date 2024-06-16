@@ -229,7 +229,7 @@ impl Report {
 					let start = generic_spans[expected_count];
 					let end = generic_spans.last().unwrap();
 
-					let span = Span::from_range(start.file(), start.start()..end.end());
+					let span = start.merge(*end);
 
 					labels.push(
 						label(span)
