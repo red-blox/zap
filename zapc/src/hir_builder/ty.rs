@@ -52,8 +52,14 @@ impl<'a> HirBuilder<'a> {
 		let mut seen = HashMap::new();
 
 		for (field, ty) in ast.into_fields() {
-			if let Some(prev_span) = seen.insert(field.spur(), field.span()) {
-				// todo: report duplicate fields
+			let span = field.span().merge(ty.span());
+
+			if let Some(prev_span) = seen.insert(field.spur(), span) {
+				self.report(Report::DuplicateField {
+					span,
+					first_field_span: prev_span,
+					field: field.word(self.rodeo).to_string(),
+				});
 			} else {
 				fields.insert(field.spur(), self.ty(scope, ty));
 			}
