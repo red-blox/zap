@@ -95,10 +95,11 @@ impl<'a> HirBuilder<'a> {
 			match field.word(self.rodeo) {
 				"from" => from = Some(self.event_config_from(value)),
 				"over" => over = Some(self.event_config_over(scope, value)),
-
-				unknown => {
-					// todo: report error
-				}
+				_ => self.report(Report::UnexpectedField {
+					span: field.span(),
+					field: field.word(self.rodeo).to_string(),
+					decl_kind: "events".to_string(),
+				}),
 			}
 		}
 
@@ -192,10 +193,11 @@ impl<'a> HirBuilder<'a> {
 			match field.word(self.rodeo) {
 				"reliable" => reliable = Some(self.remote_config_reliable(value)),
 				"batching" => batching = Some(self.remote_config_batching(value)),
-
-				unknown => {
-					// todo: report error
-				}
+				_ => self.report(Report::UnexpectedField {
+					span: field.span(),
+					field: field.word(self.rodeo).to_string(),
+					decl_kind: "remotes".to_string(),
+				}),
 			}
 		}
 

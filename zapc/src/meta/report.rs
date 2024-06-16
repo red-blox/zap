@@ -78,6 +78,12 @@ pub enum Report {
 		field: String,
 	},
 
+	UnexpectedField {
+		span: Span,
+		field: String,
+		decl_kind: String,
+	},
+
 	IncorrectGenericCount {
 		type_span: Span,
 		type_name: String,
@@ -111,6 +117,7 @@ impl Report {
 			Self::NumberBelowRange { .. } => ReportKind::Error,
 			Self::DuplicateDecl { .. } => ReportKind::Error,
 			Self::DuplicateField { .. } => ReportKind::Error,
+			Self::UnexpectedField { .. } => ReportKind::Error,
 			Self::IncorrectGenericCount { .. } => ReportKind::Error,
 		}
 	}
@@ -210,6 +217,14 @@ impl Report {
 						.with_message(format!("{} is already declared", ticks(&field).fg(ERROR)))
 						.with_color(ERROR),
 				]),
+
+			Self::UnexpectedField { span, field, decl_kind } => build(kind, span)
+				.with_message(format!("{} have no field named {}", decl_kind, ticks(field).fg(ERROR)))
+				.with_label(
+					label(span)
+						.with_message(format!("{} do not have this field", decl_kind))
+						.with_color(ERROR),
+				),
 
 			Self::IncorrectGenericCount {
 				type_span,
