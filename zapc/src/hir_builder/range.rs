@@ -1,7 +1,7 @@
 use crate::{
 	ast::{primitive::AstNumber, range::AstRange},
-	hir::range::HirRange,
 	meta::Report,
+	ty::Range,
 };
 
 use super::HirBuilder;
@@ -33,26 +33,26 @@ impl<'a> HirBuilder<'a> {
 		}
 	}
 
-	pub fn range_f32(&mut self, ast: AstRange) -> HirRange<f32> {
+	pub fn range_f32(&mut self, ast: AstRange) -> Range<f32> {
 		let (min, max) = self.unwrap_astrange(ast);
 
-		HirRange::new(min.map(|num| num.value() as f32), max.map(|num| num.value() as f32))
+		Range::new(min.map(|num| num.value() as f32), max.map(|num| num.value() as f32))
 	}
 
-	pub fn range_f64(&mut self, ast: AstRange) -> HirRange<f64> {
+	pub fn range_f64(&mut self, ast: AstRange) -> Range<f64> {
 		let (min, max) = self.unwrap_astrange(ast);
 
-		HirRange::new(min.map(|num| num.value()), max.map(|num| num.value()))
+		Range::new(min.map(|num| num.value()), max.map(|num| num.value()))
 	}
 }
 
 macro_rules! impl_range {
 	($n:ident, $T:ty) => {
 		impl<'a> HirBuilder<'a> {
-			pub fn $n(&mut self, ast: AstRange) -> HirRange<$T> {
+			pub fn $n(&mut self, ast: AstRange) -> Range<$T> {
 				let (min, max) = self.unwrap_astrange(ast);
 
-				HirRange::new(
+				Range::new(
 					min.map(|num| {
 						let value = num.value();
 
