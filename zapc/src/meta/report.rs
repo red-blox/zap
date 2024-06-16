@@ -71,6 +71,15 @@ pub enum Report {
 		span: Span,
 		first_decl_span: Span,
 	},
+
+	IncorrectGenericCount {
+		type_span: Span,
+		type_name: String,
+		generic_spans: Vec<Span>,
+		generics_optional: bool,
+		expected_count: usize,
+		count: usize,
+	},
 }
 
 fn build<'a>(kind: ReportKind, span: Span) -> ariadne::ReportBuilder<'a, Span> {
@@ -95,6 +104,7 @@ impl Report {
 			Self::NumberAboveRange { .. } => ReportKind::Error,
 			Self::NumberBelowRange { .. } => ReportKind::Error,
 			Self::DuplicateDecl { .. } => ReportKind::Error,
+			Self::IncorrectGenericCount { .. } => ReportKind::Error,
 		}
 	}
 
@@ -178,6 +188,48 @@ impl Report {
 						.with_color(ERROR)
 						.with_message(format!("{decl_kind} {} later redefined here", ticks(&name).fg(ERROR))),
 				]),
+
+			Self::IncorrectGenericCount {
+				type_span,
+				type_name,
+				generic_spans,
+				generics_optional,
+				expected_count,
+				count,
+			} => {
+				let mut labels = vec![label(type_span).with_color(ERROR).with_message(format!(
+					"expected {}{expected_count} generic {}",
+					if generics_optional { "at most " } else { "" },
+					if expected_count == 1 { "argument" } else { "arguments" }
+				))];
+
+				if count > expected_count {
+					let start = generic_spans[expected_count];
+					let end = generic_spans.last().unwrap();
+
+					let span = Span::from_range(start.file(), start.start()..end.end());
+
+					labels.push(
+						label(span)
+							.with_color(INFO)
+							.with_message(if count - expected_count == 1 {
+								"remove this generic argument"
+							} else {
+								"remove these generic arguments"
+							}),
+					);
+				}
+
+				build(kind, type_span)
+					.with_message(format!(
+						"type {} takes {}{expected_count} generic {} but {count} generic {} supplied",
+						ticks(type_name).fg(ERROR),
+						if generics_optional { "at most " } else { "" },
+						if expected_count == 1 { "argument" } else { "arguments" },
+						if count == 1 { "argument was" } else { "arguments were" },
+					))
+					.with_labels(labels)
+			}
 		}
 		.finish()
 	}

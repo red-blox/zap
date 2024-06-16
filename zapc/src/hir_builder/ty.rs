@@ -7,6 +7,7 @@ use crate::{
 		ty::{AstGeneric, AstStruct, AstTy},
 	},
 	hir::ty::{HirNumberTy, HirStruct, HirTy},
+	meta::Report,
 };
 
 use super::{scope::ScopeId, HirBuilder};
@@ -26,7 +27,16 @@ impl<'a> HirBuilder<'a> {
 				}
 
 				if !generics.is_empty() {
-					// todo: report error
+					let last_segment = segments.last().unwrap();
+
+					self.report(Report::IncorrectGenericCount {
+						type_span: last_segment.span(),
+						type_name: last_segment.word(self.rodeo).to_string(),
+						generic_spans: generics.iter().map(|s| s.span()).collect::<Vec<_>>(),
+						generics_optional: false,
+						expected_count: 0,
+						count: generics.len(),
+					})
 				}
 
 				HirTy::Reference(self.get_ty_id(scope, &segments, span))
@@ -56,7 +66,7 @@ impl<'a> HirBuilder<'a> {
 			"u8" | "i8" | "u16" | "i16" | "u32" | "i32" | "f32" | "f64" => Some(self.std_number_ty(segment, generics)),
 
 			"buffer" => Some(HirTy::Buffer(
-				self.generics_one_range(generics)
+				self.generics_one_range(&segment, generics)
 					.map(|r| self.range_u16(r))
 					.unwrap_or_default(),
 			)),
@@ -66,7 +76,7 @@ impl<'a> HirBuilder<'a> {
 	}
 
 	fn std_number_ty(&mut self, segment: AstWord, generics: &[AstGeneric]) -> HirTy {
-		let range = self.generics_one_range(generics);
+		let range = self.generics_one_range(&segment, generics);
 
 		HirTy::Number(match segment.word(self.rodeo) {
 			"u8" => HirNumberTy::U8(range.map(|r| self.range_u8(r)).unwrap_or_default()),
@@ -82,9 +92,16 @@ impl<'a> HirBuilder<'a> {
 		})
 	}
 
-	fn generics_one_range(&mut self, generics: &[AstGeneric]) -> Option<AstRange> {
+	fn generics_one_range(&mut self, segment: &AstWord, generics: &[AstGeneric]) -> Option<AstRange> {
 		if generics.len() > 1 {
-			// todo: report extra generics
+			self.report(Report::IncorrectGenericCount {
+				type_span: segment.span(),
+				type_name: segment.word(self.rodeo).to_string(),
+				generic_spans: generics.iter().map(|s| s.span()).collect::<Vec<_>>(),
+				generics_optional: true,
+				expected_count: 1,
+				count: generics.len(),
+			})
 		}
 
 		if generics.is_empty() {
