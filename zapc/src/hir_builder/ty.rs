@@ -72,7 +72,14 @@ impl<'a> HirBuilder<'a> {
 		match segment.word(self.rodeo) {
 			"boolean" => {
 				if !generics.is_empty() {
-					// todo: report unexpected generics
+					self.report(Report::IncorrectGenericCount {
+						type_span: segment.span(),
+						type_name: segment.word(self.rodeo).to_string(),
+						generic_spans: generics.iter().map(|s| s.span()).collect::<Vec<_>>(),
+						generics_optional: false,
+						expected_count: 0,
+						count: generics.len(),
+					})
 				}
 
 				Some(HirTy::Boolean)
