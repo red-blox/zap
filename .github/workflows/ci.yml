@@ -5,14 +5,16 @@ name: CI
 on:
   push:
     branches:
-      - main
+      - rewrite
+      - 0.6.x
     paths: 
       - '**.rs'
       - Cargo.{lock,toml}
 
   pull_request:
     branches:
-      - main
+      - rewrite
+      - 0.6.x
     paths: 
       - '**.rs'
       - Cargo.{lock,toml}
