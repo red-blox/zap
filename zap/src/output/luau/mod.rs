@@ -107,7 +107,10 @@ pub trait Output {
 
 			Ty::Opt(ty) => {
 				self.push_ty(ty);
-				self.push("?");
+
+				if !matches!(**ty, Ty::Unknown) {
+					self.push("?");
+				}
 			}
 
 			Ty::Ref(name) => self.push(name),

@@ -112,7 +112,10 @@ pub trait Output {
 
 			Ty::Opt(ty) => {
 				self.push_ty(ty);
-				self.push(" | undefined");
+
+				if !matches!(**ty, Ty::Unknown) {
+					self.push("| undefined");
+				}
 			}
 
 			Ty::Ref(name) => self.push(name),
@@ -143,15 +146,7 @@ pub trait Output {
 						for (name, ty) in struct_ty.fields.iter() {
 							self.push_indent();
 							self.push(name);
-
-							if let Ty::Opt(ty) = ty {
-								self.push("?: ");
-								self.push_ty(ty);
-							} else {
-								self.push(": ");
-								self.push_ty(ty);
-							}
-
+							self.push_arg_ty(ty);
 							self.push(",\n");
 						}
 
@@ -170,15 +165,7 @@ pub trait Output {
 				for (name, ty) in struct_ty.fields.iter() {
 					self.push_indent();
 					self.push(name);
-
-					if let Ty::Opt(ty) = ty {
-						self.push("?: ");
-						self.push_ty(ty);
-					} else {
-						self.push(": ");
-						self.push_ty(ty);
-					}
-
+					self.push_arg_ty(ty);
 					self.push(",\n");
 				}
 
@@ -195,6 +182,21 @@ pub trait Output {
 			Ty::Vector3 => self.push("Vector3"),
 			Ty::AlignedCFrame => self.push("CFrame"),
 			Ty::CFrame => self.push("CFrame"),
+		}
+	}
+
+	fn push_arg_ty(&mut self, ty: &Ty) {
+		if let Ty::Opt(ty) = ty {
+			if let Ty::Unknown = **ty {
+				self.push(": ");
+				self.push_ty(ty);
+			} else {
+				self.push("?: ");
+				self.push_ty(ty);
+			}
+		} else {
+			self.push(": ");
+			self.push_ty(ty);
 		}
 	}
 
