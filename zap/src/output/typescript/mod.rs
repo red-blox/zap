@@ -113,12 +113,9 @@ pub trait Output {
 			Ty::Opt(ty) => {
 				self.push_ty(ty);
 
-				// do not allow the type to be "unknown?"
-				if let Ty::Unknown = **ty {
-					return;
+				if !matches!(**ty, Ty::Unknown) {
+					self.push("| undefined");
 				}
-
-				self.push(" | undefined");
 			}
 
 			Ty::Ref(name) => self.push(name),

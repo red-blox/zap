@@ -106,10 +106,9 @@ pub trait Output {
 			}
 
 			Ty::Opt(ty) => {
-				if let Ty::Unknown = **ty {
-					self.push_ty(ty);
-				} else {
-					self.push_ty(ty);
+				self.push_ty(ty);
+
+				if !matches!(**ty, Ty::Unknown) {
 					self.push("?");
 				}
 			}
