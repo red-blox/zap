@@ -67,14 +67,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(&format!(", {value}"));
-
-			if let Ty::Opt(data) = data {
-				self.push("?: ");
-				self.push_ty(data);
-			} else {
-				self.push(": ");
-				self.push_ty(data);
-			}
+			self.push_arg_ty(data);
 		}
 
 		self.push(") => void\n");
@@ -89,14 +82,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(value);
-
-			if let Ty::Opt(data) = data {
-				self.push("?: ");
-				self.push_ty(data);
-			} else {
-				self.push(": ");
-				self.push_ty(data);
-			}
+			self.push_arg_ty(data);
 		}
 
 		self.push(") => void\n");
@@ -112,14 +98,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(&format!(", {value}"));
-
-			if let Ty::Opt(data) = data {
-				self.push("?: ");
-				self.push_ty(data);
-			} else {
-				self.push(": ");
-				self.push_ty(data);
-			}
+			self.push_arg_ty(data);
 		}
 
 		self.push(") => void\n");
@@ -135,14 +114,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(&format!(", {value}"));
-
-			if let Ty::Opt(data) = data {
-				self.push("?: ");
-				self.push_ty(data);
-			} else {
-				self.push(": ");
-				self.push_ty(data);
-			}
+			self.push_arg_ty(data);
 		}
 
 		self.push(") => void\n");
@@ -195,14 +167,7 @@ impl<'a> ServerOutput<'a> {
 
 			if let Some(data) = &ev.data {
 				self.push(&format!(", {value}"));
-
-				if let Ty::Opt(data) = data {
-					self.push("?: ");
-					self.push_ty(data);
-				} else {
-					self.push(": ");
-					self.push_ty(data);
-				}
+				self.push_arg_ty(data);
 			}
 
 			self.push(") => void) => () => void\n");
@@ -227,14 +192,7 @@ impl<'a> ServerOutput<'a> {
 
 			if let Some(data) = &fndecl.args {
 				self.push(&format!(", {value}"));
-
-				if let Ty::Opt(data) = data {
-					self.push("?: ");
-					self.push_ty(data);
-				} else {
-					self.push(": ");
-					self.push_ty(data);
-				}
+				self.push_arg_ty(data);
 			}
 
 			self.push(") => ");

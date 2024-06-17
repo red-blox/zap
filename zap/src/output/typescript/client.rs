@@ -76,14 +76,7 @@ impl<'src> ClientOutput<'src> {
 
 			if let Some(data) = &ev.data {
 				self.push(value);
-
-				if let Ty::Opt(data) = data {
-					self.push("?: ");
-					self.push_ty(data);
-				} else {
-					self.push(": ");
-					self.push_ty(data);
-				}
+				self.push_arg_ty(data);
 			}
 
 			self.push(") => void\n");
@@ -118,14 +111,7 @@ impl<'src> ClientOutput<'src> {
 
 			if let Some(data) = &ev.data {
 				self.push(value);
-
-				if let Ty::Opt(data) = data {
-					self.push("?: ");
-					self.push_ty(data);
-				} else {
-					self.push(": ");
-					self.push_ty(data);
-				}
+				self.push_arg_ty(data);
 			}
 
 			self.push(") => void) => () => void\n");
@@ -148,14 +134,7 @@ impl<'src> ClientOutput<'src> {
 
 			if let Some(data) = &fndecl.args {
 				self.push(value);
-
-				if let Ty::Opt(data) = data {
-					self.push("?: ");
-					self.push_ty(data);
-				} else {
-					self.push(": ");
-					self.push_ty(data);
-				}
+				self.push_arg_ty(data);
 			}
 
 			self.push(") => ");
