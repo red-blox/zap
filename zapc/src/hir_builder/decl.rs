@@ -201,6 +201,10 @@ impl<'a> HirBuilder<'a> {
 			}
 		}
 
+		if reliable.is_none() {
+			// todo: report error
+		}
+
 		if batching.is_none() {
 			// todo: report error
 		}
