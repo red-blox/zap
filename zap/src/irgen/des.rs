@@ -155,13 +155,17 @@ impl Des {
 					to: self.readu16(),
 				});
 
-				self.push_local("key", None);
-				self.push_local("val", None);
+				let escaped = into.display_escaped();
+				let suffix = &escaped[escaped.find("_").unwrap()..];
+				let key_name = "key".to_string() + suffix;
+				self.push_local(key_name.clone().leak(), None);
+				let val_name = "val".to_string() + suffix;
+				self.push_local(val_name.clone().leak(), None);
 
-				self.push_ty(key, "key".into());
-				self.push_ty(val, "val".into());
+				self.push_ty(key, Var::Name(key_name.clone()));
+				self.push_ty(val, Var::Name(val_name.clone()));
 
-				self.push_assign(into.clone().eindex("key".into()), "val".into());
+				self.push_assign(into.clone().eindex(key_name.as_str().into()), val_name.as_str().into());
 
 				self.push_stmt(Stmt::End);
 			}
