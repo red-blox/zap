@@ -91,6 +91,13 @@ pub enum Report {
 		decl_kind: String,
 	},
 
+	ExpectedValue {
+		span: Span,
+		value_span: Span,
+		found: String,
+		expected_values: String,
+	},
+
 	IncorrectGenericCount {
 		type_span: Span,
 		type_name: String,
@@ -126,6 +133,7 @@ impl Report {
 			Self::DuplicateField { .. } => ReportKind::Error,
 			Self::UnexpectedField { .. } => ReportKind::Error,
 			Self::ExpectedField { .. } => ReportKind::Error,
+			Self::ExpectedValue { .. } => ReportKind::Error,
 			Self::IncorrectGenericCount { .. } => ReportKind::Error,
 		}
 	}
@@ -251,6 +259,17 @@ impl Report {
 						.with_message(format!("missing {}", ticks(field).fg(ERROR)))
 						.with_color(ERROR),
 				),
+
+			Self::ExpectedValue {
+				span,
+				value_span,
+				found,
+				expected_values,
+			} => build(kind, span).with_message("invalid value").with_label(
+				label(value_span)
+					.with_message(format!("expected {}, found {}", expected_values, found.fg(ERROR)))
+					.with_color(ERROR),
+			),
 
 			Self::IncorrectGenericCount {
 				type_span,

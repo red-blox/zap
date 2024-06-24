@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ariadne::Fmt;
 use lasso::Spur;
 
 use crate::{
@@ -60,7 +61,7 @@ impl<'a> HirBuilder<'a> {
 
 			AstDecl::Event { name, config, tys, .. } => {
 				let event = self
-					.event_config(scope, config)
+					.event_config(scope, config, &name)
 					.add_tys(tys.into_iter().map(|ty| self.ty(scope, ty)).collect());
 
 				self.add_event(scope, name.spur(), event);
@@ -73,7 +74,7 @@ impl<'a> HirBuilder<'a> {
 		}
 	}
 
-	fn event_config(&mut self, scope: &ScopeId, ast: AstConfig) -> HirEvent {
+	fn event_config(&mut self, scope: &ScopeId, ast: AstConfig, name: &AstWord) -> HirEvent {
 		let mut seen = HashMap::new();
 
 		let mut from = None;
@@ -93,7 +94,7 @@ impl<'a> HirBuilder<'a> {
 			}
 
 			match field.word(self.rodeo) {
-				"from" => from = Some(self.event_config_from(value)),
+				"from" => from = Some(self.event_config_from(value, name)),
 				"over" => over = Some(self.event_config_over(scope, value)),
 				_ => self.report(Report::UnexpectedField {
 					span: field.span(),
@@ -129,19 +130,22 @@ impl<'a> HirBuilder<'a> {
 		}
 	}
 
-	fn event_config_from(&mut self, ast: AstConfigValue) -> HirEventSource {
+	fn event_config_from(&mut self, ast: AstConfigValue, event_name: &AstWord) -> HirEventSource {
 		match ast {
-			AstConfigValue::String(string) => {
-				match string.string(self.rodeo) {
-					"server" => HirEventSource::Server,
-					"client" => HirEventSource::Client,
+			AstConfigValue::String(string) => match string.string(self.rodeo) {
+				"server" => HirEventSource::Server,
+				"client" => HirEventSource::Client,
+				_ => {
+					self.report(Report::ExpectedValue {
+						span: event_name.span(),
+						value_span: string.span(),
+						expected_values: "\"client\" or \"server\"".to_string(),
+						found: format!("\"{}\"", string.string(self.rodeo)),
+					});
 
-					other => {
-						// todo: report error
-						HirEventSource::Server
-					}
+					HirEventSource::Server
 				}
-			}
+			},
 
 			AstConfigValue::Boolean(_, span) => {
 				// todo: report error
