@@ -46,7 +46,7 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line("local noop = function() end");
 
-		self.push_line("return {");
+		self.push_line("return table.freeze({");
 		self.indent();
 
 		let fire = self.config.casing.with("Fire", "fire", "fire");
@@ -64,7 +64,7 @@ impl<'a> ServerOutput<'a> {
 		}
 
 		for ev in self.config.evdecls.iter() {
-			self.push_line(&format!("{name} = {{", name = ev.name));
+			self.push_line(&format!("{name} = table.freeze {{", name = ev.name));
 			self.indent();
 
 			if ev.from == EvSource::Client {
@@ -84,7 +84,7 @@ impl<'a> ServerOutput<'a> {
 		}
 
 		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("{name} = {{", name = fndecl.name));
+			self.push_line(&format!("{name} = table.freeze {{", name = fndecl.name));
 			self.indent();
 
 			self.push_line(&format!("{set_callback} = noop"));
@@ -94,7 +94,7 @@ impl<'a> ServerOutput<'a> {
 		}
 
 		self.dedent();
-		self.push_line("} :: Events");
+		self.push_line("} :: Events)");
 
 		self.dedent();
 		self.push_line("end");
@@ -776,7 +776,7 @@ impl<'a> ServerOutput<'a> {
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Client)
 		{
-			self.push_line(&format!("{} = {{", ev.name));
+			self.push_line(&format!("{} = table.freeze {{", ev.name));
 			self.indent();
 
 			match ev.call {
@@ -789,7 +789,7 @@ impl<'a> ServerOutput<'a> {
 		}
 
 		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("{} = {{", fndecl.name));
+			self.push_line(&format!("{} = table.freeze {{", fndecl.name));
 			self.indent();
 
 			self.push_fn_return(fndecl);
@@ -800,7 +800,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	pub fn push_return(&mut self) {
-		self.push_line("local returns = {");
+		self.push_line("local returns = table.freeze {");
 		self.indent();
 
 		if self.config.manual_event_loop {
