@@ -297,8 +297,8 @@ impl Var {
 	pub fn display_escaped(&self) -> String {
 		match self {
 			Self::Name(name) => format!("{}_v", name),
-			Self::NameIndex(var, index) => format!("{}_{}_v", var, index),
-			Self::ExprIndex(var, index) => format!("{}_{}_v", var, index),
+			Self::NameIndex(var, index) => format!("{}_{}_v", var.display_escaped(), index),
+			Self::ExprIndex(var, index) => format!("{}_{}_v", var.display_escaped(), index),
 		}
 	}
 }
