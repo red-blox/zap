@@ -655,7 +655,7 @@ impl<'a> ServerOutput<'a> {
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Server)
 		{
-			self.push_line(&format!("{name} = {{", name = ev.name));
+			self.push_line(&format!("{name} = table.freeze {{", name = ev.name));
 			self.indent();
 
 			self.push_return_fire(ev);
