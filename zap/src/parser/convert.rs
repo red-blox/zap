@@ -395,12 +395,6 @@ impl<'src> Converter<'src> {
 					});
 				}
 
-				if let Ty::Opt(_) = val_ty {
-					self.report(Report::AnalyzeInvalidOptionalType {
-						span: (val.span().end - 1)..val.span().end,
-					});
-				}
-
 				Ty::Map(Box::new(key_ty), Box::new(val_ty))
 			}
 
