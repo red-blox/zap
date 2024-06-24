@@ -40,6 +40,60 @@ impl<'src> ClientOutput<'src> {
 		}
 	}
 
+	fn push_studio(&mut self) {
+		self.push_line("if RunService:IsEdit() then");
+		self.indent();
+
+		self.push_line("local noop = function() end");
+
+		self.push_line("return {");
+		self.indent();
+
+		let fire = self.config.casing.with("Fire", "fire", "fire");
+		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
+		let on = self.config.casing.with("On", "on", "on");
+		let call = self.config.casing.with("Call", "call", "call");
+
+		if self.config.manual_event_loop {
+			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+
+			self.push_line(&format!("{send_events} = noop,"));
+		}
+
+		for ev in self.config.evdecls.iter() {
+			self.push_line(&format!("{name} = {{", name = ev.name));
+			self.indent();
+
+			if ev.from == EvSource::Client {
+				self.push_line(&format!("{fire} = noop"));
+			} else {
+				match ev.call {
+					EvCall::SingleSync | EvCall::SingleAsync => self.push_line(&format!("{set_callback} = noop")),
+					EvCall::ManySync | EvCall::ManyAsync => self.push_line(&format!("{on} = noop")),
+				}
+			}
+
+			self.dedent();
+			self.push_line("},");
+		}
+
+		for fndecl in self.config.fndecls.iter() {
+			self.push_line(&format!("{name} = {{", name = fndecl.name));
+			self.indent();
+
+			self.push_line(&format!("{call} = noop"));
+
+			self.dedent();
+			self.push_line("},");
+		}
+
+		self.dedent();
+		self.push_line("} :: Events");
+
+		self.dedent();
+		self.push_line("end");
+	}
+
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
 		let name = &tydecl.name;
 		let ty = &tydecl.ty;
@@ -754,7 +808,7 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	pub fn push_return(&mut self) {
-		self.push_line("return {");
+		self.push_line("local returns = {");
 		self.indent();
 
 		if self.config.manual_event_loop {
@@ -769,6 +823,9 @@ impl<'src> ClientOutput<'src> {
 
 		self.dedent();
 		self.push_line("}");
+
+		self.push_line("type Events = typeof(returns)");
+		self.push_line("return returns");
 	}
 
 	pub fn output(mut self) -> String {
@@ -779,6 +836,9 @@ impl<'src> ClientOutput<'src> {
 		};
 
 		self.push(include_str!("base.luau"));
+
+		self.push_studio();
+
 		self.push(include_str!("client.luau"));
 
 		self.push_tydecls();

@@ -40,6 +40,66 @@ impl<'a> ServerOutput<'a> {
 		}
 	}
 
+	fn push_studio(&mut self) {
+		self.push_line("if RunService:IsEdit() then");
+		self.indent();
+
+		self.push_line("local noop = function() end");
+
+		self.push_line("return {");
+		self.indent();
+
+		let fire = self.config.casing.with("Fire", "fire", "fire");
+		let fire_all: &str = self.config.casing.with("FireAll", "fireAll", "fire_all");
+		let fire_except = self.config.casing.with("FireExcept", "fireExcept", "fire_except");
+		let fire_list: &str = self.config.casing.with("FireList", "fireList", "fire_list");
+
+		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
+		let on = self.config.casing.with("On", "on", "on");
+
+		if self.config.manual_event_loop {
+			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+
+			self.push_line(&format!("{send_events} = noop,"));
+		}
+
+		for ev in self.config.evdecls.iter() {
+			self.push_line(&format!("{name} = {{", name = ev.name));
+			self.indent();
+
+			if ev.from == EvSource::Client {
+				match ev.call {
+					EvCall::SingleSync | EvCall::SingleAsync => self.push_line(&format!("{set_callback} = noop")),
+					EvCall::ManySync | EvCall::ManyAsync => self.push_line(&format!("{on} = noop")),
+				}
+			} else {
+				self.push_line(&format!("{fire} = noop,"));
+				self.push_line(&format!("{fire_all} = noop,"));
+				self.push_line(&format!("{fire_except} = noop,"));
+				self.push_line(&format!("{fire_list} = noop"));
+			}
+
+			self.dedent();
+			self.push_line("},");
+		}
+
+		for fndecl in self.config.fndecls.iter() {
+			self.push_line(&format!("{name} = {{", name = fndecl.name));
+			self.indent();
+
+			self.push_line(&format!("{set_callback} = noop"));
+
+			self.dedent();
+			self.push_line("},");
+		}
+
+		self.dedent();
+		self.push_line("} :: Events");
+
+		self.dedent();
+		self.push_line("end");
+	}
+
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
 		let name = &tydecl.name;
 		let ty = &tydecl.ty;
@@ -740,7 +800,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	pub fn push_return(&mut self) {
-		self.push_line("return {");
+		self.push_line("local returns = {");
 		self.indent();
 
 		if self.config.manual_event_loop {
@@ -754,6 +814,9 @@ impl<'a> ServerOutput<'a> {
 
 		self.dedent();
 		self.push_line("}");
+
+		self.push_line("type Events = typeof(returns)");
+		self.push_line("return returns");
 	}
 
 	pub fn output(mut self) -> String {
@@ -764,6 +827,9 @@ impl<'a> ServerOutput<'a> {
 		};
 
 		self.push(include_str!("base.luau"));
+
+		self.push_studio();
+
 		self.push(include_str!("server.luau"));
 
 		self.push_tydecls();
