@@ -120,6 +120,22 @@ impl<'a> ServerOutput<'a> {
 		self.push(") => void\n");
 	}
 
+	fn push_return_fire_set(&mut self, ev: &EvDecl) {
+		let fire_set = self.config.casing.with("FireSet", "fireSet", "fire_set");
+		let set = self.config.casing.with("Set", "set", "set");
+		let value = self.config.casing.with("Value", "value", "value");
+
+		self.push_indent();
+		self.push(&format!("{fire_set}: ({set}: Set<Player>"));
+
+		if let Some(data) = &ev.data {
+			self.push(&format!(", {value}"));
+			self.push_arg_ty(data);
+		}
+
+		self.push(") => void\n");
+	}
+
 	fn push_return_outgoing(&mut self) {
 		for (_i, ev) in self
 			.config
@@ -135,6 +151,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_return_fire_all(ev);
 			self.push_return_fire_except(ev);
 			self.push_return_fire_list(ev);
+			self.push_return_fire_set(ev);
 
 			self.dedent();
 			self.push_line("};");
