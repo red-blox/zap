@@ -79,7 +79,7 @@ impl<'src> ClientOutput<'src> {
 				self.push_arg_ty(data);
 			}
 
-			self.push(") => void\n");
+			self.push(") => void;\n");
 
 			self.dedent();
 			self.push_line("};");
@@ -114,7 +114,7 @@ impl<'src> ClientOutput<'src> {
 				self.push_arg_ty(data);
 			}
 
-			self.push(") => void) => () => void\n");
+			self.push(") => void) => () => void;\n");
 
 			self.dedent();
 			self.push_line("};");
@@ -153,7 +153,7 @@ impl<'src> ClientOutput<'src> {
 				self.push(">")
 			}
 
-			self.push("\n");
+			self.push(";\n");
 			self.dedent();
 			self.push_line("};");
 		}
