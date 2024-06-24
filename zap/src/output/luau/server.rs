@@ -46,7 +46,7 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line("local noop = function() end");
 
-		self.push_line("return {");
+		self.push_line("return table.freeze({");
 		self.indent();
 
 		let fire = self.config.casing.with("Fire", "fire", "fire");
@@ -64,7 +64,7 @@ impl<'a> ServerOutput<'a> {
 		}
 
 		for ev in self.config.evdecls.iter() {
-			self.push_line(&format!("{name} = {{", name = ev.name));
+			self.push_line(&format!("{name} = table.freeze({{", name = ev.name));
 			self.indent();
 
 			if ev.from == EvSource::Client {
@@ -80,21 +80,21 @@ impl<'a> ServerOutput<'a> {
 			}
 
 			self.dedent();
-			self.push_line("},");
+			self.push_line("}),");
 		}
 
 		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("{name} = {{", name = fndecl.name));
+			self.push_line(&format!("{name} = table.freeze({{", name = fndecl.name));
 			self.indent();
 
 			self.push_line(&format!("{set_callback} = noop"));
 
 			self.dedent();
-			self.push_line("},");
+			self.push_line("}),");
 		}
 
 		self.dedent();
-		self.push_line("} :: Events");
+		self.push_line("} :: Events)");
 
 		self.dedent();
 		self.push_line("end");
@@ -655,7 +655,7 @@ impl<'a> ServerOutput<'a> {
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Server)
 		{
-			self.push_line(&format!("{name} = {{", name = ev.name));
+			self.push_line(&format!("{name} = table.freeze({{", name = ev.name));
 			self.indent();
 
 			self.push_return_fire(ev);
@@ -664,7 +664,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_return_fire_list(ev);
 
 			self.dedent();
-			self.push_line("},");
+			self.push_line("}),");
 		}
 	}
 
@@ -776,7 +776,7 @@ impl<'a> ServerOutput<'a> {
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Client)
 		{
-			self.push_line(&format!("{} = {{", ev.name));
+			self.push_line(&format!("{} = table.freeze({{", ev.name));
 			self.indent();
 
 			match ev.call {
@@ -785,22 +785,22 @@ impl<'a> ServerOutput<'a> {
 			}
 
 			self.dedent();
-			self.push_line("},");
+			self.push_line("}),");
 		}
 
 		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("{} = {{", fndecl.name));
+			self.push_line(&format!("{} = table.freeze({{", fndecl.name));
 			self.indent();
 
 			self.push_fn_return(fndecl);
 
 			self.dedent();
-			self.push_line("},");
+			self.push_line("}),");
 		}
 	}
 
 	pub fn push_return(&mut self) {
-		self.push_line("local returns = {");
+		self.push_line("local returns = table.freeze({");
 		self.indent();
 
 		if self.config.manual_event_loop {
@@ -813,7 +813,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_return_listen();
 
 		self.dedent();
-		self.push_line("}");
+		self.push_line("})");
 
 		self.push_line("type Events = typeof(returns)");
 		self.push_line("return returns");
