@@ -113,14 +113,18 @@ impl Des {
 			Ty::Arr(ty, range) => {
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
+				let escaped = into.display_escaped();
+				let suffix = &escaped[escaped.find('_').unwrap()..];
+				let index_name = "i".to_string() + suffix;
+
 				if let Some(len) = range.exact() {
 					self.push_stmt(Stmt::NumFor {
-						var: "i",
+						var: index_name.clone().leak(),
 						from: 1.0.into(),
 						to: len.into(),
 					});
 
-					self.push_ty(ty, into.clone().eindex("i".into()));
+					self.push_ty(ty, into.clone().eindex(index_name.as_str().into()));
 					self.push_stmt(Stmt::End);
 				} else {
 					self.push_local("len", Some(self.readnumty(NumTy::U16)));
@@ -130,7 +134,7 @@ impl Des {
 					}
 
 					self.push_stmt(Stmt::NumFor {
-						var: "i",
+						var: index_name.clone().leak(),
 						from: 1.0.into(),
 						to: "len".into(),
 					});
@@ -140,7 +144,7 @@ impl Des {
 
 					self.push_ty(ty, Var::Name(var_name.clone()));
 
-					self.push_stmt(Stmt::Assign(into.eindex("i".into()), Var::Name(var_name).into()));
+					self.push_stmt(Stmt::Assign(into.eindex(index_name.as_str().into()), Var::Name(var_name).into()));
 
 					self.push_stmt(Stmt::End);
 				}
