@@ -263,6 +263,17 @@ impl Des {
 			Ty::Unknown => unreachable!(),
 
 			Ty::Boolean => self.push_assign(into, self.readu8().eq(1.0.into())),
+
+			Ty::DateTimeMillis => self.push_assign(
+				into,
+				Expr::Call(Box::new(Var::from("DateTime").nindex("fromUnixTimestampMillis")), None, vec![self.readf64()]),
+			),
+
+			Ty::DateTime => self.push_assign(
+				into,
+				Expr::Call(Box::new(Var::from("DateTime").nindex("fromUnixTimestampMillis")), None, vec![self.readf64()]),
+			),
+
 			Ty::Color3 => self.push_assign(
 				into,
 				Expr::Color3(

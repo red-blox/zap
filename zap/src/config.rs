@@ -127,6 +127,8 @@ pub enum Ty<'src> {
 	Struct(Struct<'src>),
 	Instance(Option<&'src str>),
 
+	DateTime,
+	DateTimeMillis,
 	Color3,
 	Vector3,
 	AlignedCFrame,
