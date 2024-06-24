@@ -156,7 +156,7 @@ impl Des {
 				});
 
 				let escaped = into.display_escaped();
-				let suffix = &escaped[escaped.find("_").unwrap()..];
+				let suffix = &escaped[escaped.find('_').unwrap()..];
 				let key_name = "key".to_string() + suffix;
 				self.push_local(key_name.clone().leak(), None);
 				let val_name = "val".to_string() + suffix;
