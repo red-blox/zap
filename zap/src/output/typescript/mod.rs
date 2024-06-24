@@ -3,6 +3,8 @@ use crate::config::{Config, Enum, Ty};
 pub mod client;
 pub mod server;
 
+const TUPLE_BECOMES_ARRAY_THRESHOLD: i8 = 11;
+
 pub trait Output {
 	fn push(&mut self, s: &str);
 	fn indent(&mut self);
@@ -24,17 +26,22 @@ pub trait Output {
 			Ty::Arr(ty, range) => match (range.min(), range.max()) {
 				(Some(min), Some(max)) => {
 					if let Some(exact) = range.exact() {
-						self.push("[");
+						if exact >= TUPLE_BECOMES_ARRAY_THRESHOLD.into() {
+							self.push_ty(ty);
+							self.push("[]");
+						} else {
+							self.push("[");
 
-						for i in 0..exact as usize {
-							if i != 0 {
-								self.push(", ");
+							for i in 0..exact as usize {
+								if i != 0 {
+									self.push(", ");
+								}
+
+								self.push_ty(ty);
 							}
 
-							self.push_ty(ty);
+							self.push("]");
 						}
-
-						self.push("]");
 					} else {
 						if min as usize != 0 {
 							self.push("[");
