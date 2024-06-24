@@ -67,7 +67,7 @@ impl<'a> HirBuilder<'a> {
 			}
 
 			AstDecl::Remote { name, config, span } => {
-				let remote = self.remote_config(config);
+				let remote = self.remote_config(config, &name);
 				self.add_remote(scope, name.spur(), span, remote);
 			}
 		}
@@ -171,7 +171,7 @@ impl<'a> HirBuilder<'a> {
 		}
 	}
 
-	fn remote_config(&mut self, ast: AstConfig) -> HirRemote {
+	fn remote_config(&mut self, ast: AstConfig, name: &AstWord) -> HirRemote {
 		let mut seen = HashMap::new();
 
 		let mut reliable = None;
@@ -202,11 +202,21 @@ impl<'a> HirBuilder<'a> {
 		}
 
 		if reliable.is_none() {
-			// todo: report error
+			self.report(Report::ExpectedField {
+				span: name.span(),
+				field: "reliable".to_string(),
+				decl_name: name.word(self.rodeo).to_string(),
+				decl_kind: "remote".to_string(),
+			})
 		}
 
 		if batching.is_none() {
-			// todo: report error
+			self.report(Report::ExpectedField {
+				span: name.span(),
+				field: "batching".to_string(),
+				decl_name: name.word(self.rodeo).to_string(),
+				decl_kind: "remote".to_string(),
+			})
 		}
 
 		HirRemote::new(reliable.unwrap_or(true), batching.unwrap_or(HirRemoteBatching::None))
