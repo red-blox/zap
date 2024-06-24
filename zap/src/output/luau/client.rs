@@ -41,7 +41,7 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_studio(&mut self) {
-		self.push_line("if RunService:IsEdit() then");
+		self.push_line("if not RunService:IsRunning() then");
 		self.indent();
 
 		self.push_line("local noop = function() end");
