@@ -104,6 +104,24 @@ impl<'a> HirBuilder<'a> {
 			}
 		}
 
+		if from.is_none() {
+			self.report(Report::ExpectedField {
+				span: name.span(),
+				field: "from".to_string(),
+				decl_name: name.word(self.rodeo).to_string(),
+				decl_kind: "event".to_string(),
+			})
+		}
+
+		if over.is_none() {
+			self.report(Report::ExpectedField {
+				span: name.span(),
+				field: "over".to_string(),
+				decl_name: name.word(self.rodeo).to_string(),
+				decl_kind: "event".to_string(),
+			})
+		}
+
 		HirEvent::new(from.unwrap_or(HirEventSource::Server), over.unwrap_or(HirRemoteId(0)))
 	}
 
