@@ -414,6 +414,7 @@ impl<'src> Converter<'src> {
 				let name = ref_ty.name;
 
 				match name {
+					"BrickColor" => Ty::BrickColor,
 					"boolean" => Ty::Boolean,
 					"Color3" => Ty::Color3,
 					"Vector3" => Ty::Vector3,
