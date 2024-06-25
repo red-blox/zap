@@ -1,4 +1,4 @@
-use crate::config::{Config, EvCall, EvDecl, EvSource, Ty, TyDecl};
+use crate::config::{Config, EvCall, EvDecl, EvSource, TyDecl};
 
 use super::ConfigProvider;
 use super::Output;
