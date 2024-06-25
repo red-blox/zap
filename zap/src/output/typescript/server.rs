@@ -31,7 +31,7 @@ impl<'a> Output for ServerOutput<'a> {
 
 impl<'a> ConfigProvider for ServerOutput<'a> {
 	fn get_config(&self) -> &Config {
-		return self.config;
+		self.config
 	}
 }
 

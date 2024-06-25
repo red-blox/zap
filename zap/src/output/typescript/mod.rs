@@ -4,7 +4,7 @@ pub mod client;
 pub mod server;
 
 pub trait ConfigProvider {
-    fn get_config(&self) -> &Config;
+	fn get_config(&self) -> &Config;
 }
 
 pub trait Output: ConfigProvider {
