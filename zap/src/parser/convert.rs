@@ -420,6 +420,7 @@ impl<'src> Converter<'src> {
 					"DateTime" => Ty::DateTime,
 					"boolean" => Ty::Boolean,
 					"Color3" => Ty::Color3,
+					"Vector2" => Ty::Vector2,
 					"Vector3" => Ty::Vector3,
 					"AlignedCFrame" => Ty::AlignedCFrame,
 					"CFrame" => Ty::CFrame,

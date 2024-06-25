@@ -294,6 +294,7 @@ impl Des {
 			),
 
 			Ty::Boolean => self.push_assign(into, self.readu8().eq(1.0.into())),
+
 			Ty::Color3 => self.push_assign(
 				into,
 				Expr::Color3(
@@ -302,7 +303,17 @@ impl Des {
 					Box::new(self.readu8()),
 				),
 			),
+
+			Ty::Vector2 => self.push_assign(
+				into,
+				Expr::Call(
+					Box::new(Var::from("Vector3").nindex("new")),
+					None,
+					vec![self.readf32(), self.readf32(), "0".into()],
+				),
+			),
 			Ty::Vector3 => self.push_assign(into, self.readvector3()),
+
 			Ty::AlignedCFrame => {
 				self.push_local("axis_alignment", Some(self.readu8()));
 
