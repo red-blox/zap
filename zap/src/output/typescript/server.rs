@@ -44,7 +44,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_indent();
 		self.push(&format!("type {name} = "));
 		self.push_ty(ty);
-		self.push("\n");
+		self.push(";\n");
 	}
 
 	fn push_tydecls(&mut self) {
