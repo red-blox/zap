@@ -246,6 +246,8 @@ impl Ser {
 				));
 			}
 
+			Ty::BrickColor => self.push_writeu16(from.clone().nindex("Number").into()),
+
 			Ty::DateTimeMillis => self.push_writef64(from.clone().nindex("UnixTimestampMillis").into()),
 			Ty::DateTime => self.push_writef64(from.clone().nindex("UnixTimestamp").into()),
 

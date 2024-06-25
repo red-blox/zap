@@ -127,6 +127,7 @@ pub enum Ty<'src> {
 	Struct(Struct<'src>),
 	Instance(Option<&'src str>),
 
+	BrickColor,
 	DateTimeMillis,
 	DateTime,
 	Color3,
@@ -216,6 +217,7 @@ impl<'src> Ty<'src> {
 
 			Self::Instance(_) => (4, Some(4)),
 
+			Self::BrickColor => (2, Some(2)),
 			Self::DateTimeMillis => (8, Some(8)),
 			Self::DateTime => (8, Some(8)),
 			Self::Boolean => (1, Some(1)),

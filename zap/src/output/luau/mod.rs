@@ -171,6 +171,7 @@ pub trait Output {
 
 			Ty::Instance(name) => self.push(name.unwrap_or("Instance")),
 
+			Ty::BrickColor => self.push("BrickColor"),
 			Ty::DateTimeMillis => self.push("DateTime"),
 			Ty::DateTime => self.push("DateTime"),
 			Ty::Unknown => self.push("unknown"),

@@ -224,7 +224,7 @@ DateTime sends the UnixTimestamp property of the DateTime object, with DateTimeM
 
 The following Roblox Classes are also available as types in Zap:
 
-- `Vector3`, `Color3`
+- `Vector3`, `Color3`, `BrickColor`
 
 ## Optional Types
 
