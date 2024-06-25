@@ -177,6 +177,8 @@ pub trait Output {
 			Ty::Instance(name) => self.push(name.unwrap_or("Instance")),
 
 			Ty::BrickColor => self.push("BrickColor"),
+			Ty::DateTimeMillis => self.push("DateTime"),
+			Ty::DateTime => self.push("DateTime"),
 			Ty::Unknown => self.push("unknown"),
 			Ty::Boolean => self.push("boolean"),
 			Ty::Color3 => self.push("Color3"),
@@ -211,6 +213,6 @@ pub trait Output {
 	fn push_manual_event_loop(&mut self, config: &Config) {
 		let send_events = config.casing.with("SendEvents", "sendEvents", "send_events");
 
-		self.push_line(&format!("export const {send_events}: () => void"))
+		self.push_line(&format!("export const {send_events}: () => void;"))
 	}
 }

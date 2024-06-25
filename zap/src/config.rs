@@ -128,6 +128,8 @@ pub enum Ty<'src> {
 	Instance(Option<&'src str>),
 
 	BrickColor,
+	DateTimeMillis,
+	DateTime,
 	Color3,
 	Vector3,
 	AlignedCFrame,
@@ -216,6 +218,8 @@ impl<'src> Ty<'src> {
 			Self::Instance(_) => (4, Some(4)),
 
 			Self::BrickColor => (2, Some(2)),
+			Self::DateTimeMillis => (8, Some(8)),
+			Self::DateTime => (8, Some(8)),
 			Self::Boolean => (1, Some(1)),
 			Self::Color3 => (12, Some(12)),
 			Self::Vector3 => (12, Some(12)),
