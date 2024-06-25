@@ -217,13 +217,19 @@ local CFrameSpecialCases = {
 
 ## Vectors
 
-Zap supports serializing Vector3s, although zap has both a Vector3 type and a Vector2 type. Zap does not allow the use of Vector2s, and instead only allows Vector3s as Vector2s don't use luaus native vector type. And thus zaps Vector2 type is almost the same as the Vector3 type, except it doesn't serialize the Z axis.
+Zap supports serializing Vector3s, although zap has both a Vector3 type and a Vector2 type. Zap does not allow the use of Vector2s, and instead only allows Vector3s as Vector2s don't use Luau's native vector type and instead are allocated on the heap. And thus, Zap's Vector2 type is almost the same as the Vector3 type, except it doesn't serialize the Z axis.
+
+## DateTimes
+
+Zap supports sending DateTimes. There are two types of DateTime you may send - a regular `DateTime`, and `DateTimeMillis`.
+DateTime sends the UnixTimestamp property of the DateTime object, with DateTimeMillis sending the UnixTimestampMillis property of the DateTime object.
 
 ## Other Roblox Classes
 
 The following Roblox Classes are also available as types in Zap:
 
 - `Color3`
+- `BrickColor`
 
 ## Optional Types
 

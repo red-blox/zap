@@ -113,14 +113,16 @@ impl Des {
 			Ty::Arr(ty, range) => {
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
+				let var_name: String = format!("i_{}", into.display_escaped_suffix() + 1);
+
 				if let Some(len) = range.exact() {
 					self.push_stmt(Stmt::NumFor {
-						var: "i",
+						var: var_name.clone().leak(),
 						from: 1.0.into(),
 						to: len.into(),
 					});
 
-					self.push_ty(ty, into.clone().eindex("i".into()));
+					self.push_ty(ty, into.clone().eindex(var_name.as_str().into()));
 					self.push_stmt(Stmt::End);
 				} else {
 					self.push_local("len", Some(self.readnumty(NumTy::U16)));
@@ -130,17 +132,21 @@ impl Des {
 					}
 
 					self.push_stmt(Stmt::NumFor {
-						var: "i",
+						var: var_name.clone().leak(),
 						from: 1.0.into(),
 						to: "len".into(),
 					});
 
-					let var_name = into.display_escaped();
-					self.push_local(var_name.clone().leak(), None);
+					let inner_var_name = format!("j_{}", into.display_escaped_suffix() + 1);
 
-					self.push_ty(ty, Var::Name(var_name.clone()));
+					self.push_local(inner_var_name.clone().leak(), None);
 
-					self.push_stmt(Stmt::Assign(into.eindex("i".into()), Var::Name(var_name).into()));
+					self.push_ty(ty, Var::Name(inner_var_name.clone()));
+
+					self.push_stmt(Stmt::Assign(
+						into.clone().eindex(var_name.clone().as_str().into()),
+						Var::Name(inner_var_name).into(),
+					));
 
 					self.push_stmt(Stmt::End);
 				}
@@ -155,11 +161,9 @@ impl Des {
 					to: self.readu16(),
 				});
 
-				let escaped = into.display_escaped();
-				let suffix = &escaped[escaped.find('_').unwrap()..];
-				let key_name = "key".to_string() + suffix;
+				let key_name = format!("key_{}", into.display_escaped_suffix() + 1);
 				self.push_local(key_name.clone().leak(), None);
-				let val_name = "val".to_string() + suffix;
+				let val_name = format!("val_{}", into.display_escaped_suffix() + 1);
 				self.push_local(val_name.clone().leak(), None);
 
 				self.push_ty(key, Var::Name(key_name.clone()));
@@ -261,6 +265,33 @@ impl Des {
 
 			// unknown is always an opt
 			Ty::Unknown => unreachable!(),
+
+			Ty::BrickColor => self.push_assign(
+				into,
+				Expr::Call(
+					Box::new(Var::from("BrickColor").nindex("new")),
+					None,
+					vec![self.readu16()],
+				),
+			),
+
+			Ty::DateTimeMillis => self.push_assign(
+				into,
+				Expr::Call(
+					Box::new(Var::from("DateTime").nindex("fromUnixTimestampMillis")),
+					None,
+					vec![self.readf64()],
+				),
+			),
+
+			Ty::DateTime => self.push_assign(
+				into,
+				Expr::Call(
+					Box::new(Var::from("DateTime").nindex("fromUnixTimestamp")),
+					None,
+					vec![self.readf64()],
+				),
+			),
 
 			Ty::Boolean => self.push_assign(into, self.readu8().eq(1.0.into())),
 

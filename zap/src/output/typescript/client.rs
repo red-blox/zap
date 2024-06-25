@@ -1,5 +1,6 @@
 use crate::config::{Config, EvCall, EvSource, Ty, TyDecl, YieldType};
 
+use super::ConfigProvider;
 use super::Output;
 
 struct ClientOutput<'src> {
@@ -28,6 +29,12 @@ impl<'a> Output for ClientOutput<'a> {
 	}
 }
 
+impl<'a> ConfigProvider for ClientOutput<'a> {
+	fn get_config(&self) -> &Config {
+		self.config
+	}
+}
+
 impl<'src> ClientOutput<'src> {
 	pub fn new(config: &'src Config<'src>) -> Self {
 		Self {
@@ -44,7 +51,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_indent();
 		self.push(&format!("type {name} = "));
 		self.push_ty(ty);
-		self.push("\n");
+		self.push(";\n");
 	}
 
 	fn push_tydecls(&mut self) {
@@ -68,7 +75,7 @@ impl<'src> ClientOutput<'src> {
 			let fire = self.config.casing.with("Fire", "fire", "fire");
 			let value = self.config.casing.with("Value", "value", "value");
 
-			self.push_line(&format!("export const {name}: {{", name = ev.name));
+			self.push_line(&format!("export declare const {name}: {{", name = ev.name));
 			self.indent();
 
 			self.push_indent();
@@ -79,7 +86,7 @@ impl<'src> ClientOutput<'src> {
 				self.push_arg_ty(data);
 			}
 
-			self.push(") => void\n");
+			self.push(") => void;\n");
 
 			self.dedent();
 			self.push_line("};");
@@ -103,7 +110,7 @@ impl<'src> ClientOutput<'src> {
 			let callback = self.config.casing.with("Callback", "callback", "callback");
 			let value = self.config.casing.with("Value", "value", "value");
 
-			self.push_line(&format!("export const {name}: {{", name = ev.name));
+			self.push_line(&format!("export declare const {name}: {{", name = ev.name));
 			self.indent();
 
 			self.push_indent();
@@ -114,7 +121,7 @@ impl<'src> ClientOutput<'src> {
 				self.push_arg_ty(data);
 			}
 
-			self.push(") => void) => () => void\n");
+			self.push(") => void) => () => void;\n");
 
 			self.dedent();
 			self.push_line("};");
@@ -126,7 +133,7 @@ impl<'src> ClientOutput<'src> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("export const {}: {{", fndecl.name));
+			self.push_line(&format!("export declare const {}: {{", fndecl.name));
 			self.indent();
 
 			self.push_indent();
@@ -153,7 +160,7 @@ impl<'src> ClientOutput<'src> {
 				self.push(">")
 			}
 
-			self.push("\n");
+			self.push(";\n");
 			self.dedent();
 			self.push_line("};");
 		}
@@ -173,7 +180,7 @@ impl<'src> ClientOutput<'src> {
 		};
 
 		if self.config.manual_event_loop {
-			self.push_manual_event_loop(self.config);
+			self.push_manual_event_loop();
 		}
 
 		self.push_tydecls();

@@ -11,6 +11,7 @@ pub struct Config<'src> {
 
 	pub write_checks: bool,
 	pub typescript: bool,
+	pub typescript_max_tuple_length: f64,
 	pub manual_event_loop: bool,
 
 	pub server_output: &'src str,
@@ -127,8 +128,11 @@ pub enum Ty<'src> {
 	Struct(Struct<'src>),
 	Instance(Option<&'src str>),
 
-	Vector2,
+	BrickColor,
+	DateTimeMillis,
+	DateTime,
 	Color3,
+	Vector2,
 	Vector3,
 	AlignedCFrame,
 	CFrame,
@@ -215,9 +219,12 @@ impl<'src> Ty<'src> {
 
 			Self::Instance(_) => (4, Some(4)),
 
-			Self::Vector2 => (8, Some(8)),
+			Self::BrickColor => (2, Some(2)),
+			Self::DateTimeMillis => (8, Some(8)),
+			Self::DateTime => (8, Some(8)),
 			Self::Boolean => (1, Some(1)),
 			Self::Color3 => (12, Some(12)),
+			Self::Vector2 => (8, Some(8)),
 			Self::Vector3 => (12, Some(12)),
 			Self::AlignedCFrame => (13, Some(13)),
 			Self::CFrame => (24, Some(24)),

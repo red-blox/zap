@@ -11,6 +11,7 @@ opt = "opt", (
 	| "server_output", ':', string
 	| "client_output", ':', string
 	| "typescript", ':', ("true" | "false")
+	| "typescript_max_tuple_length", ":", num
 ), [';'];
 
 evdecl = "event", ident, '=', '{',

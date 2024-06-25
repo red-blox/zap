@@ -1,5 +1,6 @@
 use crate::config::{Config, EvCall, EvDecl, EvSource, Ty, TyDecl};
 
+use super::ConfigProvider;
 use super::Output;
 
 struct ServerOutput<'src> {
@@ -28,6 +29,12 @@ impl<'a> Output for ServerOutput<'a> {
 	}
 }
 
+impl<'a> ConfigProvider for ServerOutput<'a> {
+	fn get_config(&self) -> &Config {
+		self.config
+	}
+}
+
 impl<'a> ServerOutput<'a> {
 	pub fn new(config: &'a Config) -> Self {
 		Self {
@@ -44,7 +51,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_indent();
 		self.push(&format!("type {name} = "));
 		self.push_ty(ty);
-		self.push("\n");
+		self.push(";\n");
 	}
 
 	fn push_tydecls(&mut self) {
@@ -70,7 +77,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_arg_ty(data);
 		}
 
-		self.push(") => void\n");
+		self.push(") => void;\n");
 	}
 
 	fn push_return_fire_all(&mut self, ev: &EvDecl) {
@@ -85,7 +92,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_arg_ty(data);
 		}
 
-		self.push(") => void\n");
+		self.push(") => void;\n");
 	}
 
 	fn push_return_fire_except(&mut self, ev: &EvDecl) {
@@ -101,7 +108,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_arg_ty(data);
 		}
 
-		self.push(") => void\n");
+		self.push(") => void;\n");
 	}
 
 	fn push_return_fire_list(&mut self, ev: &EvDecl) {
@@ -117,7 +124,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_arg_ty(data);
 		}
 
-		self.push(") => void\n");
+		self.push(") => void;\n");
 	}
 
 	fn push_return_fire_set(&mut self, ev: &EvDecl) {
@@ -144,7 +151,7 @@ impl<'a> ServerOutput<'a> {
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server)
 		{
-			self.push_line(&format!("export const {name}: {{", name = ev.name));
+			self.push_line(&format!("export declare const {name}: {{", name = ev.name));
 			self.indent();
 
 			self.push_return_fire(ev);
@@ -166,7 +173,7 @@ impl<'a> ServerOutput<'a> {
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client)
 		{
-			self.push_line(&format!("export const {name}: {{", name = ev.name));
+			self.push_line(&format!("export declare const {name}: {{", name = ev.name));
 			self.indent();
 
 			let set_callback = match ev.call {
@@ -187,7 +194,7 @@ impl<'a> ServerOutput<'a> {
 				self.push_arg_ty(data);
 			}
 
-			self.push(") => void) => () => void\n");
+			self.push(") => void) => () => void;\n");
 
 			self.dedent();
 			self.push_line("};");
@@ -196,7 +203,7 @@ impl<'a> ServerOutput<'a> {
 
 	pub fn push_return_functions(&mut self) {
 		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("export const {name}: {{", name = fndecl.name));
+			self.push_line(&format!("export declare const {name}: {{", name = fndecl.name));
 			self.indent();
 
 			let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
@@ -220,7 +227,7 @@ impl<'a> ServerOutput<'a> {
 				self.push("void");
 			}
 
-			self.push(") => () => void\n");
+			self.push(") => () => void;\n");
 
 			self.dedent();
 			self.push_line("};");
@@ -241,7 +248,7 @@ impl<'a> ServerOutput<'a> {
 		};
 
 		if self.config.manual_event_loop {
-			self.push_manual_event_loop(self.config);
+			self.push_manual_event_loop();
 		}
 
 		self.push_tydecls();
