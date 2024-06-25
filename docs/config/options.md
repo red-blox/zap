@@ -144,6 +144,18 @@ Note that Zap uses `RunService.Heartbeat` and a 61 hz rate by default.
 
 <CodeBlock code="opt manual_event_loop = true" />
 
+## `typescript_max_tuple_length`
+
+The maximum non-nested length of tuples Zap can generate, with anything longer generating an array.
+
+### Default
+
+`10`
+
+### Example
+
+<CodeBlock code="opt typescript_max_tuple_length = 5" />
+
 ## `yield_type`
 
 This option changes the way functions yield in zap.

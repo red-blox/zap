@@ -43,7 +43,7 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_indent();
 		self.push(&format!("type {name} = "));
-		self.push_ty(ty);
+		self.push_ty(ty, self.config);
 		self.push("\n");
 	}
 
@@ -67,7 +67,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(&format!(", {value}"));
-			self.push_arg_ty(data);
+			self.push_arg_ty(data, self.config);
 		}
 
 		self.push(") => void\n");
@@ -82,7 +82,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(value);
-			self.push_arg_ty(data);
+			self.push_arg_ty(data, self.config);
 		}
 
 		self.push(") => void\n");
@@ -98,7 +98,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(&format!(", {value}"));
-			self.push_arg_ty(data);
+			self.push_arg_ty(data, self.config);
 		}
 
 		self.push(") => void\n");
@@ -114,7 +114,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(&format!(", {value}"));
-			self.push_arg_ty(data);
+			self.push_arg_ty(data, self.config);
 		}
 
 		self.push(") => void\n");
@@ -167,7 +167,7 @@ impl<'a> ServerOutput<'a> {
 
 			if let Some(data) = &ev.data {
 				self.push(&format!(", {value}"));
-				self.push_arg_ty(data);
+				self.push_arg_ty(data, self.config);
 			}
 
 			self.push(") => void) => () => void\n");
@@ -192,13 +192,13 @@ impl<'a> ServerOutput<'a> {
 
 			if let Some(data) = &fndecl.args {
 				self.push(&format!(", {value}"));
-				self.push_arg_ty(data);
+				self.push_arg_ty(data, self.config);
 			}
 
 			self.push(") => ");
 
 			if let Some(data) = &fndecl.rets {
-				self.push_ty(data);
+				self.push_ty(data, self.config);
 			} else {
 				self.push("void");
 			}
