@@ -1,5 +1,6 @@
 use crate::config::{Config, EvCall, EvDecl, EvSource, Ty, TyDecl};
 
+use super::ConfigProvider;
 use super::Output;
 
 struct ServerOutput<'src> {
@@ -25,6 +26,12 @@ impl<'a> Output for ServerOutput<'a> {
 		for _ in 0..self.tabs {
 			self.push("\t");
 		}
+	}
+}
+
+impl<'a> ConfigProvider for ServerOutput<'a> {
+	fn get_config(&self) -> &Config {
+		self.config
 	}
 }
 
@@ -241,7 +248,7 @@ impl<'a> ServerOutput<'a> {
 		};
 
 		if self.config.manual_event_loop {
-			self.push_manual_event_loop(self.config);
+			self.push_manual_event_loop();
 		}
 
 		self.push_tydecls();

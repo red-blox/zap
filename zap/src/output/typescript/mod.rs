@@ -3,7 +3,11 @@ use crate::config::{Config, Enum, Ty};
 pub mod client;
 pub mod server;
 
-pub trait Output {
+pub trait ConfigProvider {
+	fn get_config(&self) -> &Config;
+}
+
+pub trait Output: ConfigProvider {
 	fn push(&mut self, s: &str);
 	fn indent(&mut self);
 	fn dedent(&mut self);
@@ -24,17 +28,22 @@ pub trait Output {
 			Ty::Arr(ty, range) => match (range.min(), range.max()) {
 				(Some(min), Some(max)) => {
 					if let Some(exact) = range.exact() {
-						self.push("[");
+						if exact > self.get_config().typescript_max_tuple_length {
+							self.push_ty(ty);
+							self.push("[]");
+						} else {
+							self.push("[");
 
-						for i in 0..exact as usize {
-							if i != 0 {
-								self.push(", ");
+							for i in 0..exact as usize {
+								if i != 0 {
+									self.push(", ");
+								}
+
+								self.push_ty(ty);
 							}
 
-							self.push_ty(ty);
+							self.push("]");
 						}
-
-						self.push("]");
 					} else {
 						if min as usize != 0 {
 							self.push("[");
@@ -210,8 +219,8 @@ pub trait Output {
 		));
 	}
 
-	fn push_manual_event_loop(&mut self, config: &Config) {
-		let send_events = config.casing.with("SendEvents", "sendEvents", "send_events");
+	fn push_manual_event_loop(&mut self) {
+		let send_events = self.get_config().casing.with("SendEvents", "sendEvents", "send_events");
 
 		self.push_line(&format!("export declare const {send_events}: () => void"))
 	}

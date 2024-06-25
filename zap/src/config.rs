@@ -11,6 +11,7 @@ pub struct Config<'src> {
 
 	pub write_checks: bool,
 	pub typescript: bool,
+	pub typescript_max_tuple_length: f64,
 	pub manual_event_loop: bool,
 
 	pub server_output: &'src str,

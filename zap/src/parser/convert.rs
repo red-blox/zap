@@ -88,6 +88,7 @@ impl<'src> Converter<'src> {
 		let (write_checks, ..) = self.boolean_opt("write_checks", true, &config.opts);
 		let (typescript, ..) = self.boolean_opt("typescript", false, &config.opts);
 		let (manual_event_loop, ..) = self.boolean_opt("manual_event_loop", false, &config.opts);
+		let (typescript_max_tuple_length, ..) = self.num_opt("typescript_max_tuple_length", 10.0, &config.opts);
 
 		let (server_output, ..) = self.str_opt("server_output", "network/server.lua", &config.opts);
 		let (client_output, ..) = self.str_opt("client_output", "network/client.lua", &config.opts);
@@ -103,6 +104,7 @@ impl<'src> Converter<'src> {
 
 			write_checks,
 			typescript,
+			typescript_max_tuple_length,
 			manual_event_loop,
 
 			server_output,
@@ -231,7 +233,6 @@ impl<'src> Converter<'src> {
 		(value, span)
 	}
 
-	#[allow(dead_code)]
 	fn num_opt(&mut self, name: &'static str, default: f64, opts: &[SyntaxOpt<'src>]) -> (f64, Option<Span>) {
 		let mut value = default;
 		let mut span = None;
