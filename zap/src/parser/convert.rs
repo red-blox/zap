@@ -414,6 +414,8 @@ impl<'src> Converter<'src> {
 				let name = ref_ty.name;
 
 				match name {
+					"DateTimeMillis" => Ty::DateTimeMillis,
+					"DateTime" => Ty::DateTime,
 					"boolean" => Ty::Boolean,
 					"Color3" => Ty::Color3,
 					"Vector3" => Ty::Vector3,
