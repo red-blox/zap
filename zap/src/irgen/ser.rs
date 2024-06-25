@@ -246,6 +246,11 @@ impl Ser {
 				));
 			}
 
+			Ty::Vector2 => {
+				self.push_writef32(from.clone().nindex("X").into());
+				self.push_writef32(from.clone().nindex("Y").into());
+			}
+
 			Ty::Vector3 => {
 				self.push_writef32(from.clone().nindex("X").into());
 				self.push_writef32(from.clone().nindex("Y").into());

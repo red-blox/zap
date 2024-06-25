@@ -215,11 +215,15 @@ local CFrameSpecialCases = {
 }
 ```
 
+## Vectors
+
+Zap supports serializing Vector3s, although zap has both a Vector3 type and a Vector2 type. Zap does not allow the use of Vector2s, and instead only allows Vector3s as Vector2s don't use luaus native vector type. And thus zaps Vector2 type is almost the same as the Vector3 type, except it doesn't serialize the Z axis.
+
 ## Other Roblox Classes
 
 The following Roblox Classes are also available as types in Zap:
 
-- `Vector3`
+- `Color3`
 
 ## Optional Types
 
