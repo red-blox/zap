@@ -144,7 +144,7 @@ impl<'a> ServerOutput<'a> {
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server)
 		{
-			self.push_line(&format!("export const {name}: {{", name = ev.name));
+			self.push_line(&format!("export declare const {name}: {{", name = ev.name));
 			self.indent();
 
 			self.push_return_fire(ev);
@@ -166,7 +166,7 @@ impl<'a> ServerOutput<'a> {
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client)
 		{
-			self.push_line(&format!("export const {name}: {{", name = ev.name));
+			self.push_line(&format!("export declare const {name}: {{", name = ev.name));
 			self.indent();
 
 			let set_callback = match ev.call {
@@ -196,7 +196,7 @@ impl<'a> ServerOutput<'a> {
 
 	pub fn push_return_functions(&mut self) {
 		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("export const {name}: {{", name = fndecl.name));
+			self.push_line(&format!("export declare const {name}: {{", name = fndecl.name));
 			self.indent();
 
 			let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");

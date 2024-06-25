@@ -68,7 +68,7 @@ impl<'src> ClientOutput<'src> {
 			let fire = self.config.casing.with("Fire", "fire", "fire");
 			let value = self.config.casing.with("Value", "value", "value");
 
-			self.push_line(&format!("export const {name}: {{", name = ev.name));
+			self.push_line(&format!("export declare const {name}: {{", name = ev.name));
 			self.indent();
 
 			self.push_indent();
@@ -103,7 +103,7 @@ impl<'src> ClientOutput<'src> {
 			let callback = self.config.casing.with("Callback", "callback", "callback");
 			let value = self.config.casing.with("Value", "value", "value");
 
-			self.push_line(&format!("export const {name}: {{", name = ev.name));
+			self.push_line(&format!("export declare const {name}: {{", name = ev.name));
 			self.indent();
 
 			self.push_indent();
@@ -126,7 +126,7 @@ impl<'src> ClientOutput<'src> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("export const {}: {{", fndecl.name));
+			self.push_line(&format!("export declare const {}: {{", fndecl.name));
 			self.indent();
 
 			self.push_indent();
