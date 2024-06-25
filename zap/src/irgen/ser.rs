@@ -248,6 +248,12 @@ impl Ser {
 
 			Ty::BrickColor => self.push_writeu16(from.clone().nindex("Number").into()),
 
+			Ty::Vector3 => {
+				self.push_writef32(from.clone().nindex("X").into());
+				self.push_writef32(from.clone().nindex("Y").into());
+				self.push_writef32(from.clone().nindex("Z").into());
+			}
+
 			Ty::AlignedCFrame => {
 				self.push_local(
 					"axis_alignment",
