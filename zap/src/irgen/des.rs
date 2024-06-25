@@ -312,7 +312,6 @@ impl Des {
 					vec![self.readf32(), self.readf32(), "0".into()],
 				),
 			),
-
 			Ty::Vector3 => self.push_assign(into, self.readvector3()),
 
 			Ty::AlignedCFrame => {
