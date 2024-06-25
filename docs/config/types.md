@@ -219,7 +219,7 @@ local CFrameSpecialCases = {
 
 The following Roblox Classes are also available as types in Zap:
 
-- `Vector3`, `Color3`, `Brickcolor`
+- `Vector3`, `Color3`, `BrickColor`
 
 ## Optional Types
 
