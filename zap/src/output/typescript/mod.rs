@@ -216,8 +216,8 @@ pub trait Output: ConfigProvider {
 		));
 	}
 
-	fn push_manual_event_loop(&mut self, config: &Config) {
-		let send_events = config.casing.with("SendEvents", "sendEvents", "send_events");
+	fn push_manual_event_loop(&mut self) {
+		let send_events = self.get_config().casing.with("SendEvents", "sendEvents", "send_events");
 
 		self.push_line(&format!("export const {send_events}: () => void"))
 	}

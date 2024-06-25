@@ -231,7 +231,7 @@ impl<'a> ServerOutput<'a> {
 		};
 
 		if self.config.manual_event_loop {
-			self.push_manual_event_loop(self.config);
+			self.push_manual_event_loop();
 		}
 
 		self.push_tydecls();
