@@ -44,7 +44,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_indent();
 		self.push(&format!("type {name} = "));
 		self.push_ty(ty);
-		self.push("\n");
+		self.push(";\n");
 	}
 
 	fn push_tydecls(&mut self) {
@@ -70,7 +70,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_arg_ty(data);
 		}
 
-		self.push(") => void\n");
+		self.push(") => void;\n");
 	}
 
 	fn push_return_fire_all(&mut self, ev: &EvDecl) {
@@ -85,7 +85,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_arg_ty(data);
 		}
 
-		self.push(") => void\n");
+		self.push(") => void;\n");
 	}
 
 	fn push_return_fire_except(&mut self, ev: &EvDecl) {
@@ -101,7 +101,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_arg_ty(data);
 		}
 
-		self.push(") => void\n");
+		self.push(") => void;\n");
 	}
 
 	fn push_return_fire_list(&mut self, ev: &EvDecl) {
@@ -117,7 +117,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_arg_ty(data);
 		}
 
-		self.push(") => void\n");
+		self.push(") => void;\n");
 	}
 
 	fn push_return_fire_set(&mut self, ev: &EvDecl) {
@@ -187,7 +187,7 @@ impl<'a> ServerOutput<'a> {
 				self.push_arg_ty(data);
 			}
 
-			self.push(") => void) => () => void\n");
+			self.push(") => void) => () => void;\n");
 
 			self.dedent();
 			self.push_line("};");
@@ -220,7 +220,7 @@ impl<'a> ServerOutput<'a> {
 				self.push("void");
 			}
 
-			self.push(") => () => void\n");
+			self.push(") => () => void;\n");
 
 			self.dedent();
 			self.push_line("};");
