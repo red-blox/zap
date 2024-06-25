@@ -121,9 +121,7 @@ impl Ser {
 			}
 
 			Ty::Arr(ty, range) => {
-				let escaped = from.display_escaped();
-				let suffix = &escaped[escaped.find('_').unwrap()..];
-				let index_name = "i".to_string() + suffix;
+				let var_name = format!("i_{}", from.display_escaped_suffix() + 1);
 
 				if let Some(len) = range.exact() {
 					if self.checks {
@@ -131,12 +129,12 @@ impl Ser {
 					}
 
 					self.push_stmt(Stmt::NumFor {
-						var: index_name.clone().leak(),
+						var: var_name.clone().leak(),
 						from: 1.0.into(),
 						to: len.into(),
 					});
 
-					self.push_ty(ty, from.clone().eindex(index_name.as_str().into()));
+					self.push_ty(ty, from.clone().eindex(var_name.as_str().into()));
 					self.push_stmt(Stmt::End);
 				} else {
 					self.push_local("len", Some(from_expr.clone().len()));
@@ -148,16 +146,14 @@ impl Ser {
 					self.push_writeu16("len".into());
 
 					self.push_stmt(Stmt::NumFor {
-						var: index_name.clone().leak(),
+						var: var_name.clone().leak(),
 						from: 1.0.into(),
 						to: "len".into(),
 					});
 
-					let var_name = from.display_escaped();
-
 					self.push_stmt(Stmt::Local(
 						var_name.clone().leak(),
-						Some(from.clone().eindex(index_name.as_str().into()).into()),
+						Some(from.clone().eindex(var_name.as_str().into()).into()),
 					));
 
 					self.push_ty(ty, Var::Name(var_name));
