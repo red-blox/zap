@@ -44,7 +44,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_indent();
 		self.push(&format!("type {name} = "));
 		self.push_ty(ty);
-		self.push("\n");
+		self.push(";\n");
 	}
 
 	fn push_tydecls(&mut self) {
@@ -70,7 +70,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_arg_ty(data);
 		}
 
-		self.push(") => void\n");
+		self.push(") => void;\n");
 	}
 
 	fn push_return_fire_all(&mut self, ev: &EvDecl) {
@@ -85,7 +85,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_arg_ty(data);
 		}
 
-		self.push(") => void\n");
+		self.push(") => void;\n");
 	}
 
 	fn push_return_fire_except(&mut self, ev: &EvDecl) {
@@ -101,7 +101,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_arg_ty(data);
 		}
 
-		self.push(") => void\n");
+		self.push(") => void;\n");
 	}
 
 	fn push_return_fire_list(&mut self, ev: &EvDecl) {
@@ -111,6 +111,22 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_indent();
 		self.push(&format!("{fire_list}: ({list}: Player[]"));
+
+		if let Some(data) = &ev.data {
+			self.push(&format!(", {value}"));
+			self.push_arg_ty(data);
+		}
+
+		self.push(") => void;\n");
+	}
+
+	fn push_return_fire_set(&mut self, ev: &EvDecl) {
+		let fire_set = self.config.casing.with("FireSet", "fireSet", "fire_set");
+		let set = self.config.casing.with("Set", "set", "set");
+		let value = self.config.casing.with("Value", "value", "value");
+
+		self.push_indent();
+		self.push(&format!("{fire_set}: ({set}: Set<Player>"));
 
 		if let Some(data) = &ev.data {
 			self.push(&format!(", {value}"));
@@ -135,6 +151,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_return_fire_all(ev);
 			self.push_return_fire_except(ev);
 			self.push_return_fire_list(ev);
+			self.push_return_fire_set(ev);
 
 			self.dedent();
 			self.push_line("};");
@@ -170,7 +187,7 @@ impl<'a> ServerOutput<'a> {
 				self.push_arg_ty(data);
 			}
 
-			self.push(") => void) => () => void\n");
+			self.push(") => void) => () => void;\n");
 
 			self.dedent();
 			self.push_line("};");
@@ -203,7 +220,7 @@ impl<'a> ServerOutput<'a> {
 				self.push("void");
 			}
 
-			self.push(") => () => void\n");
+			self.push(") => () => void;\n");
 
 			self.dedent();
 			self.push_line("};");

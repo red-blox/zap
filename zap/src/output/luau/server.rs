@@ -46,13 +46,14 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line("local noop = function() end");
 
-		self.push_line("return {");
+		self.push_line("return table.freeze({");
 		self.indent();
 
 		let fire = self.config.casing.with("Fire", "fire", "fire");
-		let fire_all: &str = self.config.casing.with("FireAll", "fireAll", "fire_all");
+		let fire_all = self.config.casing.with("FireAll", "fireAll", "fire_all");
 		let fire_except = self.config.casing.with("FireExcept", "fireExcept", "fire_except");
-		let fire_list: &str = self.config.casing.with("FireList", "fireList", "fire_list");
+		let fire_list = self.config.casing.with("FireList", "fireList", "fire_list");
+		let fire_set = self.config.casing.with("FireSet", "fireSet", "fire_set");
 
 		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
 		let on = self.config.casing.with("On", "on", "on");
@@ -64,7 +65,7 @@ impl<'a> ServerOutput<'a> {
 		}
 
 		for ev in self.config.evdecls.iter() {
-			self.push_line(&format!("{name} = {{", name = ev.name));
+			self.push_line(&format!("{name} = table.freeze({{", name = ev.name));
 			self.indent();
 
 			if ev.from == EvSource::Client {
@@ -76,25 +77,26 @@ impl<'a> ServerOutput<'a> {
 				self.push_line(&format!("{fire} = noop,"));
 				self.push_line(&format!("{fire_all} = noop,"));
 				self.push_line(&format!("{fire_except} = noop,"));
-				self.push_line(&format!("{fire_list} = noop"));
+				self.push_line(&format!("{fire_list} = noop,"));
+				self.push_line(&format!("{fire_set} = noop"));
 			}
 
 			self.dedent();
-			self.push_line("},");
+			self.push_line("}),");
 		}
 
 		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("{name} = {{", name = fndecl.name));
+			self.push_line(&format!("{name} = table.freeze({{", name = fndecl.name));
 			self.indent();
 
 			self.push_line(&format!("{set_callback} = noop"));
 
 			self.dedent();
-			self.push_line("},");
+			self.push_line("}),");
 		}
 
 		self.dedent();
-		self.push_line("} :: Events");
+		self.push_line("} :: Events)");
 
 		self.dedent();
 		self.push_line("end");
@@ -648,6 +650,61 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("end,");
 	}
 
+	fn push_return_fire_set(&mut self, ev: &EvDecl) {
+		let ty = &ev.data;
+
+		let fire_set = self.config.casing.with("FireSet", "fireSet", "fire_set");
+		let set = self.config.casing.with("Set", "set", "set");
+		let value = self.config.casing.with("Value", "value", "value");
+
+		self.push_indent();
+		self.push(&format!("{fire_set} = function({set}: {{ [Player]: true }}"));
+
+		if let Some(ty) = ty {
+			self.push(&format!(", {value}: "));
+			self.push_ty(ty);
+		}
+
+		self.push(")\n");
+		self.indent();
+
+		self.push_line("load_empty()");
+
+		self.push_write_event_id(ev.id);
+
+		if let Some(ty) = ty {
+			self.push_stmts(&ser::gen(ty, value, self.config.write_checks));
+		}
+
+		match ev.evty {
+			EvType::Reliable => {
+				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
+				self.push_line(&format!("for player in {set} do"));
+				self.indent();
+				self.push_line("load_player(player)");
+				self.push_line("alloc(used)");
+				self.push_line("buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)");
+				self.push_line("table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)");
+				self.push_line("player_map[player] = save()");
+				self.dedent();
+				self.push_line("end");
+			}
+
+			EvType::Unreliable => {
+				self.push_line("local buff = buffer.create(outgoing_used)");
+				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
+				self.push_line(&format!("for player in {set} do"));
+				self.indent();
+				self.push_line("unreliable:FireClient(player, buff, outgoing_inst)");
+				self.dedent();
+				self.push_line("end");
+			}
+		}
+
+		self.dedent();
+		self.push_line("end,");
+	}
+
 	fn push_return_outgoing(&mut self) {
 		for ev in self
 			.config
@@ -655,16 +712,17 @@ impl<'a> ServerOutput<'a> {
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Server)
 		{
-			self.push_line(&format!("{name} = {{", name = ev.name));
+			self.push_line(&format!("{name} = table.freeze({{", name = ev.name));
 			self.indent();
 
 			self.push_return_fire(ev);
 			self.push_return_fire_all(ev);
 			self.push_return_fire_except(ev);
 			self.push_return_fire_list(ev);
+			self.push_return_fire_set(ev);
 
 			self.dedent();
-			self.push_line("},");
+			self.push_line("}),");
 		}
 	}
 
@@ -776,7 +834,7 @@ impl<'a> ServerOutput<'a> {
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Client)
 		{
-			self.push_line(&format!("{} = {{", ev.name));
+			self.push_line(&format!("{} = table.freeze({{", ev.name));
 			self.indent();
 
 			match ev.call {
@@ -785,22 +843,22 @@ impl<'a> ServerOutput<'a> {
 			}
 
 			self.dedent();
-			self.push_line("},");
+			self.push_line("}),");
 		}
 
 		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("{} = {{", fndecl.name));
+			self.push_line(&format!("{} = table.freeze({{", fndecl.name));
 			self.indent();
 
 			self.push_fn_return(fndecl);
 
 			self.dedent();
-			self.push_line("},");
+			self.push_line("}),");
 		}
 	}
 
 	pub fn push_return(&mut self) {
-		self.push_line("local returns = {");
+		self.push_line("local returns = table.freeze({");
 		self.indent();
 
 		if self.config.manual_event_loop {
@@ -813,7 +871,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_return_listen();
 
 		self.dedent();
-		self.push_line("}");
+		self.push_line("})");
 
 		self.push_line("type Events = typeof(returns)");
 		self.push_line("return returns");

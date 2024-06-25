@@ -96,7 +96,7 @@ Zap.AnotherEvent.Fire({
 The server has many functions for firing events, each with their own use case.
 
 ::: tip
-`FireAll`, `FireExcept`, and `FireList` only serialize the event's data once, making it more performant than looping over players and firing the event to each of them individually.
+`FireAll`, `FireExcept`, `FireList`, and `FireSet` only serialize the event's data once, making it more performant than looping over players and firing the event to each of them individually.
 
 If you're firing the same data to multiple players, use these functions.
 :::
@@ -148,6 +148,22 @@ The `FireList` function takes a list of players and the event's data as its argu
 local Zap = require(Path.To.Zap)
 
 Zap.MyEvent.FireList({Player1, Player2}, {
+    foo = "baz",
+    bar = 1,
+})
+```
+
+### FireSet
+
+The `FireSet` function takes a set of players and the event's data as its arguments. It will fire the event to all players in the set.
+
+```lua
+local Zap = require(Path.To.Zap)
+
+Zap.MyEvent.FireSet({
+    [Player1] = true,
+    [Player2] = true,
+}, {
     foo = "baz",
     bar = 1,
 })
