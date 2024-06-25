@@ -3,7 +3,11 @@ use crate::config::{Config, Enum, Ty};
 pub mod client;
 pub mod server;
 
-pub trait Output {
+pub trait ConfigProvider {
+    fn get_config(&self) -> &Config;
+}
+
+pub trait Output: ConfigProvider {
 	fn push(&mut self, s: &str);
 	fn indent(&mut self);
 	fn dedent(&mut self);
@@ -15,7 +19,7 @@ pub trait Output {
 		self.push("\n");
 	}
 
-	fn push_ty(&mut self, ty: &Ty, config: &Config) {
+	fn push_ty(&mut self, ty: &Ty) {
 		match ty {
 			Ty::Num(..) => self.push("number"),
 			Ty::Str { .. } => self.push("string"),
@@ -24,8 +28,8 @@ pub trait Output {
 			Ty::Arr(ty, range) => match (range.min(), range.max()) {
 				(Some(min), Some(max)) => {
 					if let Some(exact) = range.exact() {
-						if exact > config.typescript_max_tuple_length {
-							self.push_ty(ty, config);
+						if exact > self.get_config().typescript_max_tuple_length {
+							self.push_ty(ty);
 							self.push("[]");
 						} else {
 							self.push("[");
@@ -35,7 +39,7 @@ pub trait Output {
 									self.push(", ");
 								}
 
-								self.push_ty(ty, config);
+								self.push_ty(ty);
 							}
 
 							self.push("]");
@@ -49,7 +53,7 @@ pub trait Output {
 									self.push(", ");
 								}
 
-								self.push_ty(ty, config);
+								self.push_ty(ty);
 							}
 
 							self.push("] & ");
@@ -62,7 +66,7 @@ pub trait Output {
 								self.push(", ");
 							}
 
-							self.push_ty(ty, config);
+							self.push_ty(ty);
 						}
 
 						self.push("]>");
@@ -77,14 +81,14 @@ pub trait Output {
 								self.push(", ");
 							}
 
-							self.push_ty(ty, config);
+							self.push_ty(ty);
 						}
 
 						self.push(", ");
 					}
 
 					self.push("...Array<");
-					self.push_ty(ty, config);
+					self.push_ty(ty);
 					self.push(" | undefined>]");
 				}
 				(None, Some(max)) => {
@@ -95,28 +99,28 @@ pub trait Output {
 							self.push(", ");
 						}
 
-						self.push_ty(ty, config);
+						self.push_ty(ty);
 					}
 
 					self.push("]>");
 				}
 				_ => {
 					self.push("(");
-					self.push_ty(ty, config);
+					self.push_ty(ty);
 					self.push(")[]");
 				}
 			},
 
 			Ty::Map(key, val) => {
 				self.push("{ [index: ");
-				self.push_ty(key, config);
+				self.push_ty(key);
 				self.push("]: ");
-				self.push_ty(val, config);
+				self.push_ty(val);
 				self.push(" }");
 			}
 
 			Ty::Opt(ty) => {
-				self.push_ty(ty, config);
+				self.push_ty(ty);
 
 				if !matches!(**ty, Ty::Unknown) {
 					self.push("| undefined");
@@ -151,7 +155,7 @@ pub trait Output {
 						for (name, ty) in struct_ty.fields.iter() {
 							self.push_indent();
 							self.push(name);
-							self.push_arg_ty(ty, config);
+							self.push_arg_ty(ty);
 							self.push(",\n");
 						}
 
@@ -170,7 +174,7 @@ pub trait Output {
 				for (name, ty) in struct_ty.fields.iter() {
 					self.push_indent();
 					self.push(name);
-					self.push_arg_ty(ty, config);
+					self.push_arg_ty(ty);
 					self.push(",\n");
 				}
 
@@ -190,18 +194,18 @@ pub trait Output {
 		}
 	}
 
-	fn push_arg_ty(&mut self, ty: &Ty, config: &Config) {
+	fn push_arg_ty(&mut self, ty: &Ty) {
 		if let Ty::Opt(ty) = ty {
 			if let Ty::Unknown = **ty {
 				self.push(": ");
-				self.push_ty(ty, config);
+				self.push_ty(ty);
 			} else {
 				self.push("?: ");
-				self.push_ty(ty, config);
+				self.push_ty(ty);
 			}
 		} else {
 			self.push(": ");
-			self.push_ty(ty, config);
+			self.push_ty(ty);
 		}
 	}
 

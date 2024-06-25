@@ -1,5 +1,6 @@
 use crate::config::{Config, EvCall, EvSource, Ty, TyDecl, YieldType};
 
+use super::ConfigProvider;
 use super::Output;
 
 struct ClientOutput<'src> {
@@ -28,6 +29,12 @@ impl<'a> Output for ClientOutput<'a> {
 	}
 }
 
+impl<'a> ConfigProvider for ClientOutput<'a> {
+	fn get_config(&self) -> &Config {
+		return self.config;
+	}
+}
+
 impl<'src> ClientOutput<'src> {
 	pub fn new(config: &'src Config<'src>) -> Self {
 		Self {
@@ -43,7 +50,7 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_indent();
 		self.push(&format!("type {name} = "));
-		self.push_ty(ty, self.config);
+		self.push_ty(ty);
 		self.push("\n");
 	}
 
@@ -76,7 +83,7 @@ impl<'src> ClientOutput<'src> {
 
 			if let Some(data) = &ev.data {
 				self.push(value);
-				self.push_arg_ty(data, self.config);
+				self.push_arg_ty(data);
 			}
 
 			self.push(") => void\n");
@@ -111,7 +118,7 @@ impl<'src> ClientOutput<'src> {
 
 			if let Some(data) = &ev.data {
 				self.push(value);
-				self.push_arg_ty(data, self.config);
+				self.push_arg_ty(data);
 			}
 
 			self.push(") => void) => () => void\n");
@@ -134,7 +141,7 @@ impl<'src> ClientOutput<'src> {
 
 			if let Some(data) = &fndecl.args {
 				self.push(value);
-				self.push_arg_ty(data, self.config);
+				self.push_arg_ty(data);
 			}
 
 			self.push(") => ");
@@ -144,7 +151,7 @@ impl<'src> ClientOutput<'src> {
 			}
 
 			if let Some(data) = &fndecl.rets {
-				self.push_ty(data, self.config);
+				self.push_ty(data);
 			} else {
 				self.push("void");
 			}

@@ -1,5 +1,6 @@
 use crate::config::{Config, EvCall, EvDecl, EvSource, Ty, TyDecl};
 
+use super::ConfigProvider;
 use super::Output;
 
 struct ServerOutput<'src> {
@@ -28,6 +29,12 @@ impl<'a> Output for ServerOutput<'a> {
 	}
 }
 
+impl<'a> ConfigProvider for ServerOutput<'a> {
+	fn get_config(&self) -> &Config {
+		return self.config;
+	}
+}
+
 impl<'a> ServerOutput<'a> {
 	pub fn new(config: &'a Config) -> Self {
 		Self {
@@ -43,7 +50,7 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_indent();
 		self.push(&format!("type {name} = "));
-		self.push_ty(ty, self.config);
+		self.push_ty(ty);
 		self.push("\n");
 	}
 
@@ -67,7 +74,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(&format!(", {value}"));
-			self.push_arg_ty(data, self.config);
+			self.push_arg_ty(data);
 		}
 
 		self.push(") => void\n");
@@ -82,7 +89,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(value);
-			self.push_arg_ty(data, self.config);
+			self.push_arg_ty(data);
 		}
 
 		self.push(") => void\n");
@@ -98,7 +105,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(&format!(", {value}"));
-			self.push_arg_ty(data, self.config);
+			self.push_arg_ty(data);
 		}
 
 		self.push(") => void\n");
@@ -114,7 +121,7 @@ impl<'a> ServerOutput<'a> {
 
 		if let Some(data) = &ev.data {
 			self.push(&format!(", {value}"));
-			self.push_arg_ty(data, self.config);
+			self.push_arg_ty(data);
 		}
 
 		self.push(") => void\n");
@@ -167,7 +174,7 @@ impl<'a> ServerOutput<'a> {
 
 			if let Some(data) = &ev.data {
 				self.push(&format!(", {value}"));
-				self.push_arg_ty(data, self.config);
+				self.push_arg_ty(data);
 			}
 
 			self.push(") => void) => () => void\n");
@@ -192,13 +199,13 @@ impl<'a> ServerOutput<'a> {
 
 			if let Some(data) = &fndecl.args {
 				self.push(&format!(", {value}"));
-				self.push_arg_ty(data, self.config);
+				self.push_arg_ty(data);
 			}
 
 			self.push(") => ");
 
 			if let Some(data) = &fndecl.rets {
-				self.push_ty(data, self.config);
+				self.push_ty(data);
 			} else {
 				self.push("void");
 			}
