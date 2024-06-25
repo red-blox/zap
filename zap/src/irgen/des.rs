@@ -262,6 +262,11 @@ impl Des {
 			// unknown is always an opt
 			Ty::Unknown => unreachable!(),
 
+			Ty::BrickColor => self.push_assign(
+				into,
+				Expr::Call(Box::new(Var::from("BrickColor").nindex("new")), None, vec![self.readu16()]),
+			),
+
 			Ty::Boolean => self.push_assign(into, self.readu8().eq(1.0.into())),
 			Ty::Color3 => self.push_assign(
 				into,
