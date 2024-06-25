@@ -264,7 +264,11 @@ impl Des {
 
 			Ty::BrickColor => self.push_assign(
 				into,
-				Expr::Call(Box::new(Var::from("BrickColor").nindex("new")), None, vec![self.readu16()]),
+				Expr::Call(
+					Box::new(Var::from("BrickColor").nindex("new")),
+					None,
+					vec![self.readu16()],
+				),
 			),
 
 			Ty::DateTimeMillis => self.push_assign(
