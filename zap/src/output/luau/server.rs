@@ -888,6 +888,8 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_studio();
 
+		self.push_line(&format!("local SCOPE_NAME = \"{}\"", self.config.remote_scope));
+
 		self.push(include_str!("server.luau"));
 
 		self.push_tydecls();

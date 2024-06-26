@@ -92,6 +92,7 @@ impl<'src> Converter<'src> {
 
 		let (server_output, ..) = self.str_opt("server_output", "network/server.lua", &config.opts);
 		let (client_output, ..) = self.str_opt("client_output", "network/client.lua", &config.opts);
+		let (remote_scope, ..) = self.str_opt("remote_scope", "ZAP", &config.opts);
 
 		let casing = self.casing_opt(&config.opts);
 		let yield_type = self.yield_type_opt(typescript, &config.opts);
@@ -106,6 +107,8 @@ impl<'src> Converter<'src> {
 			typescript,
 			typescript_max_tuple_length,
 			manual_event_loop,
+
+			remote_scope,
 
 			server_output,
 			client_output,

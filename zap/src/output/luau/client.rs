@@ -839,6 +839,8 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_studio();
 
+		self.push_line(&format!("local SCOPE_NAME = \"{}\"", self.config.remote_scope));
+
 		self.push(include_str!("client.luau"));
 
 		self.push_tydecls();
