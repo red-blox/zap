@@ -87,14 +87,15 @@ impl Ser {
 
 					self.push_writestring(from_expr, len.into());
 				} else {
-					self.push_local("len", Some(from_expr.clone().len()));
+					let len_name = format!("len_{}", self.buf.len());
+					self.push_local(len_name.clone().leak(), Some(from_expr.clone().len()));
 
 					if self.checks {
-						self.push_range_check("len".into(), *range);
+						self.push_range_check(len_name.as_str().into(), *range);
 					}
 
-					self.push_writeu16("len".into());
-					self.push_writestring(from_expr, "len".into());
+					self.push_writeu16(len_name.as_str().into());
+					self.push_writestring(from_expr, len_name.as_str().into());
 				}
 			}
 
@@ -106,22 +107,27 @@ impl Ser {
 
 					self.push_write_copy(from_expr, len.into());
 				} else {
+					let len_name = format!("len_{}", self.buf.len());
 					self.push_local(
-						"len",
-						Some(Var::from("buffer").nindex("len").call(vec![from_expr.clone()])),
+						len_name.clone().leak(),
+						Some(
+							Var::from("buffer")
+								.nindex(len_name.clone())
+								.call(vec![from_expr.clone()]),
+						),
 					);
 
 					if self.checks {
-						self.push_range_check("len".into(), *range);
+						self.push_range_check(len_name.clone().into(), *range);
 					}
 
-					self.push_writeu16("len".into());
-					self.push_write_copy(from_expr, "len".into())
+					self.push_writeu16(len_name.as_str().into());
+					self.push_write_copy(from_expr, len_name.clone().into())
 				}
 			}
 
 			Ty::Arr(ty, range) => {
-				let var_name = format!("i_{}", from.display_escaped_suffix() + 1);
+				let var_name = format!("i_{}", self.buf.len());
 
 				if let Some(len) = range.exact() {
 					if self.checks {
@@ -137,50 +143,70 @@ impl Ser {
 					self.push_ty(ty, from.clone().eindex(var_name.as_str().into()));
 					self.push_stmt(Stmt::End);
 				} else {
-					self.push_local("len", Some(from_expr.clone().len()));
+					let len_name = format!("len_{}", self.buf.len());
+					self.push_local(len_name.clone().leak(), Some(from_expr.clone().len()));
 
 					if self.checks {
-						self.push_range_check("len".into(), *range);
+						self.push_range_check(len_name.clone().into(), *range);
 					}
 
-					self.push_writeu16("len".into());
+					self.push_writeu16(len_name.as_str().into());
 
 					self.push_stmt(Stmt::NumFor {
 						var: var_name.clone().leak(),
 						from: 1.0.into(),
-						to: "len".into(),
+						to: len_name.as_str().into(),
 					});
 
+					let inner_var_name = format!("j_{}", self.buf.len());
+
 					self.push_stmt(Stmt::Local(
-						var_name.clone().leak(),
+						inner_var_name.clone().leak(),
 						Some(from.clone().eindex(var_name.as_str().into()).into()),
 					));
 
-					self.push_ty(ty, Var::Name(var_name));
+					self.push_ty(ty, Var::Name(inner_var_name));
 					self.push_stmt(Stmt::End);
 				}
 			}
 
 			Ty::Map(key, val) => {
-				self.push_local("len_pos", Some(Var::from("alloc").call(vec![2.0.into()])));
-				self.push_local("len", Some(0.0.into()));
+				let new_suffix = self.buf.len();
+				let len_name = format!("len_{}", new_suffix);
+				let len_pos_name = format!("len_pos_{}", new_suffix);
+
+				self.push_local(
+					len_pos_name.clone().leak(),
+					Some(Var::from("alloc").call(vec![2.0.into()])),
+				);
+				self.push_local(len_name.clone().leak(), Some(0.0.into()));
+
+				let key_name = format!("k_{}", new_suffix);
+				let val_name = format!("v_{}", new_suffix);
 
 				self.push_stmt(Stmt::GenFor {
-					key: "k",
-					val: "v",
+					key: key_name.clone().leak(),
+					val: val_name.clone().leak(),
 					obj: from_expr,
 				});
 
-				self.push_assign("len".into(), Expr::from("len").add(1.0.into()));
-				self.push_ty(key, "k".into());
-				self.push_ty(val, "v".into());
+				self.push_assign(
+					Var::Name(len_name.clone()),
+					Expr::from(len_name.as_str()).add(1.0.into()),
+				);
+				self.push_ty(key, key_name.as_str().into());
+				self.push_ty(val, val_name.as_str().into());
 
 				self.push_stmt(Stmt::End);
 
 				self.push_stmt(Stmt::Call(
 					Var::from("buffer").nindex("writeu16"),
 					None,
-					vec!["outgoing_buff".into(), "len_pos".into(), "len".into()],
+					vec![
+						"outgoing_buff".into(),
+						len_pos_name.as_str().into(),
+						len_name.as_str().into(),
+					],
 				));
 			}
 

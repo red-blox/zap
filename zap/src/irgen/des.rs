@@ -86,13 +86,14 @@ impl Des {
 				if let Some(len) = range.exact() {
 					self.push_assign(into, self.readstring(len.into()));
 				} else {
-					self.push_local("len", Some(self.readnumty(NumTy::U16)));
+					let len_name = format!("len_{}", self.buf.len());
+					self.push_local(len_name.clone().leak(), Some(self.readnumty(NumTy::U16)));
 
 					if self.checks {
-						self.push_range_check(Expr::from("len"), *range);
+						self.push_range_check(Expr::from(len_name.as_str()), *range);
 					}
 
-					self.push_assign(into, self.readstring(Expr::from("len")));
+					self.push_assign(into, self.readstring(Expr::from(len_name.as_str())));
 				}
 			}
 
@@ -100,20 +101,21 @@ impl Des {
 				if let Some(len) = range.exact() {
 					self.push_read_copy(into, len.into());
 				} else {
-					self.push_local("len", Some(self.readnumty(NumTy::U16)));
+					let len_name = format!("len_{}", self.buf.len());
+					self.push_local(len_name.clone().leak(), Some(self.readnumty(NumTy::U16)));
 
 					if self.checks {
-						self.push_range_check(Expr::from("len"), *range);
+						self.push_range_check(Expr::from(len_name.as_str()), *range);
 					}
 
-					self.push_read_copy(into, Expr::from("len"))
+					self.push_read_copy(into, Expr::from(len_name.as_str()))
 				}
 			}
 
 			Ty::Arr(ty, range) => {
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
-				let var_name: String = format!("i_{}", into.display_escaped_suffix() + 1);
+				let var_name: String = format!("i_{}", self.buf.len());
 
 				if let Some(len) = range.exact() {
 					self.push_stmt(Stmt::NumFor {
@@ -125,19 +127,21 @@ impl Des {
 					self.push_ty(ty, into.clone().eindex(var_name.as_str().into()));
 					self.push_stmt(Stmt::End);
 				} else {
-					self.push_local("len", Some(self.readnumty(NumTy::U16)));
+					let len_name = format!("len_{}", self.buf.len());
+
+					self.push_local(len_name.clone().leak(), Some(self.readnumty(NumTy::U16)));
 
 					if self.checks {
-						self.push_range_check(Expr::from("len"), *range);
+						self.push_range_check(Expr::from(len_name.as_str()), *range);
 					}
 
 					self.push_stmt(Stmt::NumFor {
 						var: var_name.clone().leak(),
 						from: 1.0.into(),
-						to: "len".into(),
+						to: len_name.as_str().into(),
 					});
 
-					let inner_var_name = format!("j_{}", into.display_escaped_suffix() + 1);
+					let inner_var_name = format!("j_{}", self.buf.len());
 
 					self.push_local(inner_var_name.clone().leak(), None);
 
@@ -161,9 +165,9 @@ impl Des {
 					to: self.readu16(),
 				});
 
-				let key_name = format!("key_{}", into.display_escaped_suffix() + 1);
+				let key_name = format!("key_{}", self.buf.len());
 				self.push_local(key_name.clone().leak(), None);
-				let val_name = format!("val_{}", into.display_escaped_suffix() + 1);
+				let val_name = format!("val_{}", self.buf.len());
 				self.push_local(val_name.clone().leak(), None);
 
 				self.push_ty(key, Var::Name(key_name.clone()));

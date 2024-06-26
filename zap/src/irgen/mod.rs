@@ -293,20 +293,6 @@ impl Var {
 	pub fn call(self, args: Vec<Expr>) -> Expr {
 		Expr::Call(Box::new(self), None, args)
 	}
-
-	pub fn display_escaped_suffix(&self) -> i32 {
-		match self {
-			Self::Name(name) => match name.find('_') {
-				Some(underscore_index) => match name[underscore_index + 1..].parse::<i32>() {
-					Ok(number) => number + 1,
-					Err(_) => 0,
-				},
-				None => 0,
-			},
-			Self::NameIndex(var, _) => var.display_escaped_suffix() + 1,
-			Self::ExprIndex(var, _) => var.display_escaped_suffix() + 1,
-		}
-	}
 }
 
 impl From<&str> for Var {
