@@ -96,7 +96,7 @@ impl<'a> ServerOutput<'a> {
 		}
 
 		self.dedent();
-		self.push_line("} :: Events)");
+		self.push_line("}) :: Events");
 
 		self.dedent();
 		self.push_line("end");

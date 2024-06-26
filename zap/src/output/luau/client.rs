@@ -88,7 +88,7 @@ impl<'src> ClientOutput<'src> {
 		}
 
 		self.dedent();
-		self.push_line("} :: Events)");
+		self.push_line("}) :: Events");
 
 		self.dedent();
 		self.push_line("end");
