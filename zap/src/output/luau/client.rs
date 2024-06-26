@@ -838,7 +838,9 @@ impl<'src> ClientOutput<'src> {
 
 	pub fn push_check_server(&mut self) {
 		self.push_line("if RunService:IsServer() then");
-		self.push_line("\terror(\"Cannot use the client module on the server!\")");
+		self.indent();
+		self.push_line("error(\"Cannot use the client module on the server!\")");
+		self.dedent();
 		self.push_line("end");
 	}
 
