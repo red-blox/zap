@@ -140,7 +140,7 @@ impl<'a> ServerOutput<'a> {
 
 			self.push_line(&format!("local function {send_events}()"));
 		} else {
-			self.push_line("RunService.Heartbeat:Connect(function()");
+			self.push_line("RunService.PostSimulation:Connect(function()");
 		}
 
 		self.indent();

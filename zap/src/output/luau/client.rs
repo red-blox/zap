@@ -133,7 +133,7 @@ impl<'src> ClientOutput<'src> {
 			self.push_line(&format!("local function {send_events}()"));
 			self.indent();
 		} else {
-			self.push_line("RunService.Heartbeat:Connect(function(dt)");
+			self.push_line("RunService.PostSimulation:Connect(function(dt)");
 			self.indent();
 			self.push_line("time += dt");
 			self.push("\n");
