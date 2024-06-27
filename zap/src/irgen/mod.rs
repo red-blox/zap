@@ -1,10 +1,28 @@
 #![allow(dead_code)]
+use std::collections::HashMap;
 use std::{fmt::Display, vec};
 
 use crate::config::{NumTy, Range, Ty};
 
 pub mod des;
 pub mod ser;
+
+pub trait VarOccurrencesProvider {
+	fn get_var_occurrences(&mut self) -> &mut HashMap<String, i32>;
+	fn add_occurrence(&mut self, name: String) -> i32 {
+		match self.get_var_occurrences().get(&name) {
+			Some(occurrences) => {
+				let occurrences_inc = occurrences + 1;
+				self.get_var_occurrences().insert(name, occurrences_inc);
+				occurrences_inc
+			}
+			None => {
+				self.get_var_occurrences().insert(name, 1);
+				1
+			}
+		}
+	}
+}
 
 pub trait Gen {
 	fn push_stmt(&mut self, stmt: Stmt);

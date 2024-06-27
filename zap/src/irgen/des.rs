@@ -1,10 +1,12 @@
 use crate::config::{Enum, NumTy, Struct, Ty};
+use std::collections::HashMap;
 
-use super::{Expr, Gen, Stmt, Var};
+use super::{Expr, Gen, Stmt, Var, VarOccurrencesProvider};
 
 struct Des {
 	checks: bool,
 	buf: Vec<Stmt>,
+	var_occurrences: HashMap<String, i32>,
 }
 
 impl Gen for Des {
@@ -86,7 +88,7 @@ impl Des {
 				if let Some(len) = range.exact() {
 					self.push_assign(into, self.readstring(len.into()));
 				} else {
-					let len_name = format!("len_{}", self.buf.len());
+					let len_name = format!("len_{}", self.add_occurrence(String::from("len")));
 					self.push_local(len_name.clone().leak(), Some(self.readnumty(NumTy::U16)));
 
 					if self.checks {
@@ -101,7 +103,7 @@ impl Des {
 				if let Some(len) = range.exact() {
 					self.push_read_copy(into, len.into());
 				} else {
-					let len_name = format!("len_{}", self.buf.len());
+					let len_name = format!("len_{}", self.add_occurrence(String::from("len")));
 					self.push_local(len_name.clone().leak(), Some(self.readnumty(NumTy::U16)));
 
 					if self.checks {
@@ -115,7 +117,7 @@ impl Des {
 			Ty::Arr(ty, range) => {
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
-				let var_name: String = format!("i_{}", self.buf.len());
+				let var_name: String = format!("i_{}", self.add_occurrence(String::from("i")));
 
 				if let Some(len) = range.exact() {
 					self.push_stmt(Stmt::NumFor {
@@ -127,7 +129,7 @@ impl Des {
 					self.push_ty(ty, into.clone().eindex(var_name.as_str().into()));
 					self.push_stmt(Stmt::End);
 				} else {
-					let len_name = format!("len_{}", self.buf.len());
+					let len_name = format!("len_{}", self.add_occurrence(String::from("len")));
 
 					self.push_local(len_name.clone().leak(), Some(self.readnumty(NumTy::U16)));
 
@@ -141,7 +143,7 @@ impl Des {
 						to: len_name.as_str().into(),
 					});
 
-					let inner_var_name = format!("j_{}", self.buf.len());
+					let inner_var_name = format!("j_{}", self.add_occurrence(String::from("j")));
 
 					self.push_local(inner_var_name.clone().leak(), None);
 
@@ -165,9 +167,9 @@ impl Des {
 					to: self.readu16(),
 				});
 
-				let key_name = format!("key_{}", self.buf.len());
+				let key_name = format!("key_{}", self.add_occurrence(String::from("key")));
 				self.push_local(key_name.clone().leak(), None);
-				let val_name = format!("val_{}", self.buf.len());
+				let val_name = format!("val_{}", self.add_occurrence(String::from("val")));
 				self.push_local(val_name.clone().leak(), None);
 
 				self.push_ty(key, Var::Name(key_name.clone()));
@@ -374,6 +376,17 @@ impl Des {
 	}
 }
 
+impl VarOccurrencesProvider for Des {
+	fn get_var_occurrences(&mut self) -> &mut HashMap<String, i32> {
+		&mut self.var_occurrences
+	}
+}
+
 pub fn gen(ty: &Ty, var: &str, checks: bool) -> Vec<Stmt> {
-	Des { checks, buf: vec![] }.gen(var.into(), ty)
+	Des {
+		checks,
+		buf: vec![],
+		var_occurrences: HashMap::new(),
+	}
+	.gen(var.into(), ty)
 }
