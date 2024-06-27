@@ -157,11 +157,13 @@ const beforeMount = (monaco: Monaco) => {
 		yield_type: YieldType,
 
 		typescript: Operators,
+		typescript_max_tuple_length: [],
 		write_checks: Operators,
 		manual_event_loop: Operators,
 
-		output_server: [],
-		output_client: [],
+		remote_scope: [],
+		server_output: [],
+		client_output: [],
 		async_lib: [],
 	} as const;
 
