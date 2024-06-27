@@ -89,7 +89,7 @@ impl Ser {
 
 					self.push_writestring(from_expr, len.into());
 				} else {
-					let len_name = format!("len_{}", self.add_occurrence(String::from("len")));
+					let len_name = format!("len_{}", self.add_occurrence("len".into()));
 					self.push_local(len_name.clone().leak(), Some(from_expr.clone().len()));
 
 					if self.checks {
@@ -109,7 +109,7 @@ impl Ser {
 
 					self.push_write_copy(from_expr, len.into());
 				} else {
-					let len_name = format!("len_{}", self.add_occurrence(String::from("len")));
+					let len_name = format!("len_{}", self.add_occurrence("len".into()));
 					self.push_local(
 						len_name.clone().leak(),
 						Some(
@@ -129,7 +129,7 @@ impl Ser {
 			}
 
 			Ty::Arr(ty, range) => {
-				let var_name = format!("i_{}", self.add_occurrence(String::from("i")));
+				let var_name = format!("i_{}", self.add_occurrence("i".into()));
 
 				if let Some(len) = range.exact() {
 					if self.checks {
@@ -145,7 +145,7 @@ impl Ser {
 					self.push_ty(ty, from.clone().eindex(var_name.as_str().into()));
 					self.push_stmt(Stmt::End);
 				} else {
-					let len_name = format!("len_{}", self.add_occurrence(String::from("len")));
+					let len_name = format!("len_{}", self.add_occurrence("len".into()));
 					self.push_local(len_name.clone().leak(), Some(from_expr.clone().len()));
 
 					if self.checks {
@@ -160,7 +160,7 @@ impl Ser {
 						to: len_name.as_str().into(),
 					});
 
-					let inner_var_name = format!("j_{}", self.add_occurrence(String::from("j")));
+					let inner_var_name = format!("j_{}", self.add_occurrence("j".into()));
 
 					self.push_stmt(Stmt::Local(
 						inner_var_name.clone().leak(),
@@ -173,8 +173,8 @@ impl Ser {
 			}
 
 			Ty::Map(key, val) => {
-				let len_name = format!("len_{}", self.add_occurrence(String::from("len")));
-				let len_pos_name = format!("len_pos_{}", self.add_occurrence(String::from("len_pos")));
+				let len_name = format!("len_{}", self.add_occurrence("len".into()));
+				let len_pos_name = format!("len_pos_{}", self.add_occurrence("len_pos".into()));
 
 				self.push_local(
 					len_pos_name.clone().leak(),
@@ -182,8 +182,8 @@ impl Ser {
 				);
 				self.push_local(len_name.clone().leak(), Some(0.0.into()));
 
-				let key_name = format!("k_{}", self.add_occurrence(String::from("k")));
-				let val_name = format!("v_{}", self.add_occurrence(String::from("v")));
+				let key_name = format!("k_{}", self.add_occurrence("k".into()));
+				let val_name = format!("v_{}", self.add_occurrence("v".into()));
 
 				self.push_stmt(Stmt::GenFor {
 					key: key_name.clone().leak(),
