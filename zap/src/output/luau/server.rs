@@ -877,6 +877,63 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("return returns");
 	}
 
+	pub fn push_check_client(&mut self) {
+		self.push_line("local Players = game:GetService(\"Players\")");
+		self.push("\n");
+		self.push_line("if RunService:IsClient() then");
+		self.indent();
+		self.push_line("error(\"Cannot use the server module on the client!\")");
+		self.dedent();
+		self.push_line("end");
+	}
+
+	pub fn push_create_remotes(&mut self) {
+		self.push_line(&format!("local reliable = ReplicatedStorage:FindFirstChild(\"{}_RELIABLE\")", self.config.remote_scope));
+		self.push_line("if reliable == nil then");
+		self.indent();
+		self.push_line("reliable = Instance.new(\"RemoteEvent\")");
+		self.push_line(&format!("reliable.Name = \"{}\"", self.config.remote_scope));
+		self.push_line("reliable.Parent = ReplicatedStorage");
+		self.dedent();
+		self.push_line("end");
+
+		self.push("\n");
+
+		self.push_line(&format!("local unreliable = ReplicatedStorage:FindFirstChild(\"{}_UNRELIABLE\")", self.config.remote_scope));
+		self.push_line("if unreliable == nil then");
+		self.indent();
+		self.push_line("unreliable = Instance.new(\"UnreliableRemoteEvent\")");
+		self.push_line(&format!("unreliable.Name = \"{}\"", self.config.remote_scope));
+		self.push_line("unreliable.Parent = ReplicatedStorage");
+		self.dedent();
+		self.push_line("end");
+	}
+
+	pub fn push_player_map(&mut self) {
+		self.push_line("local player_map = {}");
+		self.push("\n");
+		self.push_line("local function load_player(player: Player)");
+		self.indent();
+		self.push_line("if player_map[player] then");
+		self.indent();
+		self.push_line("load(player_map[player])");
+		self.dedent();
+		self.push_line("else");
+		self.indent();
+		self.push_line("load_empty()");
+		self.dedent();
+		self.push_line("end");
+		self.dedent();
+		self.push_line("end");
+		self.push("\n");
+		self.push_line("Players.PlayerRemoving:Connect(function(player)");
+		self.indent();
+		self.push_line("player_map[player] = nil");
+		self.dedent();
+		self.push_line("end");
+		self.push("\n");
+	}
+
 	pub fn output(mut self) -> String {
 		self.push_file_header("Server");
 
@@ -888,7 +945,11 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_studio();
 
-		self.push(include_str!("server.luau"));
+		self.push_check_client();
+
+		self.push_create_remotes();
+
+		self.push_player_map();
 
 		self.push_tydecls();
 
