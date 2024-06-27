@@ -129,18 +129,33 @@ impl<'a> HirBuilder<'a> {
 		let span = ast.span();
 
 		match ast {
-			AstConfigValue::Boolean(_, span) => {
-				// todo: report error
+			AstConfigValue::Boolean(_, _) => {
+				self.report(Report::ExpectedType {
+					value_span: span,
+					expected_type: "`path`".to_string(),
+					found_type: "boolean".to_string(),
+				});
+
 				HirRemoteId(0)
 			}
 
-			AstConfigValue::Number(number) => {
-				// todo: report error
+			AstConfigValue::Number(_) => {
+				self.report(Report::ExpectedType {
+					value_span: span,
+					expected_type: "`path`".to_string(),
+					found_type: "number".to_string(),
+				});
+
 				HirRemoteId(0)
 			}
 
-			AstConfigValue::String(string) => {
-				// todo: report error
+			AstConfigValue::String(_) => {
+				self.report(Report::ExpectedType {
+					value_span: span,
+					expected_type: "`path`".to_string(),
+					found_type: "string".to_string(),
+				});
+
 				HirRemoteId(0)
 			}
 
@@ -155,7 +170,6 @@ impl<'a> HirBuilder<'a> {
 				"client" => HirEventSource::Client,
 				_ => {
 					self.report(Report::ExpectedValue {
-						span: event_name.span(),
 						value_span: string.span(),
 						expected_values: "\"client\" or \"server\"".to_string(),
 						found: format!("\"{}\"", string.string(self.rodeo)),
@@ -166,27 +180,43 @@ impl<'a> HirBuilder<'a> {
 			},
 
 			AstConfigValue::Boolean(_, span) => {
-				// todo: report error
+				self.report(Report::ExpectedValueWrongType {
+					value_span: span,
+					expected_values: "\"client\" or \"server\"".to_string(),
+					found_type: "boolean".to_string(),
+				});
+
 				HirEventSource::Server
 			}
 
 			AstConfigValue::Number(number) => {
-				// todo: report error
+				self.report(Report::ExpectedValueWrongType {
+					value_span: number.span(),
+					expected_values: "\"client\" or \"server\"".to_string(),
+					found_type: "number".to_string(),
+				});
+
 				HirEventSource::Server
 			}
 
 			AstConfigValue::Path(words) => {
-				if words.len() == 1 {
-					let word = words.first().unwrap().word(self.rodeo);
+				// if words.len() == 1 {
+				// 	let word = words.first().unwrap().word(self.rodeo);
 
-					if word == "server" || word == "Server" {
-						// todo: report special error
-					} else if word == "client" || word == "Client" {
-						// todo: report special error
-					}
-				} else {
-					// todo: report error
-				}
+				// 	if word == "server" || word == "Server" {
+				// 		// todo: report special error
+				// 	} else if word == "client" || word == "Client" {
+				// 		// todo: report special error
+				// 	}
+				// } else {
+				// 	// todo: report error
+				// }
+
+				self.report(Report::ExpectedValueWrongType {
+					value_span: words.first().unwrap().span().merge(words.last().unwrap().span()),
+					expected_values: "\"client\" or \"server\"".to_string(),
+					found_type: "path".to_string(),
+				});
 
 				HirEventSource::Server
 			}
@@ -245,9 +275,9 @@ impl<'a> HirBuilder<'a> {
 	}
 
 	fn remote_config_batching(&mut self, ast: AstConfigValue) -> HirRemoteBatching {
-		match ast {
-			AstConfigValue::Boolean(value, span) => {
-				if value {
+		match &ast {
+			AstConfigValue::Boolean(value, _) => {
+				if *value {
 					HirRemoteBatching::MaxTime(0.0)
 				} else {
 					HirRemoteBatching::None
@@ -263,35 +293,60 @@ impl<'a> HirBuilder<'a> {
 				}
 			}
 
-			AstConfigValue::String(string) => {
-				// todo: report error
+			AstConfigValue::String(_) => {
+				self.report(Report::ExpectedType {
+					value_span: ast.span(),
+					expected_type: "`boolean` or `number`".to_string(),
+					found_type: "string".to_string(),
+				});
+
 				HirRemoteBatching::None
 			}
 
-			AstConfigValue::Path(words) => {
+			AstConfigValue::Path(_) => {
 				// todo: potential special error
-				// todo: report error
+				self.report(Report::ExpectedType {
+					value_span: ast.span(),
+					expected_type: "`boolean` or `number`".to_string(),
+					found_type: "path".to_string(),
+				});
+
 				HirRemoteBatching::None
 			}
 		}
 	}
 
 	fn remote_config_reliable(&mut self, ast: AstConfigValue) -> bool {
-		match ast {
-			AstConfigValue::Boolean(value, _) => value,
+		match &ast {
+			AstConfigValue::Boolean(value, _) => *value,
 
-			AstConfigValue::Number(number) => {
-				// todo: report error
+			AstConfigValue::Number(_) => {
+				self.report(Report::ExpectedType {
+					value_span: ast.span(),
+					expected_type: "`boolean`".to_string(),
+					found_type: "number".to_string(),
+				});
+
 				true
 			}
 
-			AstConfigValue::String(string) => {
-				// todo: report error
+			AstConfigValue::String(_) => {
+				self.report(Report::ExpectedType {
+					value_span: ast.span(),
+					expected_type: "`boolean`".to_string(),
+					found_type: "string".to_string(),
+				});
+
 				true
 			}
 
-			AstConfigValue::Path(words) => {
-				// todo: report error
+			AstConfigValue::Path(_) => {
+				self.report(Report::ExpectedType {
+					value_span: ast.span(),
+					expected_type: "`boolean`".to_string(),
+					found_type: "path".to_string(),
+				});
+
 				true
 			}
 		}

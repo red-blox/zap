@@ -92,10 +92,21 @@ pub enum Report {
 	},
 
 	ExpectedValue {
-		span: Span,
 		value_span: Span,
 		found: String,
 		expected_values: String,
+	},
+
+	ExpectedValueWrongType {
+		value_span: Span,
+		found_type: String,
+		expected_values: String,
+	},
+
+	ExpectedType {
+		value_span: Span,
+		expected_type: String,
+		found_type: String,
 	},
 
 	IncorrectGenericCount {
@@ -134,6 +145,8 @@ impl Report {
 			Self::UnexpectedField { .. } => ReportKind::Error,
 			Self::ExpectedField { .. } => ReportKind::Error,
 			Self::ExpectedValue { .. } => ReportKind::Error,
+			Self::ExpectedValueWrongType { .. } => ReportKind::Error,
+			Self::ExpectedType { .. } => ReportKind::Error,
 			Self::IncorrectGenericCount { .. } => ReportKind::Error,
 		}
 	}
@@ -261,13 +274,40 @@ impl Report {
 				),
 
 			Self::ExpectedValue {
-				span,
 				value_span,
 				found,
 				expected_values,
-			} => build(kind, span).with_message("invalid value").with_label(
+			} => build(kind, value_span).with_message("invalid value").with_label(
 				label(value_span)
 					.with_message(format!("expected {}, found {}", expected_values, found.fg(ERROR)))
+					.with_color(ERROR),
+			),
+
+			Self::ExpectedValueWrongType {
+				value_span,
+				found_type,
+				expected_values,
+			} => build(kind, value_span).with_message("invalid value").with_label(
+				label(value_span)
+					.with_message(format!(
+						"expected {}, found {}",
+						expected_values,
+						ticks(found_type).fg(ERROR)
+					))
+					.with_color(ERROR),
+			),
+
+			Self::ExpectedType {
+				value_span,
+				expected_type,
+				found_type,
+			} => build(kind, value_span).with_message("mismatched types").with_label(
+				label(value_span)
+					.with_message(format!(
+						"expected {}, found {}",
+						expected_type,
+						ticks(found_type).fg(ERROR)
+					))
 					.with_color(ERROR),
 			),
 
