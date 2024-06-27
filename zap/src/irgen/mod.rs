@@ -274,16 +274,8 @@ pub enum Stmt {
 
 	Call(Var, Option<String>, Vec<Expr>),
 
-	NumFor {
-		var: String,
-		from: Expr,
-		to: Expr,
-	},
-	GenFor {
-		key: String,
-		val: String,
-		obj: Expr,
-	},
+	NumFor { var: String, from: Expr, to: Expr },
+	GenFor { key: String, val: String, obj: Expr },
 	If(Expr),
 	ElseIf(Expr),
 	Else,

@@ -172,7 +172,7 @@ impl Des {
 					to: self.readu16(),
 				});
 
-				let (key_name,key_expr) = self.add_occurrence("key");
+				let (key_name, key_expr) = self.add_occurrence("key");
 				self.push_local(key_name.clone(), None);
 				let (val_name, val_expr) = self.add_occurrence("val");
 				self.push_local(val_name.clone(), None);

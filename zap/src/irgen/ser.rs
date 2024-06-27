@@ -180,10 +180,7 @@ impl Ser {
 				let (len_name, len_expr) = self.add_occurrence("len");
 				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
 
-				self.push_local(
-					len_pos_name.clone(),
-					Some(Var::from("alloc").call(vec![2.0.into()])),
-				);
+				self.push_local(len_pos_name.clone(), Some(Var::from("alloc").call(vec![2.0.into()])));
 				self.push_local(len_name.clone(), Some(0.0.into()));
 
 				let (key_name, _) = self.add_occurrence("k");
@@ -207,11 +204,7 @@ impl Ser {
 				self.push_stmt(Stmt::Call(
 					Var::from("buffer").nindex("writeu16"),
 					None,
-					vec![
-						"outgoing_buff".into(),
-						len_pos_expr.clone(),
-						len_expr.clone(),
-					],
+					vec!["outgoing_buff".into(), len_pos_expr.clone(), len_expr.clone()],
 				));
 			}
 
