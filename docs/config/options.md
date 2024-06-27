@@ -103,7 +103,7 @@ When enabled, Zap will generate a `.d.ts` file for the server and client with th
 
 This option determines if Zap automatically sends reliable events and functions each Heartbeat.
 
-When enabled, a `SendEvents` function will be exported from the client and server modules that must be called manually.
+When enabled, the `SendEvents` function exported from the client and server modules that must be called manually.
 
 This is useful when you can easily run `SendEvents` after all events have been fired each frame.
 
