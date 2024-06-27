@@ -70,8 +70,8 @@ impl<'a> HirBuilder<'a> {
 	pub fn add_ty_decl(&mut self, from: &ScopeId, name: Spur, span: Span, ty: HirTy) -> HirTyDeclId {
 		let id = self.get_or_create_ty_decl_id(from, name, span);
 
-		if let Resolved::Resolved(first_span, ..) = self.ty_decls[id.0] {
-			// todo: report error
+		if let Resolved::Resolved(..) = self.ty_decls[id.0] {
+			// Duplicate error is reported in `decl.rs`.
 		} else {
 			self.ty_decls[id.0] = Resolved::Resolved(span, ty);
 		}
@@ -127,8 +127,8 @@ impl<'a> HirBuilder<'a> {
 	pub fn add_remote(&mut self, from: &ScopeId, name: Spur, span: Span, remote: HirRemote) -> HirRemoteId {
 		let id = self.get_or_create_remote_id(from, name, span);
 
-		if let Resolved::Resolved(first_span, ..) = self.remote_decls[id.0] {
-			// todo: report error
+		if let Resolved::Resolved(..) = self.remote_decls[id.0] {
+			// Duplicate error is reported in `decl.rs`.
 		} else {
 			self.remote_decls[id.0] = Resolved::Resolved(span, remote);
 		}
