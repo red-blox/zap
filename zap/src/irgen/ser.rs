@@ -1,12 +1,12 @@
 use crate::config::{Enum, NumTy, Struct, Ty};
 use std::collections::HashMap;
 
-use super::{Expr, Gen, Stmt, Var, VarOccurrencesProvider};
+use super::{Expr, Gen, Stmt, Var};
 
 struct Ser {
 	checks: bool,
 	buf: Vec<Stmt>,
-	var_occurrences: HashMap<String, i32>,
+	var_occurrences: HashMap<String, usize>,
 }
 
 impl Gen for Ser {
@@ -17,6 +17,10 @@ impl Gen for Ser {
 	fn gen(mut self, var: Var, ty: &Ty) -> Vec<Stmt> {
 		self.push_ty(ty, var);
 		self.buf
+	}
+
+	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize> {
+		&mut self.var_occurrences
 	}
 }
 
@@ -89,7 +93,7 @@ impl Ser {
 
 					self.push_writestring(from_expr, len.into());
 				} else {
-					let len_name = format!("len_{}", self.add_occurrence("len".into()));
+					let len_name = self.add_occurrence("len");
 					self.push_local(len_name.clone().leak(), Some(from_expr.clone().len()));
 
 					if self.checks {
@@ -109,7 +113,7 @@ impl Ser {
 
 					self.push_write_copy(from_expr, len.into());
 				} else {
-					let len_name = format!("len_{}", self.add_occurrence("len".into()));
+					let len_name = self.add_occurrence("len");
 					self.push_local(
 						len_name.clone().leak(),
 						Some(
@@ -129,7 +133,7 @@ impl Ser {
 			}
 
 			Ty::Arr(ty, range) => {
-				let var_name = format!("i_{}", self.add_occurrence("i".into()));
+				let var_name = self.add_occurrence("i");
 
 				if let Some(len) = range.exact() {
 					if self.checks {
@@ -145,7 +149,7 @@ impl Ser {
 					self.push_ty(ty, from.clone().eindex(var_name.as_str().into()));
 					self.push_stmt(Stmt::End);
 				} else {
-					let len_name = format!("len_{}", self.add_occurrence("len".into()));
+					let len_name = self.add_occurrence("len");
 					self.push_local(len_name.clone().leak(), Some(from_expr.clone().len()));
 
 					if self.checks {
@@ -160,7 +164,7 @@ impl Ser {
 						to: len_name.as_str().into(),
 					});
 
-					let inner_var_name = format!("j_{}", self.add_occurrence("j".into()));
+					let inner_var_name = self.add_occurrence("j");
 
 					self.push_stmt(Stmt::Local(
 						inner_var_name.clone().leak(),
@@ -173,8 +177,8 @@ impl Ser {
 			}
 
 			Ty::Map(key, val) => {
-				let len_name = format!("len_{}", self.add_occurrence("len".into()));
-				let len_pos_name = format!("len_pos_{}", self.add_occurrence("len_pos".into()));
+				let len_name = self.add_occurrence("len");
+				let len_pos_name = self.add_occurrence("len_pos");
 
 				self.push_local(
 					len_pos_name.clone().leak(),
@@ -182,8 +186,8 @@ impl Ser {
 				);
 				self.push_local(len_name.clone().leak(), Some(0.0.into()));
 
-				let key_name = format!("k_{}", self.add_occurrence("k".into()));
-				let val_name = format!("v_{}", self.add_occurrence("v".into()));
+				let key_name = self.add_occurrence("k");
+				let val_name = self.add_occurrence("v");
 
 				self.push_stmt(Stmt::GenFor {
 					key: key_name.clone().leak(),
@@ -328,12 +332,6 @@ impl Ser {
 
 			Ty::Boolean => self.push_writeu8(from_expr.and(1.0.into()).or(0.0.into())),
 		}
-	}
-}
-
-impl VarOccurrencesProvider for Ser {
-	fn get_var_occurrences(&mut self) -> &mut HashMap<String, i32> {
-		&mut self.var_occurrences
 	}
 }
 

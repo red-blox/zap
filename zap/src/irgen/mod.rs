@@ -7,23 +7,6 @@ use crate::config::{NumTy, Range, Ty};
 pub mod des;
 pub mod ser;
 
-pub trait VarOccurrencesProvider {
-	fn get_var_occurrences(&mut self) -> &mut HashMap<String, i32>;
-	fn add_occurrence(&mut self, name: String) -> i32 {
-		match self.get_var_occurrences().get(&name) {
-			Some(occurrences) => {
-				let occurrences_inc = occurrences + 1;
-				self.get_var_occurrences().insert(name, occurrences_inc);
-				occurrences_inc
-			}
-			None => {
-				self.get_var_occurrences().insert(name, 1);
-				1
-			}
-		}
-	}
-}
-
 pub trait Gen {
 	fn push_stmt(&mut self, stmt: Stmt);
 	fn gen(self, var: Var, ty: &Ty<'_>) -> Vec<Stmt>;
@@ -260,6 +243,21 @@ pub trait Gen {
 
 		if let Some(max) = range.max() {
 			self.push_assert(expr.clone().lte(max.into()), None)
+		}
+	}
+
+	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize>;
+	fn add_occurrence(&mut self, name: &str) -> String {
+		match self.get_var_occurrences().get(name.into()) {
+			Some(occurrences) => {
+				let occurrences_inc = occurrences + 1;
+				self.get_var_occurrences().insert(name.into(), occurrences_inc);
+				format!("{name}_{occurrences_inc}")
+			}
+			None => {
+				self.get_var_occurrences().insert(name.into(), 1);
+				format!("{name}_1")
+			}
 		}
 	}
 }
