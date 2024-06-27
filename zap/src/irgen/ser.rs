@@ -93,15 +93,15 @@ impl Ser {
 
 					self.push_writestring(from_expr, len.into());
 				} else {
-					let len_name = self.add_occurrence("len");
-					self.push_local(len_name.clone().leak(), Some(from_expr.clone().len()));
+					let (len_name, len_expr) = self.add_occurrence("len");
+					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
 					if self.checks {
 						self.push_range_check(len_name.as_str().into(), *range);
 					}
 
-					self.push_writeu16(len_name.as_str().into());
-					self.push_writestring(from_expr, len_name.as_str().into());
+					self.push_writeu16(len_expr.clone());
+					self.push_writestring(from_expr, len_expr.clone());
 				}
 			}
 
@@ -113,9 +113,9 @@ impl Ser {
 
 					self.push_write_copy(from_expr, len.into());
 				} else {
-					let len_name = self.add_occurrence("len");
+					let (len_name, len_expr) = self.add_occurrence("len");
 					self.push_local(
-						len_name.clone().leak(),
+						len_name.clone(),
 						Some(
 							Var::from("buffer")
 								.nindex(len_name.clone())
@@ -124,7 +124,7 @@ impl Ser {
 					);
 
 					if self.checks {
-						self.push_range_check(len_name.clone().into(), *range);
+						self.push_range_check(len_expr.clone(), *range);
 					}
 
 					self.push_writeu16(len_name.as_str().into());
@@ -133,7 +133,7 @@ impl Ser {
 			}
 
 			Ty::Arr(ty, range) => {
-				let var_name = self.add_occurrence("i");
+				let (var_name, var_expr) = self.add_occurrence("i");
 
 				if let Some(len) = range.exact() {
 					if self.checks {
@@ -141,16 +141,16 @@ impl Ser {
 					}
 
 					self.push_stmt(Stmt::NumFor {
-						var: var_name.clone().leak(),
+						var: var_name.clone(),
 						from: 1.0.into(),
 						to: len.into(),
 					});
 
-					self.push_ty(ty, from.clone().eindex(var_name.as_str().into()));
+					self.push_ty(ty, from.clone().eindex(var_expr.clone()));
 					self.push_stmt(Stmt::End);
 				} else {
-					let len_name = self.add_occurrence("len");
-					self.push_local(len_name.clone().leak(), Some(from_expr.clone().len()));
+					let (len_name, len_expr) = self.add_occurrence("len");
+					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
 					if self.checks {
 						self.push_range_check(len_name.clone().into(), *range);
@@ -159,15 +159,15 @@ impl Ser {
 					self.push_writeu16(len_name.as_str().into());
 
 					self.push_stmt(Stmt::NumFor {
-						var: var_name.clone().leak(),
+						var: var_name.clone(),
 						from: 1.0.into(),
-						to: len_name.as_str().into(),
+						to: len_expr.clone(),
 					});
 
-					let inner_var_name = self.add_occurrence("j");
+					let (inner_var_name, _) = self.add_occurrence("j");
 
 					self.push_stmt(Stmt::Local(
-						inner_var_name.clone().leak(),
+						inner_var_name.clone(),
 						Some(from.clone().eindex(var_name.as_str().into()).into()),
 					));
 
@@ -177,27 +177,27 @@ impl Ser {
 			}
 
 			Ty::Map(key, val) => {
-				let len_name = self.add_occurrence("len");
-				let len_pos_name = self.add_occurrence("len_pos");
+				let (len_name, len_expr) = self.add_occurrence("len");
+				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
 
 				self.push_local(
-					len_pos_name.clone().leak(),
+					len_pos_name.clone(),
 					Some(Var::from("alloc").call(vec![2.0.into()])),
 				);
-				self.push_local(len_name.clone().leak(), Some(0.0.into()));
+				self.push_local(len_name.clone(), Some(0.0.into()));
 
-				let key_name = self.add_occurrence("k");
-				let val_name = self.add_occurrence("v");
+				let (key_name, _) = self.add_occurrence("k");
+				let (val_name, _) = self.add_occurrence("v");
 
 				self.push_stmt(Stmt::GenFor {
-					key: key_name.clone().leak(),
-					val: val_name.clone().leak(),
+					key: key_name.clone(),
+					val: val_name.clone(),
 					obj: from_expr,
 				});
 
 				self.push_assign(
 					Var::Name(len_name.clone()),
-					Expr::from(len_name.as_str()).add(1.0.into()),
+					Expr::from(len_expr.clone()).add(1.0.into()),
 				);
 				self.push_ty(key, key_name.as_str().into());
 				self.push_ty(val, val_name.as_str().into());
@@ -209,8 +209,8 @@ impl Ser {
 					None,
 					vec![
 						"outgoing_buff".into(),
-						len_pos_name.as_str().into(),
-						len_name.as_str().into(),
+						len_pos_expr.clone(),
+						len_expr.clone(),
 					],
 				));
 			}
@@ -294,7 +294,7 @@ impl Ser {
 
 			Ty::AlignedCFrame => {
 				self.push_local(
-					"axis_alignment",
+					"axis_alignment".into(),
 					Some(Expr::Call(
 						Box::new(Var::from("table").nindex("find")),
 						None,

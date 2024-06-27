@@ -11,7 +11,7 @@ pub trait Gen {
 	fn push_stmt(&mut self, stmt: Stmt);
 	fn gen(self, var: Var, ty: &Ty<'_>) -> Vec<Stmt>;
 
-	fn push_local(&mut self, name: &'static str, expr: Option<Expr>) {
+	fn push_local(&mut self, name: String, expr: Option<Expr>) {
 		self.push_stmt(Stmt::Local(name, expr))
 	}
 
@@ -247,16 +247,18 @@ pub trait Gen {
 	}
 
 	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize>;
-	fn add_occurrence(&mut self, name: &str) -> String {
+	fn add_occurrence(&mut self, name: &str) -> (String, Expr) {
 		match self.get_var_occurrences().get(name.into()) {
 			Some(occurrences) => {
 				let occurrences_inc = occurrences + 1;
 				self.get_var_occurrences().insert(name.into(), occurrences_inc);
-				format!("{name}_{occurrences_inc}")
+				let suffixed_name = format!("{name}_{occurrences_inc}");
+				(suffixed_name.clone(), Expr::from(suffixed_name.as_str()))
 			}
 			None => {
 				self.get_var_occurrences().insert(name.into(), 1);
-				format!("{name}_1")
+				let suffixed_name = format!("{name}_1");
+				(suffixed_name.clone(), Expr::from(suffixed_name.as_str()))
 			}
 		}
 	}
@@ -264,7 +266,7 @@ pub trait Gen {
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
-	Local(&'static str, Option<Expr>),
+	Local(String, Option<Expr>),
 	LocalTuple(Vec<&'static str>, Option<Expr>),
 	Assign(Var, Expr),
 	Error(String),
@@ -273,13 +275,13 @@ pub enum Stmt {
 	Call(Var, Option<String>, Vec<Expr>),
 
 	NumFor {
-		var: &'static str,
+		var: String,
 		from: Expr,
 		to: Expr,
 	},
 	GenFor {
-		key: &'static str,
-		val: &'static str,
+		key: String,
+		val: String,
 		obj: Expr,
 	},
 	If(Expr),

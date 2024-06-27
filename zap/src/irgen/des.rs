@@ -36,7 +36,7 @@ impl Des {
 			Enum::Unit(enumerators) => {
 				let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
 
-				self.push_local("enum_value", Some(self.readnumty(numty)));
+				self.push_local("enum_value".into(), Some(self.readnumty(numty)));
 
 				for (i, enumerator) in enumerators.iter().enumerate() {
 					if i == 0 {
@@ -56,7 +56,7 @@ impl Des {
 			Enum::Tagged { tag, variants } => {
 				let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
 
-				self.push_local("enum_value", Some(self.readnumty(numty)));
+				self.push_local("enum_value".into(), Some(self.readnumty(numty)));
 
 				for (i, (name, struct_ty)) in variants.iter().enumerate() {
 					if i == 0 {
@@ -92,15 +92,15 @@ impl Des {
 				if let Some(len) = range.exact() {
 					self.push_assign(into, self.readstring(len.into()));
 				} else {
-					let len_name = self.add_occurrence("len");
+					let (len_name, len_expr) = self.add_occurrence("len");
 
-					self.push_local(len_name.clone().leak(), Some(self.readnumty(NumTy::U16)));
+					self.push_local(len_name.clone(), Some(self.readnumty(NumTy::U16)));
 
 					if self.checks {
-						self.push_range_check(Expr::from(len_name.as_str()), *range);
+						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_assign(into, self.readstring(Expr::from(len_name.as_str())));
+					self.push_assign(into, self.readstring(len_expr.clone()));
 				}
 			}
 
@@ -108,55 +108,55 @@ impl Des {
 				if let Some(len) = range.exact() {
 					self.push_read_copy(into, len.into());
 				} else {
-					let len_name = self.add_occurrence("len");
-					self.push_local(len_name.clone().leak(), Some(self.readnumty(NumTy::U16)));
+					let (len_name, len_expr) = self.add_occurrence("len");
+					self.push_local(len_name.clone(), Some(self.readnumty(NumTy::U16)));
 
 					if self.checks {
-						self.push_range_check(Expr::from(len_name.as_str()), *range);
+						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_read_copy(into, Expr::from(len_name.as_str()))
+					self.push_read_copy(into, len_expr.clone())
 				}
 			}
 
 			Ty::Arr(ty, range) => {
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
-				let var_name: String = self.add_occurrence("i");
+				let (var_name, var_expr) = self.add_occurrence("i");
 
 				if let Some(len) = range.exact() {
 					self.push_stmt(Stmt::NumFor {
-						var: var_name.clone().leak(),
+						var: var_name.clone(),
 						from: 1.0.into(),
 						to: len.into(),
 					});
 
-					self.push_ty(ty, into.clone().eindex(var_name.as_str().into()));
+					self.push_ty(ty, into.clone().eindex(var_expr.clone()));
 					self.push_stmt(Stmt::End);
 				} else {
-					let len_name = self.add_occurrence("len");
+					let (len_name, len_expr) = self.add_occurrence("len");
 
-					self.push_local(len_name.clone().leak(), Some(self.readnumty(NumTy::U16)));
+					self.push_local(len_name.clone(), Some(self.readnumty(NumTy::U16)));
 
 					if self.checks {
-						self.push_range_check(Expr::from(len_name.as_str()), *range);
+						self.push_range_check(len_expr.clone(), *range);
 					}
 
 					self.push_stmt(Stmt::NumFor {
-						var: var_name.clone().leak(),
+						var: var_name.clone(),
 						from: 1.0.into(),
 						to: len_name.as_str().into(),
 					});
 
-					let inner_var_name = self.add_occurrence("j");
+					let (inner_var_name, _) = self.add_occurrence("j");
 
-					self.push_local(inner_var_name.clone().leak(), None);
+					self.push_local(inner_var_name.clone(), None);
 
 					self.push_ty(ty, Var::Name(inner_var_name.clone()));
 
 					self.push_stmt(Stmt::Assign(
-						into.clone().eindex(var_name.clone().as_str().into()),
-						Var::Name(inner_var_name).into(),
+						into.clone().eindex(var_expr.clone()),
+						Var::Name(inner_var_name.clone()).into(),
 					));
 
 					self.push_stmt(Stmt::End);
@@ -167,20 +167,20 @@ impl Des {
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
 				self.push_stmt(Stmt::NumFor {
-					var: "_",
+					var: "_".into(),
 					from: 1.0.into(),
 					to: self.readu16(),
 				});
 
-				let key_name = self.add_occurrence("key");
-				self.push_local(key_name.clone().leak(), None);
-				let val_name = self.add_occurrence("val");
-				self.push_local(val_name.clone().leak(), None);
+				let (key_name,key_expr) = self.add_occurrence("key");
+				self.push_local(key_name.clone(), None);
+				let (val_name, val_expr) = self.add_occurrence("val");
+				self.push_local(val_name.clone(), None);
 
 				self.push_ty(key, Var::Name(key_name.clone()));
 				self.push_ty(val, Var::Name(val_name.clone()));
 
-				self.push_assign(into.clone().eindex(key_name.as_str().into()), val_name.as_str().into());
+				self.push_assign(into.clone().eindex(key_expr.clone()), val_expr.clone());
 
 				self.push_stmt(Stmt::End);
 			}
@@ -326,9 +326,9 @@ impl Des {
 			Ty::Vector3 => self.push_assign(into, self.readvector3()),
 
 			Ty::AlignedCFrame => {
-				self.push_local("axis_alignment", Some(self.readu8()));
+				self.push_local("axis_alignment".into(), Some(self.readu8()));
 
-				self.push_local("pos", Some(self.readvector3()));
+				self.push_local("pos".into(), Some(self.readvector3()));
 
 				self.push_assign(
 					into,
@@ -343,9 +343,9 @@ impl Des {
 				);
 			}
 			Ty::CFrame => {
-				self.push_local("pos", Some(self.readvector3()));
-				self.push_local("axisangle", Some(self.readvector3()));
-				self.push_local("angle", Some(Var::from("axisangle").nindex("Magnitude").into()));
+				self.push_local("pos".into(), Some(self.readvector3()));
+				self.push_local("axisangle".into(), Some(self.readvector3()));
+				self.push_local("angle".into(), Some(Var::from("axisangle").nindex("Magnitude").into()));
 
 				// We don't need to convert the axis back to a unit vector as the constructor does that for us
 				// The angle is the magnitude of the axis vector
