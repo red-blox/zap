@@ -97,7 +97,7 @@ impl Ser {
 					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
 					if self.checks {
-						self.push_range_check(len_name.as_str().into(), *range);
+						self.push_range_check(len_expr.clone(), *range);
 					}
 
 					self.push_writeu16(len_expr.clone());
@@ -127,7 +127,7 @@ impl Ser {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writeu16(len_name.as_str().into());
+					self.push_writeu16(len_expr.clone());
 					self.push_write_copy(from_expr, len_name.clone().into())
 				}
 			}
@@ -156,7 +156,7 @@ impl Ser {
 						self.push_range_check(len_name.clone().into(), *range);
 					}
 
-					self.push_writeu16(len_name.as_str().into());
+					self.push_writeu16(len_expr.clone());
 
 					self.push_stmt(Stmt::NumFor {
 						var: var_name.clone(),
@@ -168,7 +168,7 @@ impl Ser {
 
 					self.push_stmt(Stmt::Local(
 						inner_var_name.clone(),
-						Some(from.clone().eindex(var_name.as_str().into()).into()),
+						Some(from.clone().eindex(var_expr.clone()).into()),
 					));
 
 					self.push_ty(ty, Var::Name(inner_var_name));

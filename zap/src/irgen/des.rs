@@ -145,7 +145,7 @@ impl Des {
 					self.push_stmt(Stmt::NumFor {
 						var: var_name.clone(),
 						from: 1.0.into(),
-						to: len_name.as_str().into(),
+						to: len_expr.clone(),
 					});
 
 					let (inner_var_name, _) = self.add_occurrence("j");
