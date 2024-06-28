@@ -930,8 +930,7 @@ impl<'a> ServerOutput<'a> {
 		self.indent();
 		self.push_line("player_map[player] = nil");
 		self.dedent();
-		self.push_line("end");
-		self.push("\n");
+		self.push_line("end)");
 	}
 
 	pub fn output(mut self) -> String {
