@@ -152,6 +152,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("end\n");
 
 		if !self.config.manual_event_loop {
+			self.push_line("local time = 0\n");
 			self.push_line("RunService.Heartbeat:Connect(function(dt)");
 			self.indent();
 			self.push_line("time += dt");
