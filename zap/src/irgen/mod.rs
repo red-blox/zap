@@ -267,7 +267,7 @@ pub trait Gen {
 #[derive(Debug, Clone)]
 pub enum Stmt {
 	Local(String, Option<Expr>),
-	LocalTuple(Vec<&'static str>, Option<Expr>),
+	LocalTuple(Vec<String>, Option<Expr>),
 	Assign(Var, Expr),
 	Error(String),
 	Assert(Expr, Option<String>),

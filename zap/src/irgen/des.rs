@@ -345,9 +345,12 @@ impl Des {
 				);
 			}
 			Ty::CFrame => {
-				self.push_local("pos".into(), Some(self.readvector3()));
-				self.push_local("axisangle".into(), Some(self.readvector3()));
-				self.push_local("angle".into(), Some(Var::from("axisangle").nindex("Magnitude").into()));
+				let (pos_name, pos_expr) = self.add_occurrence("pos");
+				self.push_local(pos_name.clone(), Some(self.readvector3()));
+				let (axisangle_name, axisangle_expr) = self.add_occurrence("axisangle");
+				self.push_local(axisangle_name.clone(), Some(self.readvector3()));
+				let (angle_name, angle_expr) = self.add_occurrence("angle");
+				self.push_local(angle_name, Some(Var::from(axisangle_name.as_str()).nindex("Magnitude").into()));
 
 				// We don't need to convert the axis back to a unit vector as the constructor does that for us
 				// The angle is the magnitude of the axis vector
@@ -360,22 +363,22 @@ impl Des {
 				//		value = CFrame.new(pos)
 				// end
 
-				self.push_stmt(Stmt::If(Expr::Neq(Box::new("angle".into()), Box::new("0".into()))));
+				self.push_stmt(Stmt::If(Expr::Neq(Box::new(angle_expr.clone()), Box::new("0".into()))));
 				self.push_assign(
 					into.clone(),
 					Expr::Add(
 						Box::new(Expr::Call(
 							Box::new(Var::from("CFrame").nindex("fromAxisAngle")),
 							None,
-							vec!["axisangle".into(), "angle".into()],
+							vec![axisangle_expr.clone(), angle_expr.clone()],
 						)),
-						Box::new("pos".into()),
+						Box::new(pos_expr.clone()),
 					),
 				);
 				self.push_stmt(Stmt::Else);
 				self.push_assign(
 					into,
-					Expr::Call(Box::new(Var::from("CFrame").nindex("new")), None, vec!["pos".into()]),
+					Expr::Call(Box::new(Var::from("CFrame").nindex("new")), None, vec![pos_expr.clone()]),
 				);
 				self.push_stmt(Stmt::End);
 			}
