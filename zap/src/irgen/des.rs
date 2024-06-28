@@ -36,13 +36,14 @@ impl Des {
 			Enum::Unit(enumerators) => {
 				let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
 
-				self.push_local("enum_value".into(), Some(self.readnumty(numty)));
+				let (enum_value_name, enum_value_expr) = self.add_occurrence("enum_value");
+				self.push_local(enum_value_name, Some(self.readnumty(numty)));
 
 				for (i, enumerator) in enumerators.iter().enumerate() {
 					if i == 0 {
-						self.push_stmt(Stmt::If(Expr::from("enum_value").eq((i as f64).into())));
+						self.push_stmt(Stmt::If(enum_value_expr.clone().eq((i as f64).into())));
 					} else {
-						self.push_stmt(Stmt::ElseIf(Expr::from("enum_value").eq((i as f64).into())));
+						self.push_stmt(Stmt::ElseIf(enum_value_expr.clone().eq((i as f64).into())));
 					}
 
 					self.push_assign(into.clone(), Expr::Str(enumerator.to_string()));
@@ -56,13 +57,14 @@ impl Des {
 			Enum::Tagged { tag, variants } => {
 				let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
 
-				self.push_local("enum_value".into(), Some(self.readnumty(numty)));
+				let (enum_value_name, enum_value_expr) = self.add_occurrence("enum_value");
+				self.push_local(enum_value_name, Some(self.readnumty(numty)));
 
 				for (i, (name, struct_ty)) in variants.iter().enumerate() {
 					if i == 0 {
-						self.push_stmt(Stmt::If(Expr::from("enum_value").eq((i as f64).into())));
+						self.push_stmt(Stmt::If(enum_value_expr.clone().eq((i as f64).into())));
 					} else {
-						self.push_stmt(Stmt::ElseIf(Expr::from("enum_value").eq((i as f64).into())));
+						self.push_stmt(Stmt::ElseIf(enum_value_expr.clone().eq((i as f64).into())));
 					}
 
 					self.push_assign(into.clone().nindex(*tag), Expr::Str(name.to_string()));
