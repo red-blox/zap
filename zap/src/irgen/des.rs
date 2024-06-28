@@ -150,7 +150,7 @@ impl Des {
 						to: len_expr.clone(),
 					});
 
-					let (inner_var_name, _) = self.add_occurrence("j");
+					let (inner_var_name, _) = self.add_occurrence("val");
 
 					self.push_local(inner_var_name.clone(), None);
 

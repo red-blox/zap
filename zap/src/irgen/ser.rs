@@ -164,7 +164,7 @@ impl Ser {
 						to: len_expr.clone(),
 					});
 
-					let (inner_var_name, _) = self.add_occurrence("j");
+					let (inner_var_name, _) = self.add_occurrence("val");
 
 					self.push_stmt(Stmt::Local(
 						inner_var_name.clone(),
