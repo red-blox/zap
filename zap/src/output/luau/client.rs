@@ -814,7 +814,6 @@ impl<'src> ClientOutput<'src> {
 
 		let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
 
-		self.push_line(&format!("--- Manually flush the outgoing queue."));
 		self.push_line(&format!("{send_events} = {send_events},"));
 
 		self.push_return_outgoing();
