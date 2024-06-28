@@ -328,9 +328,13 @@ impl Des {
 			Ty::Vector3 => self.push_assign(into, self.readvector3()),
 
 			Ty::AlignedCFrame => {
-				self.push_local("axis_alignment".into(), Some(self.readu8()));
+				let (axis_alignment_name, axis_alignment_expr) = self.add_occurrence("axis_alignment");
 
-				self.push_local("pos".into(), Some(self.readvector3()));
+				self.push_local(axis_alignment_name, Some(self.readu8()));
+
+				let (pos_name, pos_expr) = self.add_occurrence("pos");
+
+				self.push_local(pos_name.clone(), Some(self.readvector3()));
 
 				self.push_assign(
 					into,
@@ -338,9 +342,9 @@ impl Des {
 						Box::new(Expr::Call(
 							Box::new(Var::from("CFrame").nindex("new")),
 							None,
-							vec!["pos".into()],
+							vec![pos_expr.clone()],
 						)),
-						Box::new(Var::from("CFrameSpecialCases").eindex("axis_alignment".into()).into()),
+						Box::new(Var::from("CFrameSpecialCases").eindex(axis_alignment_expr.clone()).into()),
 					),
 				);
 			}

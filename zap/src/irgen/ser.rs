@@ -286,8 +286,10 @@ impl Ser {
 			}
 
 			Ty::AlignedCFrame => {
+				let (axis_alignment_name, axis_alignment_expr) = self.add_occurrence("axis_alignment");
+				
 				self.push_local(
-					"axis_alignment".into(),
+					axis_alignment_name.clone(),
 					Some(Expr::Call(
 						Box::new(Var::from("table").nindex("find")),
 						None,
@@ -296,11 +298,11 @@ impl Ser {
 				);
 
 				self.push_assert(
-					"axis_alignment".into(),
+					axis_alignment_expr.clone(),
 					Some("CFrame not aligned to an axis!".to_string()),
 				);
 
-				self.push_writeu8("axis_alignment".into());
+				self.push_writeu8(axis_alignment_expr.clone());
 
 				self.push_ty(&Ty::Vector3, from.clone().nindex("Position"));
 			}
