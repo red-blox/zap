@@ -892,7 +892,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("if reliable == nil then");
 		self.indent();
 		self.push_line("reliable = Instance.new(\"RemoteEvent\")");
-		self.push_line(&format!("reliable.Name = \"{}\"", self.config.remote_scope));
+		self.push_line(&format!("reliable.Name = \"{}_RELIABLE\"", self.config.remote_scope));
 		self.push_line("reliable.Parent = ReplicatedStorage");
 		self.dedent();
 		self.push_line("end");
@@ -903,7 +903,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("if unreliable == nil then");
 		self.indent();
 		self.push_line("unreliable = Instance.new(\"UnreliableRemoteEvent\")");
-		self.push_line(&format!("unreliable.Name = \"{}\"", self.config.remote_scope));
+		self.push_line(&format!("unreliable.Name = \"{}_UNRELIABLE\"", self.config.remote_scope));
 		self.push_line("unreliable.Parent = ReplicatedStorage");
 		self.dedent();
 		self.push_line("end");
