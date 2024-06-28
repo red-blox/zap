@@ -54,11 +54,9 @@ impl<'src> ClientOutput<'src> {
 		let on = self.config.casing.with("On", "on", "on");
 		let call = self.config.casing.with("Call", "call", "call");
 
-		if self.config.manual_event_loop {
-			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+		let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
 
-			self.push_line(&format!("{send_events} = noop,"));
-		}
+		self.push_line(&format!("{send_events} = noop,"));
 
 		for ev in self.config.evdecls.iter() {
 			self.push_line(&format!("{name} = table.freeze({{", name = ev.name));
@@ -152,18 +150,9 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("end\n");
 
 		if !self.config.manual_event_loop {
-			self.push_line("local time = 0\n");
-			self.push_line("RunService.Heartbeat:Connect(function(dt)");
+			self.push_line("RunService.Heartbeat:Connect(function()");
 			self.indent();
-			self.push_line("time += dt");
-			self.push("\n");
-			self.push_line("if time >= (1 / 61) then");
-			self.indent();
-			self.push_line("time -= (1 / 61)");
-			self.push("\n");
 			self.push_event_loop_body();
-			self.push_line("end");
-			self.dedent();
 			self.push_line("end)");
 		}
 
