@@ -118,7 +118,7 @@ impl Ser {
 						len_name.clone(),
 						Some(
 							Var::from("buffer")
-								.nindex(len_name.clone())
+								.nindex("len")
 								.call(vec![from_expr.clone()]),
 						),
 					);
