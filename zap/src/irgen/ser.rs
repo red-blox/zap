@@ -128,7 +128,7 @@ impl Ser {
 					}
 
 					self.push_writeu16(len_expr.clone());
-					self.push_write_copy(from_expr, len_name.clone().into())
+					self.push_write_copy(from_expr, len_name.as_str().into())
 				}
 			}
 
