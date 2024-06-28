@@ -344,7 +344,11 @@ impl Des {
 							None,
 							vec![pos_expr.clone()],
 						)),
-						Box::new(Var::from("CFrameSpecialCases").eindex(axis_alignment_expr.clone()).into()),
+						Box::new(
+							Var::from("CFrameSpecialCases")
+								.eindex(axis_alignment_expr.clone())
+								.into(),
+						),
 					),
 				);
 			}
@@ -354,7 +358,10 @@ impl Des {
 				let (axisangle_name, axisangle_expr) = self.add_occurrence("axisangle");
 				self.push_local(axisangle_name.clone(), Some(self.readvector3()));
 				let (angle_name, angle_expr) = self.add_occurrence("angle");
-				self.push_local(angle_name, Some(Var::from(axisangle_name.as_str()).nindex("Magnitude").into()));
+				self.push_local(
+					angle_name,
+					Some(Var::from(axisangle_name.as_str()).nindex("Magnitude").into()),
+				);
 
 				// We don't need to convert the axis back to a unit vector as the constructor does that for us
 				// The angle is the magnitude of the axis vector
@@ -382,7 +389,11 @@ impl Des {
 				self.push_stmt(Stmt::Else);
 				self.push_assign(
 					into,
-					Expr::Call(Box::new(Var::from("CFrame").nindex("new")), None, vec![pos_expr.clone()]),
+					Expr::Call(
+						Box::new(Var::from("CFrame").nindex("new")),
+						None,
+						vec![pos_expr.clone()],
+					),
 				);
 				self.push_stmt(Stmt::End);
 			}

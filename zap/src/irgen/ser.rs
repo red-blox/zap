@@ -287,7 +287,7 @@ impl Ser {
 
 			Ty::AlignedCFrame => {
 				let (axis_alignment_name, axis_alignment_expr) = self.add_occurrence("axis_alignment");
-				
+
 				self.push_local(
 					axis_alignment_name.clone(),
 					Some(Expr::Call(
