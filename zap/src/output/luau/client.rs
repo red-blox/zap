@@ -150,10 +150,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("end\n");
 
 		if !self.config.manual_event_loop {
-			self.push_line("RunService.Heartbeat:Connect(function()");
-			self.indent();
-			self.push_event_loop_body();
-			self.push_line("end)");
+			self.push_line("RunService.Heartbeat:Connect(send_events)");
 		}
 
 		self.push("\n");
