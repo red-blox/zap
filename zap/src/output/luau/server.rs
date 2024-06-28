@@ -888,7 +888,10 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	pub fn push_create_remotes(&mut self) {
-		self.push_line(&format!("local reliable = ReplicatedStorage:FindFirstChild(\"{}_RELIABLE\")", self.config.remote_scope));
+		self.push_line(&format!(
+			"local reliable = ReplicatedStorage:FindFirstChild(\"{}_RELIABLE\")",
+			self.config.remote_scope
+		));
 		self.push_line("if reliable == nil then");
 		self.indent();
 		self.push_line("reliable = Instance.new(\"RemoteEvent\")");
@@ -899,11 +902,17 @@ impl<'a> ServerOutput<'a> {
 
 		self.push("\n");
 
-		self.push_line(&format!("local unreliable = ReplicatedStorage:FindFirstChild(\"{}_UNRELIABLE\")", self.config.remote_scope));
+		self.push_line(&format!(
+			"local unreliable = ReplicatedStorage:FindFirstChild(\"{}_UNRELIABLE\")",
+			self.config.remote_scope
+		));
 		self.push_line("if unreliable == nil then");
 		self.indent();
 		self.push_line("unreliable = Instance.new(\"UnreliableRemoteEvent\")");
-		self.push_line(&format!("unreliable.Name = \"{}_UNRELIABLE\"", self.config.remote_scope));
+		self.push_line(&format!(
+			"unreliable.Name = \"{}_UNRELIABLE\"",
+			self.config.remote_scope
+		));
 		self.push_line("unreliable.Parent = ReplicatedStorage");
 		self.dedent();
 		self.push_line("end");
