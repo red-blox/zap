@@ -88,7 +88,7 @@ impl<'src> ClientOutput<'src> {
 		}
 
 		self.dedent();
-		self.push_line("} :: Events)");
+		self.push_line("}) :: Events");
 
 		self.dedent();
 		self.push_line("end");
@@ -827,6 +827,23 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("return returns");
 	}
 
+	pub fn push_remotes(&mut self) {
+		self.push_line(&format!("local reliable = ReplicatedStorage:WaitForChild(\"{}_RELIABLE\")", self.config.remote_scope));
+		self.push_line(&format!("local unreliable = ReplicatedStorage:WaitForChild(\"{}_UNRELIABLE\")", self.config.remote_scope));
+		self.push("\n");
+		self.push_line(&format!("assert(reliable:IsA(\"RemoteEvent\"), \"Expected {}_RELIABLE to be a RemoteEvent\")", self.config.remote_scope));
+		self.push_line(&format!("assert(unreliable:IsA(\"UnreliableRemoteEvent\"), \"Expected {}_UNRELIABLE to be an UnreliableRemoteEvent\")", self.config.remote_scope));
+		self.push("\n");
+	}
+
+	pub fn push_check_server(&mut self) {
+		self.push_line("if RunService:IsServer() then");
+		self.indent();
+		self.push_line("error(\"Cannot use the client module on the server!\")");
+		self.dedent();
+		self.push_line("end");
+	}
+
 	pub fn output(mut self) -> String {
 		self.push_file_header("Client");
 
@@ -838,7 +855,9 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_studio();
 
-		self.push(include_str!("client.luau"));
+		self.push_check_server();
+
+		self.push_remotes();
 
 		self.push_tydecls();
 

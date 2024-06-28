@@ -114,7 +114,7 @@ const beforeMount = (monaco: Monaco) => {
 
 	const Calls = ["SingleSync", "SingleAsync", "ManySync", "ManyAsync"] as const;
 
-	const Options = ["typescript", "write_checks", "casing", "server_output", "client_output", "manual_event_loop", "yield_type", "async_lib"] as const;
+	const Options = ["write_checks", "typescript", "typescript_max_tuple_length", "manual_event_loop", "remote_scope", "server_output", "client_output", "casing", "yield_type", "async_lib"] as const;
 
 	const Casing = ["PascalCase", "camelCase", "snake_case"].map((value) => `"${value}"`);
 	const YieldType = ["yield", "future", "promise"].map((value) => `"${value}"`);
@@ -157,11 +157,13 @@ const beforeMount = (monaco: Monaco) => {
 		yield_type: YieldType,
 
 		typescript: Operators,
+		typescript_max_tuple_length: [],
 		write_checks: Operators,
 		manual_event_loop: Operators,
 
-		output_server: [],
-		output_client: [],
+		remote_scope: [],
+		server_output: [],
+		client_output: [],
 		async_lib: [],
 	} as const;
 
