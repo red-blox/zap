@@ -58,11 +58,9 @@ impl<'a> ServerOutput<'a> {
 		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
 		let on = self.config.casing.with("On", "on", "on");
 
-		if self.config.manual_event_loop {
-			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+		let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
 
-			self.push_line(&format!("{send_events} = noop,"));
-		}
+		self.push_line(&format!("{send_events} = noop,"));
 
 		for ev in self.config.evdecls.iter() {
 			self.push_line(&format!("{name} = table.freeze({{", name = ev.name));
@@ -135,14 +133,9 @@ impl<'a> ServerOutput<'a> {
 	fn push_event_loop(&mut self) {
 		self.push("\n");
 
-		if self.config.manual_event_loop {
-			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+		let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
 
-			self.push_line(&format!("local function {send_events}()"));
-		} else {
-			self.push_line("RunService.Heartbeat:Connect(function()");
-		}
-
+		self.push_line(&format!("local function {send_events}()"));
 		self.indent();
 		self.push_line("for player, outgoing in player_map do");
 		self.indent();
@@ -162,14 +155,11 @@ impl<'a> ServerOutput<'a> {
 		self.dedent();
 		self.push_line("end");
 		self.dedent();
+		self.push_line("end\n");
 
-		if self.config.manual_event_loop {
-			self.push_line("end");
-		} else {
-			self.push_line("end)");
+		if !self.config.manual_event_loop {
+			self.push_line(&format!("RunService.Heartbeat:Connect({send_events})\n"));
 		}
-
-		self.push("\n");
 	}
 
 	fn push_reliable_header(&mut self) {
@@ -861,11 +851,9 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("local returns = table.freeze({");
 		self.indent();
 
-		if self.config.manual_event_loop {
-			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+		let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
 
-			self.push_line(&format!("{send_events} = {send_events},"));
-		}
+		self.push_line(&format!("{send_events} = {send_events},"));
 
 		self.push_return_outgoing();
 		self.push_return_listen();

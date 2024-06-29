@@ -54,11 +54,9 @@ impl<'src> ClientOutput<'src> {
 		let on = self.config.casing.with("On", "on", "on");
 		let call = self.config.casing.with("Call", "call", "call");
 
-		if self.config.manual_event_loop {
-			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+		let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
 
-			self.push_line(&format!("{send_events} = noop,"));
-		}
+		self.push_line(&format!("{send_events} = noop,"));
 
 		for ev in self.config.evdecls.iter() {
 			self.push_line(&format!("{name} = table.freeze({{", name = ev.name));
@@ -124,26 +122,7 @@ impl<'src> ClientOutput<'src> {
 		}
 	}
 
-	fn push_event_loop(&mut self) {
-		self.push("\n");
-
-		if self.config.manual_event_loop {
-			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
-
-			self.push_line(&format!("local function {send_events}()"));
-			self.indent();
-		} else {
-			self.push_line("local time = 0");
-			self.push_line("RunService.Heartbeat:Connect(function(dt)");
-			self.indent();
-			self.push_line("time += dt");
-			self.push("\n");
-			self.push_line("if time >= (1 / 61) then");
-			self.indent();
-			self.push_line("time -= (1 / 61)");
-			self.push("\n");
-		}
-
+	fn push_event_loop_body(&mut self) {
 		self.push_line("if outgoing_used ~= 0 then");
 		self.indent();
 		self.push_line("local buff = buffer.create(outgoing_used)");
@@ -158,16 +137,21 @@ impl<'src> ClientOutput<'src> {
 		self.dedent();
 		self.push_line("end");
 		self.dedent();
+	}
 
-		if self.config.manual_event_loop {
-			self.push_line("end");
-		} else {
-			self.push_line("end");
-			self.dedent();
-			self.push_line("end)");
-		}
-
+	fn push_event_loop(&mut self) {
 		self.push("\n");
+
+		let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+
+		self.push_line(&format!("local function {send_events}()"));
+		self.indent();
+		self.push_event_loop_body();
+		self.push_line("end\n");
+
+		if !self.config.manual_event_loop {
+			self.push_line(&format!("RunService.Heartbeat:Connect({send_events})\n"));
+		}
 	}
 
 	fn push_reliable_header(&mut self) {
@@ -812,11 +796,9 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("local returns = table.freeze({");
 		self.indent();
 
-		if self.config.manual_event_loop {
-			let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
+		let send_events = self.config.casing.with("SendEvents", "sendEvents", "send_events");
 
-			self.push_line(&format!("{send_events} = {send_events},"));
-		}
+		self.push_line(&format!("{send_events} = {send_events},"));
 
 		self.push_return_outgoing();
 		self.push_return_listen();
