@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use std::collections::HashMap;
 use std::{fmt::Display, vec};
 
 use crate::config::{NumTy, Range, Ty};
@@ -10,7 +11,7 @@ pub trait Gen {
 	fn push_stmt(&mut self, stmt: Stmt);
 	fn gen(self, var: Var, ty: &Ty<'_>) -> Vec<Stmt>;
 
-	fn push_local(&mut self, name: &'static str, expr: Option<Expr>) {
+	fn push_local(&mut self, name: String, expr: Option<Expr>) {
 		self.push_stmt(Stmt::Local(name, expr))
 	}
 
@@ -244,28 +245,37 @@ pub trait Gen {
 			self.push_assert(expr.clone().lte(max.into()), None)
 		}
 	}
+
+	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize>;
+	fn add_occurrence(&mut self, name: &str) -> (String, Expr) {
+		match self.get_var_occurrences().get(name) {
+			Some(occurrences) => {
+				let occurrences_inc = occurrences + 1;
+				self.get_var_occurrences().insert(name.into(), occurrences_inc);
+				let suffixed_name = format!("{name}_{occurrences_inc}");
+				(suffixed_name.clone(), Expr::from(suffixed_name.as_str()))
+			}
+			None => {
+				self.get_var_occurrences().insert(name.into(), 1);
+				let suffixed_name = format!("{name}_1");
+				(suffixed_name.clone(), Expr::from(suffixed_name.as_str()))
+			}
+		}
+	}
 }
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
-	Local(&'static str, Option<Expr>),
-	LocalTuple(Vec<&'static str>, Option<Expr>),
+	Local(String, Option<Expr>),
+	LocalTuple(Vec<String>, Option<Expr>),
 	Assign(Var, Expr),
 	Error(String),
 	Assert(Expr, Option<String>),
 
 	Call(Var, Option<String>, Vec<Expr>),
 
-	NumFor {
-		var: &'static str,
-		from: Expr,
-		to: Expr,
-	},
-	GenFor {
-		key: &'static str,
-		val: &'static str,
-		obj: Expr,
-	},
+	NumFor { var: String, from: Expr, to: Expr },
+	GenFor { key: String, val: String, obj: Expr },
 	If(Expr),
 	ElseIf(Expr),
 	Else,
@@ -292,20 +302,6 @@ impl Var {
 
 	pub fn call(self, args: Vec<Expr>) -> Expr {
 		Expr::Call(Box::new(self), None, args)
-	}
-
-	pub fn display_escaped_suffix(&self) -> i32 {
-		match self {
-			Self::Name(name) => match name.find('_') {
-				Some(underscore_index) => match name[underscore_index + 1..].parse::<i32>() {
-					Ok(number) => number + 1,
-					Err(_) => 0,
-				},
-				None => 0,
-			},
-			Self::NameIndex(var, _) => var.display_escaped_suffix() + 1,
-			Self::ExprIndex(var, _) => var.display_escaped_suffix() + 1,
-		}
 	}
 }
 

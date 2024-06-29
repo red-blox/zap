@@ -1,10 +1,12 @@
 use crate::config::{Enum, NumTy, Struct, Ty};
+use std::collections::HashMap;
 
 use super::{Expr, Gen, Stmt, Var};
 
 struct Des {
 	checks: bool,
 	buf: Vec<Stmt>,
+	var_occurrences: HashMap<String, usize>,
 }
 
 impl Gen for Des {
@@ -15,6 +17,10 @@ impl Gen for Des {
 	fn gen(mut self, var: Var, ty: &Ty) -> Vec<Stmt> {
 		self.push_ty(ty, var);
 		self.buf
+	}
+
+	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize> {
+		&mut self.var_occurrences
 	}
 }
 
@@ -30,13 +36,14 @@ impl Des {
 			Enum::Unit(enumerators) => {
 				let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
 
-				self.push_local("enum_value", Some(self.readnumty(numty)));
+				let (enum_value_name, enum_value_expr) = self.add_occurrence("enum_value");
+				self.push_local(enum_value_name, Some(self.readnumty(numty)));
 
 				for (i, enumerator) in enumerators.iter().enumerate() {
 					if i == 0 {
-						self.push_stmt(Stmt::If(Expr::from("enum_value").eq((i as f64).into())));
+						self.push_stmt(Stmt::If(enum_value_expr.clone().eq((i as f64).into())));
 					} else {
-						self.push_stmt(Stmt::ElseIf(Expr::from("enum_value").eq((i as f64).into())));
+						self.push_stmt(Stmt::ElseIf(enum_value_expr.clone().eq((i as f64).into())));
 					}
 
 					self.push_assign(into.clone(), Expr::Str(enumerator.to_string()));
@@ -50,13 +57,14 @@ impl Des {
 			Enum::Tagged { tag, variants } => {
 				let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
 
-				self.push_local("enum_value", Some(self.readnumty(numty)));
+				let (enum_value_name, enum_value_expr) = self.add_occurrence("enum_value");
+				self.push_local(enum_value_name, Some(self.readnumty(numty)));
 
 				for (i, (name, struct_ty)) in variants.iter().enumerate() {
 					if i == 0 {
-						self.push_stmt(Stmt::If(Expr::from("enum_value").eq((i as f64).into())));
+						self.push_stmt(Stmt::If(enum_value_expr.clone().eq((i as f64).into())));
 					} else {
-						self.push_stmt(Stmt::ElseIf(Expr::from("enum_value").eq((i as f64).into())));
+						self.push_stmt(Stmt::ElseIf(enum_value_expr.clone().eq((i as f64).into())));
 					}
 
 					self.push_assign(into.clone().nindex(*tag), Expr::Str(name.to_string()));
@@ -86,13 +94,15 @@ impl Des {
 				if let Some(len) = range.exact() {
 					self.push_assign(into, self.readstring(len.into()));
 				} else {
-					self.push_local("len", Some(self.readnumty(NumTy::U16)));
+					let (len_name, len_expr) = self.add_occurrence("len");
+
+					self.push_local(len_name.clone(), Some(self.readnumty(NumTy::U16)));
 
 					if self.checks {
-						self.push_range_check(Expr::from("len"), *range);
+						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_assign(into, self.readstring(Expr::from("len")));
+					self.push_assign(into, self.readstring(len_expr.clone()));
 				}
 			}
 
@@ -100,52 +110,55 @@ impl Des {
 				if let Some(len) = range.exact() {
 					self.push_read_copy(into, len.into());
 				} else {
-					self.push_local("len", Some(self.readnumty(NumTy::U16)));
+					let (len_name, len_expr) = self.add_occurrence("len");
+					self.push_local(len_name.clone(), Some(self.readnumty(NumTy::U16)));
 
 					if self.checks {
-						self.push_range_check(Expr::from("len"), *range);
+						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_read_copy(into, Expr::from("len"))
+					self.push_read_copy(into, len_expr.clone())
 				}
 			}
 
 			Ty::Arr(ty, range) => {
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
-				let var_name: String = format!("i_{}", into.display_escaped_suffix() + 1);
+				let (var_name, var_expr) = self.add_occurrence("i");
 
 				if let Some(len) = range.exact() {
 					self.push_stmt(Stmt::NumFor {
-						var: var_name.clone().leak(),
+						var: var_name.clone(),
 						from: 1.0.into(),
 						to: len.into(),
 					});
 
-					self.push_ty(ty, into.clone().eindex(var_name.as_str().into()));
+					self.push_ty(ty, into.clone().eindex(var_expr.clone()));
 					self.push_stmt(Stmt::End);
 				} else {
-					self.push_local("len", Some(self.readnumty(NumTy::U16)));
+					let (len_name, len_expr) = self.add_occurrence("len");
+
+					self.push_local(len_name.clone(), Some(self.readnumty(NumTy::U16)));
 
 					if self.checks {
-						self.push_range_check(Expr::from("len"), *range);
+						self.push_range_check(len_expr.clone(), *range);
 					}
 
 					self.push_stmt(Stmt::NumFor {
-						var: var_name.clone().leak(),
+						var: var_name.clone(),
 						from: 1.0.into(),
-						to: "len".into(),
+						to: len_expr.clone(),
 					});
 
-					let inner_var_name = format!("j_{}", into.display_escaped_suffix() + 1);
+					let (inner_var_name, _) = self.add_occurrence("val");
 
-					self.push_local(inner_var_name.clone().leak(), None);
+					self.push_local(inner_var_name.clone(), None);
 
 					self.push_ty(ty, Var::Name(inner_var_name.clone()));
 
 					self.push_stmt(Stmt::Assign(
-						into.clone().eindex(var_name.clone().as_str().into()),
-						Var::Name(inner_var_name).into(),
+						into.clone().eindex(var_expr.clone()),
+						Var::Name(inner_var_name.clone()).into(),
 					));
 
 					self.push_stmt(Stmt::End);
@@ -156,20 +169,20 @@ impl Des {
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
 				self.push_stmt(Stmt::NumFor {
-					var: "_",
+					var: "_".into(),
 					from: 1.0.into(),
 					to: self.readu16(),
 				});
 
-				let key_name = format!("key_{}", into.display_escaped_suffix() + 1);
-				self.push_local(key_name.clone().leak(), None);
-				let val_name = format!("val_{}", into.display_escaped_suffix() + 1);
-				self.push_local(val_name.clone().leak(), None);
+				let (key_name, key_expr) = self.add_occurrence("key");
+				self.push_local(key_name.clone(), None);
+				let (val_name, val_expr) = self.add_occurrence("val");
+				self.push_local(val_name.clone(), None);
 
 				self.push_ty(key, Var::Name(key_name.clone()));
 				self.push_ty(val, Var::Name(val_name.clone()));
 
-				self.push_assign(into.clone().eindex(key_name.as_str().into()), val_name.as_str().into());
+				self.push_assign(into.clone().eindex(key_expr.clone()), val_expr.clone());
 
 				self.push_stmt(Stmt::End);
 			}
@@ -315,9 +328,13 @@ impl Des {
 			Ty::Vector3 => self.push_assign(into, self.readvector3()),
 
 			Ty::AlignedCFrame => {
-				self.push_local("axis_alignment", Some(self.readu8()));
+				let (axis_alignment_name, axis_alignment_expr) = self.add_occurrence("axis_alignment");
 
-				self.push_local("pos", Some(self.readvector3()));
+				self.push_local(axis_alignment_name, Some(self.readu8()));
+
+				let (pos_name, pos_expr) = self.add_occurrence("pos");
+
+				self.push_local(pos_name.clone(), Some(self.readvector3()));
 
 				self.push_assign(
 					into,
@@ -325,16 +342,26 @@ impl Des {
 						Box::new(Expr::Call(
 							Box::new(Var::from("CFrame").nindex("new")),
 							None,
-							vec!["pos".into()],
+							vec![pos_expr.clone()],
 						)),
-						Box::new(Var::from("CFrameSpecialCases").eindex("axis_alignment".into()).into()),
+						Box::new(
+							Var::from("CFrameSpecialCases")
+								.eindex(axis_alignment_expr.clone())
+								.into(),
+						),
 					),
 				);
 			}
 			Ty::CFrame => {
-				self.push_local("pos", Some(self.readvector3()));
-				self.push_local("axisangle", Some(self.readvector3()));
-				self.push_local("angle", Some(Var::from("axisangle").nindex("Magnitude").into()));
+				let (pos_name, pos_expr) = self.add_occurrence("pos");
+				self.push_local(pos_name.clone(), Some(self.readvector3()));
+				let (axisangle_name, axisangle_expr) = self.add_occurrence("axisangle");
+				self.push_local(axisangle_name.clone(), Some(self.readvector3()));
+				let (angle_name, angle_expr) = self.add_occurrence("angle");
+				self.push_local(
+					angle_name,
+					Some(Var::from(axisangle_name.as_str()).nindex("Magnitude").into()),
+				);
 
 				// We don't need to convert the axis back to a unit vector as the constructor does that for us
 				// The angle is the magnitude of the axis vector
@@ -347,22 +374,26 @@ impl Des {
 				//		value = CFrame.new(pos)
 				// end
 
-				self.push_stmt(Stmt::If(Expr::Neq(Box::new("angle".into()), Box::new("0".into()))));
+				self.push_stmt(Stmt::If(Expr::Neq(Box::new(angle_expr.clone()), Box::new("0".into()))));
 				self.push_assign(
 					into.clone(),
 					Expr::Add(
 						Box::new(Expr::Call(
 							Box::new(Var::from("CFrame").nindex("fromAxisAngle")),
 							None,
-							vec!["axisangle".into(), "angle".into()],
+							vec![axisangle_expr.clone(), angle_expr.clone()],
 						)),
-						Box::new("pos".into()),
+						Box::new(pos_expr.clone()),
 					),
 				);
 				self.push_stmt(Stmt::Else);
 				self.push_assign(
 					into,
-					Expr::Call(Box::new(Var::from("CFrame").nindex("new")), None, vec!["pos".into()]),
+					Expr::Call(
+						Box::new(Var::from("CFrame").nindex("new")),
+						None,
+						vec![pos_expr.clone()],
+					),
 				);
 				self.push_stmt(Stmt::End);
 			}
@@ -371,5 +402,10 @@ impl Des {
 }
 
 pub fn gen(ty: &Ty, var: &str, checks: bool) -> Vec<Stmt> {
-	Des { checks, buf: vec![] }.gen(var.into(), ty)
+	Des {
+		checks,
+		buf: vec![],
+		var_occurrences: HashMap::new(),
+	}
+	.gen(var.into(), ty)
 }

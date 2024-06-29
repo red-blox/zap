@@ -1,10 +1,12 @@
 use crate::config::{Enum, NumTy, Struct, Ty};
+use std::collections::HashMap;
 
 use super::{Expr, Gen, Stmt, Var};
 
 struct Ser {
 	checks: bool,
 	buf: Vec<Stmt>,
+	var_occurrences: HashMap<String, usize>,
 }
 
 impl Gen for Ser {
@@ -15,6 +17,10 @@ impl Gen for Ser {
 	fn gen(mut self, var: Var, ty: &Ty) -> Vec<Stmt> {
 		self.push_ty(ty, var);
 		self.buf
+	}
+
+	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize> {
+		&mut self.var_occurrences
 	}
 }
 
@@ -87,14 +93,15 @@ impl Ser {
 
 					self.push_writestring(from_expr, len.into());
 				} else {
-					self.push_local("len", Some(from_expr.clone().len()));
+					let (len_name, len_expr) = self.add_occurrence("len");
+					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
 					if self.checks {
-						self.push_range_check("len".into(), *range);
+						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writeu16("len".into());
-					self.push_writestring(from_expr, "len".into());
+					self.push_writeu16(len_expr.clone());
+					self.push_writestring(from_expr, len_expr.clone());
 				}
 			}
 
@@ -106,22 +113,23 @@ impl Ser {
 
 					self.push_write_copy(from_expr, len.into());
 				} else {
+					let (len_name, len_expr) = self.add_occurrence("len");
 					self.push_local(
-						"len",
+						len_name.clone(),
 						Some(Var::from("buffer").nindex("len").call(vec![from_expr.clone()])),
 					);
 
 					if self.checks {
-						self.push_range_check("len".into(), *range);
+						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writeu16("len".into());
-					self.push_write_copy(from_expr, "len".into())
+					self.push_writeu16(len_expr.clone());
+					self.push_write_copy(from_expr, len_name.as_str().into())
 				}
 			}
 
 			Ty::Arr(ty, range) => {
-				let var_name = format!("i_{}", from.display_escaped_suffix() + 1);
+				let (var_name, var_expr) = self.add_occurrence("i");
 
 				if let Some(len) = range.exact() {
 					if self.checks {
@@ -129,58 +137,67 @@ impl Ser {
 					}
 
 					self.push_stmt(Stmt::NumFor {
-						var: var_name.clone().leak(),
+						var: var_name.clone(),
 						from: 1.0.into(),
 						to: len.into(),
 					});
 
-					self.push_ty(ty, from.clone().eindex(var_name.as_str().into()));
+					self.push_ty(ty, from.clone().eindex(var_expr.clone()));
 					self.push_stmt(Stmt::End);
 				} else {
-					self.push_local("len", Some(from_expr.clone().len()));
+					let (len_name, len_expr) = self.add_occurrence("len");
+					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
 					if self.checks {
-						self.push_range_check("len".into(), *range);
+						self.push_range_check(len_name.clone().into(), *range);
 					}
 
-					self.push_writeu16("len".into());
+					self.push_writeu16(len_expr.clone());
 
 					self.push_stmt(Stmt::NumFor {
-						var: var_name.clone().leak(),
+						var: var_name.clone(),
 						from: 1.0.into(),
-						to: "len".into(),
+						to: len_expr.clone(),
 					});
 
+					let (inner_var_name, _) = self.add_occurrence("val");
+
 					self.push_stmt(Stmt::Local(
-						var_name.clone().leak(),
-						Some(from.clone().eindex(var_name.as_str().into()).into()),
+						inner_var_name.clone(),
+						Some(from.clone().eindex(var_expr.clone()).into()),
 					));
 
-					self.push_ty(ty, Var::Name(var_name));
+					self.push_ty(ty, Var::Name(inner_var_name));
 					self.push_stmt(Stmt::End);
 				}
 			}
 
 			Ty::Map(key, val) => {
-				self.push_local("len_pos", Some(Var::from("alloc").call(vec![2.0.into()])));
-				self.push_local("len", Some(0.0.into()));
+				let (len_name, len_expr) = self.add_occurrence("len");
+				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
+
+				self.push_local(len_pos_name.clone(), Some(Var::from("alloc").call(vec![2.0.into()])));
+				self.push_local(len_name.clone(), Some(0.0.into()));
+
+				let (key_name, _) = self.add_occurrence("k");
+				let (val_name, _) = self.add_occurrence("v");
 
 				self.push_stmt(Stmt::GenFor {
-					key: "k",
-					val: "v",
+					key: key_name.clone(),
+					val: val_name.clone(),
 					obj: from_expr,
 				});
 
-				self.push_assign("len".into(), Expr::from("len").add(1.0.into()));
-				self.push_ty(key, "k".into());
-				self.push_ty(val, "v".into());
+				self.push_assign(Var::Name(len_name.clone()), len_expr.clone().add(1.0.into()));
+				self.push_ty(key, key_name.as_str().into());
+				self.push_ty(val, val_name.as_str().into());
 
 				self.push_stmt(Stmt::End);
 
 				self.push_stmt(Stmt::Call(
 					Var::from("buffer").nindex("writeu16"),
 					None,
-					vec!["outgoing_buff".into(), "len_pos".into(), "len".into()],
+					vec!["outgoing_buff".into(), len_pos_expr.clone(), len_expr.clone()],
 				));
 			}
 
@@ -262,8 +279,10 @@ impl Ser {
 			}
 
 			Ty::AlignedCFrame => {
+				let (axis_alignment_name, axis_alignment_expr) = self.add_occurrence("axis_alignment");
+
 				self.push_local(
-					"axis_alignment",
+					axis_alignment_name.clone(),
 					Some(Expr::Call(
 						Box::new(Var::from("table").nindex("find")),
 						None,
@@ -272,31 +291,33 @@ impl Ser {
 				);
 
 				self.push_assert(
-					"axis_alignment".into(),
+					axis_alignment_expr.clone(),
 					Some("CFrame not aligned to an axis!".to_string()),
 				);
 
-				self.push_writeu8("axis_alignment".into());
+				self.push_writeu8(axis_alignment_expr.clone());
 
 				self.push_ty(&Ty::Vector3, from.clone().nindex("Position"));
 			}
 
 			Ty::CFrame => {
 				// local axis, angle = Value:ToAxisAngle()
+				let (axis_name, axis_expr) = self.add_occurrence("axis");
+				let (angle_name, angle_expr) = self.add_occurrence("angle");
 				self.push_stmt(Stmt::LocalTuple(
-					vec!["axis", "angle"],
+					vec![axis_name.clone(), angle_name.clone()],
 					Some(Expr::Call(from.clone().into(), Some("ToAxisAngle".into()), vec![])),
 				));
 
 				// axis = axis * angle
 				// store the angle into the axis, as it is a unit vector, so the magnitude can be used to encode a number
 				self.push_stmt(Stmt::Assign(
-					Var::Name("axis".into()),
-					Expr::Mul(Box::new("axis".into()), Box::new("angle".into())),
+					Var::Name(axis_name.clone()),
+					Expr::Mul(Box::new(axis_expr), Box::new(angle_expr)),
 				));
 
 				self.push_ty(&Ty::Vector3, from.clone().nindex("Position"));
-				self.push_ty(&Ty::Vector3, "axis".into());
+				self.push_ty(&Ty::Vector3, axis_name.as_str().into());
 			}
 
 			Ty::Boolean => self.push_writeu8(from_expr.and(1.0.into()).or(0.0.into())),
@@ -305,5 +326,10 @@ impl Ser {
 }
 
 pub fn gen(ty: &Ty, var: &str, checks: bool) -> Vec<Stmt> {
-	Ser { checks, buf: vec![] }.gen(var.into(), ty)
+	Ser {
+		checks,
+		buf: vec![],
+		var_occurrences: HashMap::new(),
+	}
+	.gen(var.into(), ty)
 }
