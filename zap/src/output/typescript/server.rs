@@ -247,7 +247,7 @@ impl<'a> ServerOutput<'a> {
 			return self.buf;
 		};
 
-		self.push_manual_event_loop();
+		self.push_event_loop();
 
 		self.push_tydecls();
 
