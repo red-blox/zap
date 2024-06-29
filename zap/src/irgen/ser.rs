@@ -116,11 +116,7 @@ impl Ser {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					self.push_local(
 						len_name.clone(),
-						Some(
-							Var::from("buffer")
-								.nindex("len")
-								.call(vec![from_expr.clone()]),
-						),
+						Some(Var::from("buffer").nindex("len").call(vec![from_expr.clone()])),
 					);
 
 					if self.checks {
@@ -192,10 +188,7 @@ impl Ser {
 					obj: from_expr,
 				});
 
-				self.push_assign(
-					Var::Name(len_name.clone()),
-					Expr::from(len_expr.clone()).add(1.0.into()),
-				);
+				self.push_assign(Var::Name(len_name.clone()), len_expr.clone().add(1.0.into()));
 				self.push_ty(key, key_name.as_str().into());
 				self.push_ty(val, val_name.as_str().into());
 

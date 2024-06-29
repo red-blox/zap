@@ -248,7 +248,7 @@ pub trait Gen {
 
 	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize>;
 	fn add_occurrence(&mut self, name: &str) -> (String, Expr) {
-		match self.get_var_occurrences().get(name.into()) {
+		match self.get_var_occurrences().get(name) {
 			Some(occurrences) => {
 				let occurrences_inc = occurrences + 1;
 				self.get_var_occurrences().insert(name.into(), occurrences_inc);
