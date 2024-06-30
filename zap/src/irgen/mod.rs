@@ -411,8 +411,8 @@ impl Expr {
 }
 
 impl From<String> for Expr {
-	fn from(string: String) -> Self {
-		Self::Str(string)
+	fn from(name: String) -> Self {
+		Self::Var(Box::new(Var::Name(name)))
 	}
 }
 
