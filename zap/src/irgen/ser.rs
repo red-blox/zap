@@ -149,7 +149,7 @@ impl Ser {
 					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
 					if self.checks {
-						self.push_range_check(len_name.clone().into(), *range);
+						self.push_range_check(len_expr.clone(), *range);
 					}
 
 					self.push_writeu16(len_expr.clone());
