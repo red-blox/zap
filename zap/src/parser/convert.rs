@@ -96,7 +96,7 @@ impl<'src> Converter<'src> {
 
 		let casing = self.casing_opt(&config.opts);
 		let yield_type = self.yield_type_opt(typescript, &config.opts);
-		let async_lib = self.async_lib(yield_type, &config.opts);
+		let async_lib = self.async_lib(yield_type, &config.opts, typescript);
 
 		let config = Config {
 			tydecls,
@@ -121,7 +121,7 @@ impl<'src> Converter<'src> {
 		(config, self.reports)
 	}
 
-	fn async_lib(&mut self, yield_type: YieldType, opts: &[SyntaxOpt<'src>]) -> &'src str {
+	fn async_lib(&mut self, yield_type: YieldType, opts: &[SyntaxOpt<'src>], typescript: bool) -> &'src str {
 		let (async_lib, async_lib_span) = self.str_opt("async_lib", "", opts);
 
 		if let Some(span) = async_lib_span {
@@ -136,7 +136,7 @@ impl<'src> Converter<'src> {
 					expected: "that `async_lib` cannot be defined when using a `yield_type` of `yield`",
 				});
 			}
-		} else if async_lib.is_empty() && yield_type != YieldType::Yield {
+		} else if async_lib.is_empty() && yield_type != YieldType::Yield && !typescript {
 			self.report(Report::AnalyzeMissingOptValue {
 				expected: "`async_lib`",
 				required_when: "`yield_type` is set to `promise` or `future`.",

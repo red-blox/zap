@@ -476,12 +476,10 @@ impl<'src> ClientOutput<'src> {
 		if !self.config.fndecls.is_empty() {
 			self.push_line("local function_call_id = 0");
 
-			if !self.config.async_lib.is_empty() {
-				if self.config.typescript {
-					self.push_line(&format!("local Promise = {}.Promise", self.config.async_lib))
-				} else {
-					self.push_line(&format!("local {} = {}", self.config.yield_type, self.config.async_lib))
-				}
+			if self.config.typescript && self.config.yield_type == YieldType::Promise {
+				self.push_line("local Promise = _G[script].Promise")
+			} else if !self.config.async_lib.is_empty() {
+				self.push_line(&format!("local {} = {}", self.config.yield_type, self.config.async_lib))
 			}
 		}
 
