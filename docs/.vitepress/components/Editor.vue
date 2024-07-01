@@ -104,7 +104,7 @@ const beforeMount = (monaco: Monaco) => {
 
 	const Keywords = ["event", "opt", "type"] as const;
 
-	const TypeKeywords = ["enum", "struct", "map"] as const;
+	const TypeKeywords = ["enum", "struct", "map", "set"] as const;
 
 	const Operators = ["true", "false"] as const;
 
@@ -360,6 +360,14 @@ const beforeMount = (monaco: Monaco) => {
 							documentation: "Map",
 							range: range,
 						},
+						{
+							label: "set",
+							kind: monaco.languages.CompletionItemKind.Snippet,
+							insertText: "set { $1 }\n",
+							insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+							documentation: "Set",
+							range: range,
+						}
 						{
 							label: "struct",
 							kind: monaco.languages.CompletionItemKind.Snippet,

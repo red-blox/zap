@@ -105,6 +105,13 @@ pub trait Output {
 				self.push(" }");
 			}
 
+			Ty::Set(key) => {
+				self.push("{ [");
+				self.push_ty(key);
+				self.push("]: true");
+				self.push(" }");
+			}
+
 			Ty::Opt(ty) => {
 				self.push_ty(ty);
 

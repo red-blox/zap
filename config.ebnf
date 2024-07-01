@@ -23,7 +23,7 @@ evdecl = "event", ident, '=', '{',
 
 tydecl = "type", ident, '=', ty, [';'];
 
-ty = ty-num | ty-str | ty-buf | ty-arr | ty-map | ty-opt | ty-ref | ty-enum | ty-struct | ty-instance;
+ty = ty-num | ty-str | ty-buf | ty-arr | ty-map | ty-set | ty-opt | ty-ref | ty-enum | ty-struct | ty-instance;
 
 ty-num = ("f32" | "f64"), ['(', range-num,')']
 	| ("u8" | "u16" | "u32" | "i8" | "i16" | "i32"), ['(', range-int,')'];
@@ -32,6 +32,7 @@ ty-str = "string", ['(', range-int,')'];
 ty-buf = "buffer", ['(', range-int,')'];
 ty-arr = ty, '[', range-num, ']';
 ty-map = "map", '[', ty, ']', ':', ty;
+ty-set = "set", '{', ty, '}'
 ty-opt = ty, '?';
 ty-ref = ident;
 
