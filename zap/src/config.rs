@@ -255,7 +255,7 @@ impl<'src> Enum<'src> {
 			Self::Unit(enumerators) => {
 				let numty = NumTy::from_f64(0.0, enumerators.len() as f64);
 
-				(numty.min() as usize, Some(numty.max() as usize))
+				(numty.size(), Some(numty.size()))
 			}
 
 			Self::Tagged { variants, .. } => {
