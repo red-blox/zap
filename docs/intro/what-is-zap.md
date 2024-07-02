@@ -34,7 +34,7 @@ Zap's API is fully typesafe, with Luau or TypeScript. You'll recieve full type c
 
 ### Uncompromised Maps
 
-Map from anything to anything. If your keys' datatype is sendable through a `RemoteEvent` at all, Zap handles it. 
+Map from anything to anything. If your keys' datatype is sendable through a `RemoteEvent` at all, Zap handles your table. 
 
 ## 🔒 Security
 
