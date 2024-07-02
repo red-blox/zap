@@ -201,6 +201,34 @@ impl Ser {
 				));
 			}
 
+			Ty::Set(key) => {
+				let (len_name, len_expr) = self.add_occurrence("len");
+				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
+
+				self.push_local(len_pos_name.clone(), Some(Var::from("alloc").call(vec![2.0.into()])));
+				self.push_local(len_name.clone(), Some(0.0.into()));
+
+				let (key_name, _) = self.add_occurrence("k");
+				let (val_name, _) = self.add_occurrence("_");
+
+				self.push_stmt(Stmt::GenFor {
+					key: key_name.clone(),
+					val: val_name.clone(),
+					obj: from_expr,
+				});
+
+				self.push_assign(Var::Name(len_name.clone()), len_expr.clone().add(1.0.into()));
+				self.push_ty(key, key_name.as_str().into());
+
+				self.push_stmt(Stmt::End);
+				
+				self.push_stmt(Stmt::Call(
+					Var::from("buffer").nindex("writeu16"),
+					None,
+					vec!["outgoing_buff".into(), len_pos_expr.clone(), len_expr.clone()],
+				));
+			}
+
 			Ty::Opt(ty) => {
 				self.push_stmt(Stmt::If(from_expr.clone().eq(Expr::Nil)));
 

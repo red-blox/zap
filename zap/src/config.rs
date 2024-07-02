@@ -123,6 +123,7 @@ pub enum Ty<'src> {
 	Buf(Range),
 	Arr(Box<Ty<'src>>, Range),
 	Map(Box<Ty<'src>>, Box<Ty<'src>>),
+	Set(Box<Ty<'src>>),
 	Opt(Box<Ty<'src>>),
 	Ref(&'src str),
 
@@ -195,6 +196,8 @@ impl<'src> Ty<'src> {
 			}
 
 			Self::Map(..) => (2, None),
+
+			Self::Set(..) => (2, None),
 
 			Self::Opt(ty) => {
 				let (_, ty_max) = ty.size(tydecls, recursed);

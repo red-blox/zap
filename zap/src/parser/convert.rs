@@ -402,6 +402,12 @@ impl<'src> Converter<'src> {
 				Ty::Map(Box::new(key_ty), Box::new(val_ty))
 			}
 
+			SyntaxTyKind::Set(key) => {
+				let key_ty = self.ty(key);
+
+				Ty::Set(Box::new(key_ty))
+			}
+
 			SyntaxTyKind::Opt(ty) => {
 				let parsed_ty = self.ty(ty);
 

@@ -106,6 +106,7 @@ TyKind: SyntaxTyKind<'input> = {
 
     <ty:Ty> "[" <r:IntRange?> "]" => SyntaxTyKind::Arr(Box::new(ty), r),
     "map" "{" "[" <k:Ty> "]" ":" <v:Ty> "}" => SyntaxTyKind::Map(Box::new(k), Box::new(v)),
+    "set" "{" <k:Ty> "}" => SyntaxTyKind::Set(Box::new(k)),
 
     <ty:Ty> "?" => SyntaxTyKind::Opt(Box::new(ty)),
     <name:Identifier> => SyntaxTyKind::Ref(name),
@@ -200,6 +201,7 @@ Identifier: SyntaxIdentifier<'input> = {
     <start:@L> "enum" <end:@R> => SyntaxIdentifier { start, name: "enum", end },
     <start:@L> "struct" <end:@R> => SyntaxIdentifier { start, name: "struct", end },
     <start:@L> "map" <end:@R> => SyntaxIdentifier { start, name: "map", end },
+    <start:@L> "set" <end:@R> => SyntaxIdentifier { start, name: "set", end },
     <start:@L> "true" <end:@R> => SyntaxIdentifier { start, name: "true", end },
     <start:@L> "false" <end:@R> => SyntaxIdentifier { start, name: "false", end },
 }

@@ -120,6 +120,12 @@ Maps are defined using the `map` keyword, followed by a Luau-like map syntax. Fo
 
 <CodeBlock code="map { [string]: u8 }" />
 
+## Sets
+
+Sets are equivalent to a map where all values are `true`, and are defined using the `set` keyword. For example, a map of `string` keys to `true` would look like:
+
+<CodeBlock code="set { string }" />
+
 ## Enums
 
 Zap has two types of enums, unit enums and tagged enums.

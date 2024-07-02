@@ -119,6 +119,12 @@ pub trait Output: ConfigProvider {
 				self.push(">");
 			}
 
+			Ty::Set(key) => {
+				self.push("Set<");
+				self.push_ty(key);
+				self.push(">");
+			}
+
 			Ty::Opt(ty) => {
 				self.push_ty(ty);
 

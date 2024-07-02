@@ -187,6 +187,25 @@ impl Des {
 				self.push_stmt(Stmt::End);
 			}
 
+			Ty::Set(key) => {
+				self.push_assign(into.clone(), Expr::EmptyTable);
+
+				self.push_stmt(Stmt::NumFor {
+					var: "_".into(),
+					from: 1.0.into(),
+					to: self.readu16(),
+				});
+
+				let (key_name, key_expr) = self.add_occurrence("key");
+				self.push_local(key_name.clone(), None);
+
+				self.push_ty(key, Var::Name(key_name.clone()));
+
+				self.push_assign(into.clone().eindex(key_expr.clone()), Expr::True);
+
+				self.push_stmt(Stmt::End);
+			}
+
 			Ty::Opt(ty) => {
 				self.push_stmt(Stmt::If(self.readu8().eq(1.0.into())));
 
