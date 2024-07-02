@@ -430,7 +430,7 @@ impl<'src> Converter<'src> {
 					"unknown" => Ty::Opt(Box::new(Ty::Unknown)),
 
 					_ => {
-						if self.tydecls.get(name).is_none() {
+						if !self.tydecls.contains_key(name) {
 							self.report(Report::AnalyzeUnknownTypeRef {
 								span: ref_ty.span(),
 								name,
