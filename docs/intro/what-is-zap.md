@@ -32,6 +32,10 @@ Zap's IDL is easy to learn and easy to use. It's simple while still being expres
 
 Zap's API is fully typesafe, with Luau or TypeScript. You'll recieve full type checking and autocompletion in your editor.
 
+### Uncompromised Maps
+
+Map from anything to anything. If your keys' datatype is sendable through a `RemoteEvent` at all, Zap handles your table. 
+
 ## 🔒 Security
 
 Zap is fully secure. Buffers make reverse engineering your game's networking much harder and Zap validates all data received.
