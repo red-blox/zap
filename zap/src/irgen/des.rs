@@ -197,6 +197,7 @@ impl Des {
 				});
 
 				let (key_name, key_expr) = self.add_occurrence("key");
+				self.push_local(key_name.clone(), None);
 
 				self.push_ty(key, Var::Name(key_name.clone()));
 
