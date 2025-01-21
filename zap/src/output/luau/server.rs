@@ -296,7 +296,12 @@ impl<'a> ServerOutput<'a> {
 
 		self.indent();
 
-		let rets = fndecl.rets.clone().unwrap_or(vec![]);
+		let rets = if let Some(types) = &fndecl.rets {
+			types
+		} else {
+			&vec![]
+		};
+
 		let rets_string = if !rets.is_empty() {
 			(1..=rets.len())
 				.map(|i| format!("ret_{}", i))
