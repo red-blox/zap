@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
 	config::{Config, EvDecl, EvSource, EvType, FnDecl, NumTy, Parameter, TyDecl},
 	irgen::{des, Stmt},
@@ -9,6 +11,7 @@ struct ToolingOutput<'src> {
 	config: &'src Config<'src>,
 	tabs: u32,
 	buf: String,
+	var_occurrences: HashMap<String, usize>,
 }
 
 impl<'src> ToolingOutput<'src> {
@@ -17,6 +20,7 @@ impl<'src> ToolingOutput<'src> {
 			config,
 			tabs: 0,
 			buf: String::new(),
+			var_occurrences: HashMap::new(),
 		}
 	}
 
@@ -116,7 +120,13 @@ impl<'src> ToolingOutput<'src> {
 		self.push_line(&format!("function types.read_{name}()"));
 		self.indent();
 		self.push_line("local value;");
-		self.push_stmts(&des::gen(std::iter::once(ty), &get_unnamed_values("value", 1), true));
+		let statements = &des::gen(
+			std::iter::once(ty),
+			&get_unnamed_values("value", 1),
+			true,
+			&mut self.var_occurrences,
+		);
+		self.push_stmts(statements);
 		self.push_line("return value");
 		self.dedent();
 		self.push_line("end");
@@ -170,11 +180,13 @@ impl<'src> ToolingOutput<'src> {
 		self.push_line(&format!("local {values}"));
 
 		if !ev.data.is_empty() {
-			self.push_stmts(&des::gen(
+			let statements = &des::gen(
 				ev.data.iter().map(|parameter| &parameter.ty),
 				&get_unnamed_values("value", ev.data.len()),
 				true,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		self.push_line("table.insert(events, {");
@@ -234,11 +246,13 @@ impl<'src> ToolingOutput<'src> {
 			self.push_line(&format!("local {values}"));
 
 			if !fn_decl.args.is_empty() {
-				self.push_stmts(&des::gen(
+				let statements = &des::gen(
 					fn_decl.args.iter().map(|parameter| &parameter.ty),
 					&get_unnamed_values("value", fn_decl.args.len()),
 					true,
-				));
+					&mut self.var_occurrences,
+				);
+				self.push_stmts(statements);
 			}
 
 			self.push_line("table.insert(events, {");
@@ -262,7 +276,13 @@ impl<'src> ToolingOutput<'src> {
 			self.push_line(&format!("local {values}"));
 
 			if let Some(data) = &fn_decl.rets {
-				self.push_stmts(&des::gen(data, &get_unnamed_values("value", data.len()), true));
+				let statements = &des::gen(
+					data,
+					&get_unnamed_values("value", data.len()),
+					true,
+					&mut self.var_occurrences,
+				);
+				self.push_stmts(statements);
 			}
 
 			self.push_line("table.insert(events, {");

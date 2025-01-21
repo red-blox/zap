@@ -3,13 +3,13 @@ use std::collections::HashMap;
 
 use super::{Expr, Gen, Stmt, Var};
 
-struct Ser {
+struct Ser<'src> {
 	checks: bool,
 	buf: Vec<Stmt>,
-	var_occurrences: HashMap<String, usize>,
+	var_occurrences: &'src mut HashMap<String, usize>,
 }
 
-impl Gen for Ser {
+impl<'src> Gen for Ser<'src> {
 	fn push_stmt(&mut self, stmt: Stmt) {
 		self.buf.push(stmt);
 	}
@@ -30,7 +30,7 @@ impl Gen for Ser {
 	}
 }
 
-impl Ser {
+impl<'src> Ser<'src> {
 	fn push_struct(&mut self, struct_ty: &Struct, from: Var) {
 		for (name, ty) in struct_ty.fields.iter() {
 			self.push_ty(ty, from.clone().nindex(*name));
@@ -363,14 +363,14 @@ impl Ser {
 	}
 }
 
-pub fn gen<'a, I>(types: I, names: &[String], checks: bool) -> Vec<Stmt>
+pub fn gen<'a, I>(types: I, names: &[String], checks: bool, var_occurrences: &mut HashMap<String, usize>) -> Vec<Stmt>
 where
 	I: IntoIterator<Item = &'a Ty<'a>>,
 {
 	Ser {
 		checks,
 		buf: vec![],
-		var_occurrences: HashMap::new(),
+		var_occurrences,
 	}
 	.gen(names, types.into_iter())
 }

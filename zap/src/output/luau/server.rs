@@ -1,3 +1,5 @@
+use std::{collections::HashMap, hash::Hash};
+
 use crate::{
 	config::{Config, EvCall, EvDecl, EvSource, EvType, FnCall, FnDecl, NumTy, Parameter, TyDecl},
 	irgen::{des, ser},
@@ -10,6 +12,7 @@ struct ServerOutput<'src> {
 	config: &'src Config<'src>,
 	tabs: u32,
 	buf: String,
+	var_occurrences: HashMap<String, usize>,
 }
 
 impl<'a> Output for ServerOutput<'a> {
@@ -38,6 +41,7 @@ impl<'a> ServerOutput<'a> {
 			config,
 			tabs: 0,
 			buf: String::new(),
+			var_occurrences: HashMap::new(),
 		}
 	}
 
@@ -116,18 +120,21 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line(&format!("function types.write_{name}(value: {name})"));
 		self.indent();
-		self.push_stmts(&ser::gen(
+		let statements = &ser::gen(
 			&[ty.clone()],
 			&["value".to_string()],
 			self.config.write_checks,
-		));
+			&mut self.var_occurrences,
+		);
+		self.push_stmts(statements);
 		self.dedent();
 		self.push_line("end");
 
 		self.push_line(&format!("function types.read_{name}()"));
 		self.indent();
 		self.push_line("local value;");
-		self.push_stmts(&des::gen(&[ty.clone()], &["value".to_string()], true));
+		let statements = &des::gen(&[ty.clone()], &["value".to_string()], true, &mut self.var_occurrences);
+		self.push_stmts(statements);
 		self.push_line("return value");
 		self.dedent();
 		self.push_line("end");
@@ -234,11 +241,13 @@ impl<'a> ServerOutput<'a> {
 		self.push_line(&format!("local {values}"));
 
 		if !ev.data.is_empty() {
-			self.push_stmts(&des::gen(
+			let statements = &des::gen(
 				ev.data.iter().map(|parameter| &parameter.ty),
 				&get_unnamed_values("value", ev.data.len()),
 				true,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
@@ -285,11 +294,13 @@ impl<'a> ServerOutput<'a> {
 		self.push_line(&format!("local {values}"));
 
 		if !fndecl.args.is_empty() {
-			self.push_stmts(&des::gen(
+			let statements = &des::gen(
 				fndecl.args.iter().map(|parameter| &parameter.ty),
 				&get_unnamed_values("value", fndecl.args.len()),
 				true,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		self.push_line(&format!("if reliable_events[{server_id}] then"));
@@ -333,7 +344,8 @@ impl<'a> ServerOutput<'a> {
 
 			if let Some(types) = &fndecl.rets {
 				let names: Vec<String> = (0..types.len()).map(|i| format!("ret_{}", i + 1)).collect();
-				self.push_stmts(&ser::gen(types, &names, self.config.write_checks));
+				let statements = &ser::gen(types, &names, self.config.write_checks, &mut self.var_occurrences);
+				self.push_stmts(statements);
 			}
 
 			self.push_line("player_map[player_2] = save()");
@@ -353,7 +365,8 @@ impl<'a> ServerOutput<'a> {
 
 			if let Some(types) = &fndecl.rets {
 				let names: Vec<String> = (0..types.len()).map(|i| format!("ret_{}", i + 1)).collect();
-				self.push_stmts(&ser::gen(types, &names, self.config.write_checks));
+				let statements = &ser::gen(types, &names, self.config.write_checks, &mut self.var_occurrences);
+				self.push_stmts(statements);
 			}
 
 			self.push_line("player_map[player] = save()");
@@ -441,11 +454,13 @@ impl<'a> ServerOutput<'a> {
 		self.push_line(&format!("local {}", values));
 
 		if !ev.data.is_empty() {
-			self.push_stmts(&des::gen(
+			let statements = &des::gen(
 				ev.data.iter().map(|parameter| &parameter.ty),
 				&get_unnamed_values("value", ev.data.len()),
 				true,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
@@ -580,11 +595,13 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_evdecl_event_id(ev);
 
 		if !parameters.is_empty() {
-			self.push_stmts(&ser::gen(
+			let statements = &ser::gen(
 				parameters.iter().map(|parameter| &parameter.ty),
 				&get_named_values(value, parameters),
 				self.config.write_checks,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		match ev.evty {
@@ -621,11 +638,13 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_evdecl_event_id(ev);
 
 		if !parameters.is_empty() {
-			self.push_stmts(&ser::gen(
+			let statements = &ser::gen(
 				parameters.iter().map(|parameter| &parameter.ty),
 				&get_named_values(value, parameters),
 				self.config.write_checks,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		match ev.evty {
@@ -676,11 +695,13 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_evdecl_event_id(ev);
 
 		if !parameters.is_empty() {
-			self.push_stmts(&ser::gen(
+			let statements = &ser::gen(
 				parameters.iter().map(|paramater| &paramater.ty),
 				&get_named_values(value, parameters),
 				self.config.write_checks,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		match ev.evty {
@@ -743,11 +764,13 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_evdecl_event_id(ev);
 
 		if !parameters.is_empty() {
-			self.push_stmts(&ser::gen(
+			let statements = &ser::gen(
 				parameters.iter().map(|parameter| &parameter.ty),
 				&get_named_values(value, parameters),
 				self.config.write_checks,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		match ev.evty {
@@ -802,11 +825,13 @@ impl<'a> ServerOutput<'a> {
 		self.push_write_evdecl_event_id(ev);
 
 		if !parameters.is_empty() {
-			self.push_stmts(&ser::gen(
+			let statements = &ser::gen(
 				parameters.iter().map(|parameter| &parameter.ty),
 				&get_named_values(value, parameters),
 				self.config.write_checks,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		match ev.evty {

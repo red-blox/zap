@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
 	config::{Config, EvCall, EvDecl, EvSource, EvType, FnDecl, NumTy, Parameter, TyDecl, YieldType},
 	irgen::{des, ser},
@@ -13,6 +15,7 @@ struct ClientOutput<'src> {
 	config: &'src Config<'src>,
 	tabs: u32,
 	buf: String,
+	var_occurrences: HashMap<String, usize>,
 }
 
 impl Output for ClientOutput<'_> {
@@ -41,6 +44,7 @@ impl<'src> ClientOutput<'src> {
 			config,
 			tabs: 0,
 			buf: String::new(),
+			var_occurrences: HashMap::new(),
 		}
 	}
 
@@ -107,18 +111,21 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line(&format!("function types.write_{name}(value: {name})"));
 		self.indent();
-		self.push_stmts(&ser::gen(
+		let statements = &ser::gen(
 			&[ty.clone()],
 			&["value".to_string()],
 			self.config.write_checks,
-		));
+			&mut self.var_occurrences,
+		);
+		self.push_stmts(&statements);
 		self.dedent();
 		self.push_line("end");
 
 		self.push_line(&format!("function types.read_{name}()"));
 		self.indent();
 		self.push_line("local value;");
-		self.push_stmts(&des::gen(&[ty.clone()], &["value".to_string()], false));
+		let statements = &des::gen(&[ty.clone()], &["value".to_string()], false, &mut self.var_occurrences);
+		self.push_stmts(&statements);
 		self.push_line("return value");
 		self.dedent();
 		self.push_line("end");
@@ -225,11 +232,13 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("local {values}"));
 
 		if !ev.data.is_empty() {
-			self.push_stmts(&des::gen(
+			let statements = &des::gen(
 				ev.data.iter().map(|parameter| &parameter.ty),
 				&get_unnamed_values("value", ev.data.len()),
 				true,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
@@ -323,7 +332,13 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("local {values}"));
 
 		if let Some(data) = &fndecl.rets {
-			self.push_stmts(&des::gen(data, &get_unnamed_values("value", data.len()), true));
+			let statements = &des::gen(
+				data,
+				&get_unnamed_values("value", data.len()),
+				true,
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(&statements);
 		}
 
 		self.push_line(&format!("local thread = reliable_event_queue[{client_id}][call_id]"));
@@ -422,11 +437,13 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("local {values}"));
 
 		if !ev.data.is_empty() {
-			self.push_stmts(&des::gen(
+			let statements = &des::gen(
 				ev.data.iter().map(|parameter| &parameter.ty),
 				&get_unnamed_values("value", ev.data.len()),
 				self.config.write_checks,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
@@ -635,11 +652,13 @@ impl<'src> ClientOutput<'src> {
 		self.push_write_evdecl_event_id(ev);
 
 		if !ev.data.is_empty() {
-			self.push_stmts(&ser::gen(
+			let statements = &ser::gen(
 				ev.data.iter().map(|parameter| &parameter.ty),
 				&get_named_values(value, &ev.data),
 				self.config.write_checks,
-			));
+				&mut self.var_occurrences,
+			);
+			self.push_stmts(statements);
 		}
 
 		if ev.evty == EvType::Unreliable {
@@ -906,11 +925,13 @@ impl<'src> ClientOutput<'src> {
 			self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, function_call_id)");
 
 			if !fndecl.args.is_empty() {
-				self.push_stmts(&ser::gen(
+				let statements = &ser::gen(
 					fndecl.args.iter().map(|parameter| &parameter.ty),
 					&get_named_values(value, &fndecl.args),
 					self.config.write_checks,
-				));
+					&mut self.var_occurrences,
+				);
+				self.push_stmts(statements);
 			}
 
 			match self.config.yield_type {
