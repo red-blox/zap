@@ -296,11 +296,7 @@ impl<'a> ServerOutput<'a> {
 
 		self.indent();
 
-		let rets = if let Some(types) = &fndecl.rets {
-			types
-		} else {
-			&vec![]
-		};
+		let rets = if let Some(types) = &fndecl.rets { types } else { &vec![] };
 
 		let rets_string = if !rets.is_empty() {
 			(1..=rets.len())
