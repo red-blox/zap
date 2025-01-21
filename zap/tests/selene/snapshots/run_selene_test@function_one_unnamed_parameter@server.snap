@@ -1,0 +1,6 @@
+---
+source: zap/tests/selene/mod.rs
+expression: server_diagnostics
+input_file: zap/tests/files/function_one_unnamed_parameter.zap
+---
+[]
