@@ -292,23 +292,19 @@ impl<'a> ServerOutput<'a> {
 			));
 		}
 
-		self.push_line(&format!("if events[{server_id}] then"));
+		self.push_line(&format!("if reliable_events[{server_id}] then"));
 
 		self.indent();
 
-		let rets = if !fndecl.args.is_empty() {
-			(1..=fndecl.args.len())
-				.map(|i| {
-					if i > 1 {
-						format!("rets{}", i)
-					} else {
-						"rets".to_string()
-					}
-				})
+		let rets = if let Some(types) = &fndecl.rets { types } else { &vec![] };
+
+		let rets_string = if !rets.is_empty() {
+			(1..=rets.len())
+				.map(|i| format!("ret_{}", i))
 				.collect::<Vec<_>>()
 				.join(", ")
 		} else {
-			"rets".to_string()
+			"ret_1".to_string()
 		};
 
 		if fndecl.call == FnCall::Async {
@@ -325,7 +321,9 @@ impl<'a> ServerOutput<'a> {
 			self.push_line(&format!("task.spawn(function(player_2, call_id_2, {args})"));
 			self.indent();
 
-			self.push_line(&format!("local {rets} = events[{server_id}](player_2, {args})"));
+			self.push_line(&format!(
+				"local {rets_string} = reliable_events[{server_id}](player_2, {args})"
+			));
 
 			self.push_line("load_player(player_2)");
 			self.push_write_event_id(fndecl.client_id, self.config.client_reliable_ty());
@@ -334,11 +332,8 @@ impl<'a> ServerOutput<'a> {
 			self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, call_id_2)");
 
 			if let Some(types) = &fndecl.rets {
-				self.push_stmts(&ser::gen(
-					types,
-					&get_unnamed_values("rets", types.len()),
-					self.config.write_checks,
-				));
+				let names: Vec<String> = (0..types.len()).map(|i| format!("ret_{}", i + 1)).collect();
+				self.push_stmts(&ser::gen(types, &names, self.config.write_checks));
 			}
 
 			self.push_line("player_map[player_2] = save()");
@@ -346,7 +341,9 @@ impl<'a> ServerOutput<'a> {
 			self.dedent();
 			self.push_line(&format!("end, player, call_id, {values})"));
 		} else {
-			self.push_line(&format!("local {rets} = events[{server_id}](player, {values})"));
+			self.push_line(&format!(
+				"local {rets_string} = reliable_events[{server_id}](player, {values})"
+			));
 
 			self.push_line("load_player(player)");
 			self.push_write_event_id(fndecl.client_id, self.config.client_reliable_ty());
@@ -355,11 +352,8 @@ impl<'a> ServerOutput<'a> {
 			self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, call_id)");
 
 			if let Some(types) = &fndecl.rets {
-				self.push_stmts(&ser::gen(
-					types,
-					&get_unnamed_values("rets", types.len()),
-					self.config.write_checks,
-				));
+				let names: Vec<String> = (0..types.len()).map(|i| format!("ret_{}", i + 1)).collect();
+				self.push_stmts(&ser::gen(types, &names, self.config.write_checks));
 			}
 
 			self.push_line("player_map[player] = save()");
