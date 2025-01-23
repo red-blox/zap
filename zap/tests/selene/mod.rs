@@ -8,7 +8,7 @@ use insta::{assert_debug_snapshot, glob, Settings};
 static SELENE: LazyLock<Selene> = LazyLock::new(initialise_selene);
 
 pub fn run_selene_test(input: &str, no_warnings: bool, insta_settings: &mut Settings, file_stem: Cow<'_, str>) {
-	let code = zap::run(input, no_warnings)
+	let code = zap::run(&format!("opt tooling = true\n{input}"), no_warnings)
 		.code
 		.expect("Zap did not generate any code!");
 
@@ -28,15 +28,13 @@ pub fn run_selene_test(input: &str, no_warnings: bool, insta_settings: &mut Sett
 		assert_debug_snapshot!(server_diagnostics);
 	});
 
-	if let Some(tooling) = code.tooling {
-		let tooling_ast = full_moon::parse_fallible(&tooling.code, SELENE.lua_version).into_ast();
-		let tooling_diagnostics = SELENE.linter.test_on(&tooling_ast);
+	let tooling_ast = full_moon::parse_fallible(&code.tooling.as_ref().unwrap().code, SELENE.lua_version).into_ast();
+	let tooling_diagnostics = SELENE.linter.test_on(&tooling_ast);
 
-		insta_settings.set_snapshot_suffix(format!("{file_stem}@tooling"));
-		insta_settings.bind(|| {
-			assert_debug_snapshot!(tooling_diagnostics);
-		});
-	}
+	insta_settings.set_snapshot_suffix(format!("{file_stem}@tooling"));
+	insta_settings.bind(|| {
+		assert_debug_snapshot!(tooling_diagnostics);
+	});
 }
 
 #[test]

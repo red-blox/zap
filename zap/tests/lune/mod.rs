@@ -4,12 +4,16 @@ use insta::{assert_debug_snapshot, glob, Settings};
 use lune::Runtime;
 
 pub fn run_lune_test(input: &str, no_warnings: bool, insta_settings: Settings) {
-	let script = zap::run(input, no_warnings);
+	let script = zap::run(&format!("opt tooling = true\n{input}"), no_warnings);
 
 	assert!(script.code.is_some(), "No code generated!");
 
 	let code = script.code.as_ref().unwrap();
-	let mut runtime = Runtime::new().with_args(vec![&code.server.code, &code.client.code]);
+	let mut runtime = Runtime::new().with_args(vec![
+		&code.server.code,
+		&code.client.code,
+		&code.tooling.as_ref().unwrap().code,
+	]);
 
 	let result = tokio::runtime::Runtime::new()
 		.expect("Unable to setup tokio")
