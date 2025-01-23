@@ -132,7 +132,7 @@ impl<'src> TestOutput<'src> {
 		self.push_stmts(&des_statements);
 
 		for (ser_name, des_name) in ser_names.iter().zip(des_names.iter()) {
-			self.push_line(&format!("assert({ser_name} == {des_name})"));
+			self.push_line(&format!("assert(deepEquals({ser_name}, {des_name}))"));
 		}
 
 		self.dedent();
@@ -182,6 +182,67 @@ async fn test_function() {
 		("Test__ARGS", vec!["0", "\"foo\""]),
 		("Test__RETS", vec!["\"Success\"", "\"bar\""]),
 	]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_nested_complex() {
+	let (config, reports) = parse(include_str!("../files/nested_complex.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	// This was not fun to write a test for.
+	// Hopefully for future readers - it'll be clear enough what goes where :)
+	let setup_script = r#"local numbers_1 = { 0, 4, 51 }
+local numbers_2 = { 200, 157, 55, 94, 75 }
+local numbers_3 = { 108, 242, 73, 19, 151, 194 }
+local numbers_4 = { 255, 157, 78, 132 }
+
+local key_1 = {
+    [numbers_1] = "foo",
+    [numbers_2] = "bar",
+    [numbers_3] = "baz"
+}
+local key_2 = {
+    [numbers_4] = "but"
+}
+local key_3 = {}
+
+local value_1 = {{ x = 215 }, { x = 38 }, { x = 86 }}
+local value_2 = {}
+local value_3 = {{ x = 27 }, { x = 184 }, { x = 249 }}
+
+default_value = {
+    [key_1] = value_1,
+    [key_2] = value_2,
+    [key_3] = value_3,
+}"#;
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("NestedComplex", vec!["default_value"])]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Setup", setup_script).await.unwrap();
+	runtime.run("Zap", output).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_simple_struct() {
+	let (config, reports) = parse(include_str!("../files/simple_struct.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_value = r#"{
+		foo = "baz",
+		bar = 21
+	}"#;
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("MyEvent", vec![default_value])]);
 	let output = TestOutput::new(&config.unwrap(), default_values).output();
 	let mut runtime = Runtime::new();
 
