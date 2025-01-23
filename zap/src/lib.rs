@@ -1,7 +1,7 @@
-mod config;
-mod irgen;
-mod output;
-mod parser;
+pub mod config;
+pub mod irgen;
+pub mod output;
+pub mod parser;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;

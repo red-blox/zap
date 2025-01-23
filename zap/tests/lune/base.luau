@@ -6,29 +6,26 @@ local task = require("@lune/task")
 local serverCode, clientCode = unpack(process.args)
 
 local noop = function() end
-local heartbeatCallbacks = {}
 
 roblox.implementMethod("Instance", "WaitForChild", function(self, ...)
 	return self:FindFirstChild(...)
 end)
 
-roblox.implementMethod("RunService", "IsRunning", function(self)
+roblox.implementMethod("RunService", "IsRunning", function()
 	return true
 end)
 
-roblox.implementMethod("RunService", "IsClient", function(self) 
+roblox.implementMethod("RunService", "IsClient", function() 
 	return debug.info(2, "s") == "Client"
 end)
 
-roblox.implementMethod("RunService", "IsServer", function(self) 
+roblox.implementMethod("RunService", "IsServer", function() 
 	return debug.info(2, "s") == "Server"
 end)
 
 roblox.implementProperty("RunService", "Heartbeat", function()
 	return {
-		Connect = function (self, callback)
-			table.insert(heartbeatCallbacks, callback)
-		end
+		Connect = noop
 	}
 end)
 
@@ -40,33 +37,25 @@ end)
 
 roblox.implementProperty("RemoteEvent", "OnServerEvent", function()
 	return {
-		Connect = function (self, callback)
-			self.Connection = callback
-		end
+		Connect = noop
 	}
 end)
 
 roblox.implementProperty("UnreliableRemoteEvent", "OnServerEvent", function()
 	return {
-		Connect = function (self, callback)
-			self.Connection = callback
-		end
+		Connect = noop
 	}
 end)
 
 roblox.implementProperty("RemoteEvent", "OnClientEvent", function()
 	return {
-		Connect = function (self, callback)
-			self.Connection = callback
-		end
+		Connect = noop
 	}
 end)
 
 roblox.implementProperty("UnreliableRemoteEvent", "OnClientEvent", function()
 	return {
-		Connect = function (self, callback)
-			self.Connection = callback
-		end
+		Connect = noop
 	}
 end)
 
