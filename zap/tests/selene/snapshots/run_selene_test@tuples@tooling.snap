@@ -1,0 +1,6 @@
+---
+source: zap/tests/selene/mod.rs
+expression: tooling_diagnostics
+input_file: zap/tests/files/tuples.zap
+---
+[]
