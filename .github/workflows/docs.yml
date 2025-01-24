@@ -24,13 +24,13 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: yarn
       - name: Get latest zap release
-        uses: robinraju/release-downloader@v1.8
+        uses: robinraju/release-downloader@v1
         with:
           latest: true
           fileName: "zap-*-wasm.tgz"
@@ -41,10 +41,9 @@ jobs:
         run: yarn install --frozen-lockfile --force
       - name: Build
         run: yarn docs:build
-      - uses: actions/configure-pages@v2
-      - uses: actions/upload-pages-artifact@v1
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v4

@@ -9,7 +9,7 @@ on:
       - '0.6.x'
     paths: 
       - '**.rs'
-      - Cargo.{lock,toml}
+      - 'Cargo.{lock,toml}'
 
   pull_request:
     branches:
@@ -17,7 +17,7 @@ on:
       - '0.6.x'
     paths: 
       - '**.rs'
-      - Cargo.{lock,toml}
+      - 'Cargo.{lock,toml}'
 
 jobs:
   build:
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: true
 

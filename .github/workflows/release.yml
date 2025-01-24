@@ -18,14 +18,11 @@ jobs:
     steps:
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: ncipollo/release-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
           draft: true
-          prerelease: false
 
   build:
     needs: ["create-release"]
@@ -59,7 +56,7 @@ jobs:
     env:
       BIN: zap
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Get Version from Tag
         shell: bash
@@ -99,7 +96,7 @@ jobs:
           fi
 
       - name: Upload Archive to Release
-        uses: actions/upload-release-asset@v1
+        uses: shogo82148/actions-upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -109,7 +106,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload Archive to Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BIN }}-${{ env.PROJECT_VERSION }}-${{ matrix.label }}.zip
           path: release.zip
@@ -121,7 +118,7 @@ jobs:
     env:
       BIN: zap
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Get Version from Tag
         shell: bash
@@ -131,7 +128,7 @@ jobs:
           echo "Version is: ${{ env.PROJECT_VERSION }}"
 
       - name: Setup Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
@@ -152,7 +149,7 @@ jobs:
           wasm-pack pack zap
 
       - name: Upload Archive to Release
-        uses: actions/upload-release-asset@v1
+        uses: shogo82148/actions-upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -162,7 +159,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload Archive to Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BIN }}-${{ env.PROJECT_VERSION }}-wasm.tgz
           path: zap/pkg/${{ env.BIN }}-${{ env.PROJECT_VERSION }}.tgz
