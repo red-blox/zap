@@ -399,7 +399,10 @@ impl<'src> ClientOutput<'src> {
 	fn push_unreliable_callback(&mut self, ev: &EvDecl) {
 		let id = ev.id;
 
-		self.push_line(&format!("unreliable_{id}.OnClientEvent:Connect(function(buff, inst)"));
+		self.push_line(&format!(
+			"unreliable[{}].OnClientEvent:Connect(function(buff, inst)",
+			id + 1
+		));
 		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
@@ -629,7 +632,7 @@ impl<'src> ClientOutput<'src> {
 		if ev.evty == EvType::Unreliable {
 			self.push_line("local buff = buffer.create(outgoing_used)");
 			self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
-			self.push_line(&format!("unreliable_{}:FireServer(buff, outgoing_inst)", ev.id));
+			self.push_line(&format!("unreliable[{}]:FireServer(buff, outgoing_inst)", ev.id + 1));
 			self.push_line("load(saved)");
 		}
 
@@ -979,12 +982,27 @@ impl<'src> ClientOutput<'src> {
 			self.config.client_unreliable_count(),
 			self.config.server_unreliable_count(),
 		);
-		for id in 0..unreliable_count {
-			self.push_line(&format!(
-				"local unreliable_{id} = remotes:WaitForChild(\"{}_UNRELIABLE_{id}\")",
-				self.config.remote_scope
-			));
-			self.push_line(&format!("assert(unreliable_{id}:IsA(\"UnreliableRemoteEvent\"), \"Expected {}_UNRELIABLE_{id} to be an UnreliableRemoteEvent\")", self.config.remote_scope));
+
+		if unreliable_count > 0 {
+			self.push_indent();
+			self.push("local unreliable = { ");
+
+			for id in 0..unreliable_count {
+				if id != 0 {
+					self.push(", ")
+				}
+
+				self.push(&format!(
+					"remotes:WaitForChild(\"{}_UNRELIABLE_{id}\")",
+					self.config.remote_scope
+				));
+			}
+
+			self.push(" }\n");
+
+			for id in 0..unreliable_count {
+				self.push_line(&format!("assert(unreliable[{}]:IsA(\"UnreliableRemoteEvent\"), \"Expected {}_UNRELIABLE_{id} to be an UnreliableRemoteEvent\")", id + 1, self.config.remote_scope));
+			}
 		}
 	}
 

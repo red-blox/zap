@@ -350,11 +350,22 @@ impl<'src> ToolingOutput<'src> {
 			self.config.server_unreliable_count(),
 		);
 
-		for id in 0..unreliable_count {
-			self.push_line(&format!(
-				"local unreliable_{id} = remotes:FindFirstChild(\"{}_UNRELIABLE_{id}\")",
-				self.config.remote_scope
-			));
+		if unreliable_count > 0 {
+			self.push_indent();
+			self.push("local unreliable = { ");
+
+			for id in 0..unreliable_count {
+				if id != 0 {
+					self.push(", ")
+				}
+
+				self.push(&format!(
+					"remotes:FindFirstChild(\"{}_UNRELIABLE_{id}\")",
+					self.config.remote_scope
+				));
+			}
+
+			self.push(" }\n");
 		}
 
 		self.push("\n");
@@ -362,7 +373,7 @@ impl<'src> ToolingOutput<'src> {
 		self.push("if not reliable ");
 
 		for id in 0..unreliable_count {
-			self.push(&format!("or not unreliable_{id} "));
+			self.push(&format!("or not unreliable[{}] ", id + 1));
 		}
 
 		self.push("then\n");
@@ -378,7 +389,7 @@ impl<'src> ToolingOutput<'src> {
 		self.push("if remote_instance ~= reliable ");
 
 		for id in 0..unreliable_count {
-			self.push(&format!("and remote_instance ~= unreliable_{id} "));
+			self.push(&format!("and remote_instance ~= unreliable[{}] ", id + 1));
 		}
 
 		self.push("then\n");
@@ -541,8 +552,8 @@ impl<'src> ToolingOutput<'src> {
 			}
 
 			self.push(&format!(
-				"isServer and remote_instance == unreliable_{} then\n",
-				ev_decl.id
+				"isServer and remote_instance == unreliable[{}] then\n",
+				ev_decl.id + 1
 			));
 			self.indent();
 

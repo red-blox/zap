@@ -1,6 +1,6 @@
 std="polyfill"
 
-# These lints are normally warns, but we want to make these errors
 [lints]
 undefined_variable = "deny"
 shadowing = "deny"
+high_cyclomatic_complexity = "allow"

@@ -417,7 +417,8 @@ impl<'a> ServerOutput<'a> {
 		let id = ev.id;
 
 		self.push_line(&format!(
-			"unreliable_{id}.OnServerEvent:Connect(function(player, buff, inst)"
+			"unreliable[{}].OnServerEvent:Connect(function(player, buff, inst)",
+			id + 1
 		));
 		self.indent();
 		self.push_line("incoming_buff = buff");
@@ -570,8 +571,8 @@ impl<'a> ServerOutput<'a> {
 				self.push_line("local buff = buffer.create(outgoing_used)");
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
 				self.push_line(&format!(
-					"unreliable_{}:FireClient({player}, buff, outgoing_inst)",
-					ev.id
+					"unreliable[{}]:FireClient({player}, buff, outgoing_inst)",
+					ev.id + 1
 				));
 			}
 		}
@@ -627,7 +628,10 @@ impl<'a> ServerOutput<'a> {
 			EvType::Unreliable => {
 				self.push_line("local buff = buffer.create(outgoing_used)");
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
-				self.push_line(&format!("unreliable_{}:FireAllClients(buff, outgoing_inst)", ev.id));
+				self.push_line(&format!(
+					"unreliable[{}]:FireAllClients(buff, outgoing_inst)",
+					ev.id + 1
+				));
 			}
 		}
 
@@ -692,7 +696,10 @@ impl<'a> ServerOutput<'a> {
 				self.indent();
 				self.push_line(&format!("if player ~= {except} then"));
 				self.indent();
-				self.push_line(&format!("unreliable_{}:FireClient(player, buff, outgoing_inst)", ev.id));
+				self.push_line(&format!(
+					"unreliable[{}]:FireClient(player, buff, outgoing_inst)",
+					ev.id + 1
+				));
 				self.dedent();
 				self.push_line("end");
 				self.dedent();
@@ -755,7 +762,10 @@ impl<'a> ServerOutput<'a> {
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
 				self.push_line(&format!("for _, player in {list} do"));
 				self.indent();
-				self.push_line(&format!("unreliable_{}:FireClient(player, buff, outgoing_inst)", ev.id));
+				self.push_line(&format!(
+					"unreliable[{}]:FireClient(player, buff, outgoing_inst)",
+					ev.id + 1
+				));
 				self.dedent();
 				self.push_line("end");
 			}
@@ -816,7 +826,10 @@ impl<'a> ServerOutput<'a> {
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
 				self.push_line(&format!("for player in {set} do"));
 				self.indent();
-				self.push_line(&format!("unreliable_{}:FireClient(player, buff, outgoing_inst)", ev.id));
+				self.push_line(&format!(
+					"unreliable[{}]:FireClient(player, buff, outgoing_inst)",
+					ev.id + 1
+				));
 				self.dedent();
 				self.push_line("end");
 			}
@@ -1046,7 +1059,6 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("reliable.Parent = remotes");
 		self.dedent();
 		self.push_line("end");
-
 		self.push("\n");
 
 		let unreliable_count = max(
@@ -1054,22 +1066,43 @@ impl<'a> ServerOutput<'a> {
 			self.config.server_unreliable_count(),
 		);
 
-		for id in 0..unreliable_count {
-			self.push_line(&format!(
-				"local unreliable_{id} = remotes:FindFirstChild(\"{}_UNRELIABLE_{id}\")",
-				self.config.remote_scope
-			));
-			self.push_line(&format!("if unreliable_{id} == nil then"));
+		if unreliable_count > 0 {
+			self.push_line("local function getOrCreateUnreliableRemote(name: string): UnreliableRemoteEvent");
 			self.indent();
-			self.push_line(&format!("unreliable_{id} = Instance.new(\"UnreliableRemoteEvent\")"));
-			self.push_line(&format!(
-				"unreliable_{id}.Name = \"{}_UNRELIABLE_{id}\"",
-				self.config.remote_scope
-			));
-			self.push_line(&format!("unreliable_{id}.Parent = remotes"));
+			self.push_line("local remote = remotes:FindFirstChild(name)");
+			self.push("\n");
+			self.push_line("if remote == nil then");
+			self.indent();
+			self.push_line("remote = Instance.new(\"UnreliableRemoteEvent\")");
+			self.push_line("remote.Name = name");
+			self.push_line("remote.Parent = remotes");
 			self.dedent();
 			self.push_line("end");
 			self.push("\n");
+			self.push_line("return remote");
+			self.dedent();
+			self.push_line("end");
+			self.push("\n");
+
+			self.push_indent();
+			self.push("local unreliable = { ");
+
+			for id in 0..unreliable_count {
+				if id != 0 {
+					self.push(", ")
+				}
+
+				self.push(&format!(
+					"getOrCreateUnreliableRemote(\"{}_UNRELIABLE_{id}\")",
+					self.config.remote_scope
+				));
+			}
+
+			self.push(" }\n");
+
+			for id in 0..unreliable_count {
+				self.push_line(&format!("assert(unreliable[{}]:IsA(\"UnreliableRemoteEvent\"), \"Expected {}_UNRELIABLE_{id} to be an UnreliableRemoteEvent\")", id + 1, self.config.remote_scope));
+			}
 		}
 	}
 

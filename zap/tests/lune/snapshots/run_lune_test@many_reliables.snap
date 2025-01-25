@@ -1,0 +1,8 @@
+---
+source: zap/tests/lune/mod.rs
+expression: result
+input_file: zap/tests/files/many_reliables.zap
+---
+Ok(
+    0,
+)
