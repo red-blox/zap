@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::config::{
-	Casing, Config, Enum, EvDecl, EvSource, EvType, FnDecl, NumTy, Parameter, Range, Struct, Ty, TyDecl, YieldType,
+	Casing, Config, Enum, EvDecl, EvSource, EvType, FnDecl, Parameter, Range, Struct, Ty, TyDecl, YieldType,
 };
 
 use super::{
@@ -9,11 +9,12 @@ use super::{
 	syntax_tree::*,
 };
 
+// We subtract two for the `inst` array.
+pub const MAX_UNRELIABLE_SIZE: usize = 898;
+
 struct Converter<'src> {
 	config: SyntaxConfig<'src>,
 	tydecls: HashMap<&'src str, SyntaxTyDecl<'src>>,
-	max_server_unreliable_size: usize,
-	max_client_unreliable_size: usize,
 
 	reports: Vec<Report<'src>>,
 }
@@ -22,37 +23,15 @@ impl<'src> Converter<'src> {
 	fn new(config: SyntaxConfig<'src>) -> Self {
 		let mut tydecls = HashMap::new();
 
-		let mut client_unreliable_event_count = 0;
-		let mut server_unreliable_event_count = 0;
-
 		for decl in config.decls.iter() {
-			match decl {
-				SyntaxDecl::Ty(tydecl) => {
-					tydecls.insert(tydecl.name.name, tydecl.clone());
-				}
-
-				SyntaxDecl::Ev(ev_decl) => {
-					if ev_decl.evty == EvType::Unreliable {
-						match ev_decl.from {
-							EvSource::Server => client_unreliable_event_count += 1,
-							EvSource::Client => server_unreliable_event_count += 1,
-						}
-					}
-				}
-
-				_ => {}
+			if let SyntaxDecl::Ty(tydecl) = decl {
+				tydecls.insert(tydecl.name.name, tydecl.clone());
 			}
 		}
-
-		// We subtract two for the `inst` array.
-		let max_server_unreliable_size = 900 - NumTy::from_f64(0.0, server_unreliable_event_count as f64).size() - 2;
-		let max_client_unreliable_size = 900 - NumTy::from_f64(0.0, client_unreliable_event_count as f64).size() - 2;
 
 		Self {
 			config,
 			tydecls,
-			max_server_unreliable_size,
-			max_client_unreliable_size,
 
 			reports: Vec::new(),
 		}
@@ -414,23 +393,16 @@ impl<'src> Converter<'src> {
 				}
 			}
 
-			let max_unreliable_size = match from {
-				EvSource::Server => self.max_client_unreliable_size,
-				EvSource::Client => self.max_server_unreliable_size,
-			};
-
-			if min > max_unreliable_size {
+			if min > MAX_UNRELIABLE_SIZE {
 				self.report(Report::AnalyzeOversizeUnreliable {
 					ev_span: evdecl.span(),
 					ty_span: evdecl.data.as_ref().unwrap().span(),
-					max_size: max_unreliable_size,
 					size: min,
 				});
-			} else if max.is_none_or(|max| max >= max_unreliable_size) {
+			} else if max.is_none_or(|max| max >= MAX_UNRELIABLE_SIZE) {
 				self.report(Report::AnalyzePotentiallyOversizeUnreliable {
 					ev_span: evdecl.span(),
 					ty_span: evdecl.data.as_ref().unwrap().span(),
-					max_size: max_unreliable_size,
 				});
 			}
 		}

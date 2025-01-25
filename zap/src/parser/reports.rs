@@ -1,3 +1,5 @@
+use crate::parser::convert::MAX_UNRELIABLE_SIZE;
+
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
 use lalrpop_util::lexer::Token;
 
@@ -35,14 +37,12 @@ pub enum Report<'src> {
 	AnalyzeOversizeUnreliable {
 		ev_span: Span,
 		ty_span: Span,
-		max_size: usize,
 		size: usize,
 	},
 
 	AnalyzePotentiallyOversizeUnreliable {
 		ev_span: Span,
 		ty_span: Span,
-		max_size: usize,
 	},
 
 	AnalyzeInvalidRange {
@@ -320,14 +320,14 @@ impl Report<'_> {
 			Self::AnalyzeEmptyEvDecls => Some(vec![
 				"add an event or function declaration to allow zap to output code".to_string()
 			]),
-			Self::AnalyzeOversizeUnreliable { max_size, .. } => Some(vec![
-				format!("all unreliable events must be under {max_size} bytes in size"),
+			Self::AnalyzeOversizeUnreliable { .. } => Some(vec![
+				format!("all unreliable events must be under {MAX_UNRELIABLE_SIZE} bytes in size"),
 				"consider adding a upper limit to any arrays or strings".to_string(),
 				"upper limits can be added for arrays by doing `[..10]`".to_string(),
 				"upper limits can be added for strings by doing `(..10)`".to_string(),
 			]),
-			Self::AnalyzePotentiallyOversizeUnreliable { max_size, .. } => Some(vec![
-				format!("all unreliable events must be under {max_size} bytes in size"),
+			Self::AnalyzePotentiallyOversizeUnreliable { .. } => Some(vec![
+				format!("all unreliable events must be under {MAX_UNRELIABLE_SIZE} bytes in size"),
 				"consider adding a upper limit to any arrays or strings".to_string(),
 				"upper limits can be added for arrays by doing `[..10]`".to_string(),
 				"upper limits can be added for strings by doing `(..10)`".to_string(),

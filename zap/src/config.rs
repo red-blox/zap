@@ -70,16 +70,8 @@ impl Config<'_> {
 		NumTy::from_f64(0.0, self.server_reliable_count() as f64 - 1.0)
 	}
 
-	pub fn server_unreliable_ty(&self) -> NumTy {
-		NumTy::from_f64(0.0, self.server_unreliable_count() as f64 - 1.0)
-	}
-
 	pub fn client_reliable_ty(&self) -> NumTy {
 		NumTy::from_f64(0.0, self.client_reliable_count() as f64 - 1.0)
-	}
-
-	pub fn client_unreliable_ty(&self) -> NumTy {
-		NumTy::from_f64(0.0, self.client_unreliable_count() as f64 - 1.0)
 	}
 }
 

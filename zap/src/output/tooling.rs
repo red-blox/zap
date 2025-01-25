@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cmp::max, collections::HashMap};
 
 use crate::{
 	config::{Config, EvDecl, EvSource, EvType, FnDecl, NumTy, TyDecl},
@@ -140,25 +140,7 @@ impl<'src> ToolingOutput<'src> {
 		}
 	}
 
-	fn push_event_callback(&mut self, first: bool, ev: &EvDecl) {
-		let id = ev.id;
-
-		self.push_indent();
-
-		if first {
-			self.push("if ");
-		} else {
-			self.push("elseif ");
-		}
-
-		// push_line is not used here as indent was pushed above
-		// and we don't want to push it twice, especially after
-		// the if/elseif
-		self.push(&format!("id == {id} then"));
-		self.push("\n");
-
-		self.indent();
-
+	fn push_event_callback(&mut self, ev: &EvDecl) {
 		let values = get_unnamed_values("value", ev.data.len());
 
 		self.push_line(&format!("local {}", values.join(", ")));
@@ -193,8 +175,6 @@ impl<'src> ToolingOutput<'src> {
 
 		self.dedent();
 		self.push_line("})");
-
-		self.dedent();
 	}
 
 	fn push_function_callback(&mut self, first: bool, is_server: bool, fn_decl: &FnDecl) {
@@ -363,13 +343,29 @@ impl<'src> ToolingOutput<'src> {
 			"local reliable = remotes:FindFirstChild(\"{}_RELIABLE\")",
 			self.config.remote_scope
 		));
-		self.push_line(&format!(
-			"local unreliable = remotes:FindFirstChild(\"{}_UNRELIABLE\")",
-			self.config.remote_scope
-		));
 		self.push("\n");
 
-		self.push_line("if not reliable or not unreliable then");
+		let unreliable_count = max(
+			self.config.client_unreliable_count(),
+			self.config.server_unreliable_count(),
+		);
+
+		for id in 0..unreliable_count {
+			self.push_line(&format!(
+				"local unreliable_{id} = remotes:FindFirstChild(\"{}_UNRELIABLE_{id}\")",
+				self.config.remote_scope
+			));
+		}
+
+		self.push("\n");
+		self.push_indent();
+		self.push("if not reliable ");
+
+		for id in 0..unreliable_count {
+			self.push(&format!("or not unreliable_{id} "));
+		}
+
+		self.push("then\n");
 		self.indent();
 
 		self.push_line("return");
@@ -378,7 +374,14 @@ impl<'src> ToolingOutput<'src> {
 		self.push_line("end");
 		self.push("\n");
 
-		self.push_line("if remote_instance ~= reliable and remote_instance ~= unreliable then");
+		self.push_indent();
+		self.push("if remote_instance ~= reliable ");
+
+		for id in 0..unreliable_count {
+			self.push(&format!("and remote_instance ~= unreliable_{id} "));
+		}
+
+		self.push("then\n");
 		self.indent();
 
 		self.push_line("return");
@@ -434,16 +437,6 @@ impl<'src> ToolingOutput<'src> {
 		);
 		self.dedent();
 
-		self.push_line("elseif isServer and remote_instance == unreliable then");
-		self.indent();
-		self.push_events(
-			true,
-			self.config.server_unreliable_ty(),
-			EvSource::Client,
-			EvType::Unreliable,
-		);
-		self.dedent();
-
 		self.push_line("elseif not isServer and remote_instance == reliable then");
 		self.indent();
 		self.push_events(
@@ -454,15 +447,7 @@ impl<'src> ToolingOutput<'src> {
 		);
 		self.dedent();
 
-		self.push_line("elseif not isServer and remote_instance == unreliable then");
-		self.indent();
-		self.push_events(
-			false,
-			self.config.client_unreliable_ty(),
-			EvSource::Server,
-			EvType::Unreliable,
-		);
-		self.dedent();
+		self.push_unreliable_events();
 
 		self.push_line("end");
 
@@ -498,7 +483,26 @@ impl<'src> ToolingOutput<'src> {
 				continue;
 			}
 
-			self.push_event_callback(first, ev);
+			self.push_indent();
+
+			if first {
+				self.push("if ");
+			} else {
+				self.push("elseif ");
+			}
+
+			// push_line is not used here as indent was pushed above
+			// and we don't want to push it twice, especially after
+			// the if/elseif
+			self.push(&format!("id == {} then", ev.id));
+			self.push("\n");
+
+			self.indent();
+
+			self.push_event_callback(ev);
+
+			self.dedent();
+
 			first = false;
 		}
 
@@ -519,6 +523,32 @@ impl<'src> ToolingOutput<'src> {
 		if !first {
 			self.dedent();
 			self.push_line("end");
+		}
+	}
+
+	fn push_unreliable_events(&mut self) {
+		for ev_decl in self
+			.config
+			.evdecls
+			.iter()
+			.filter(|ev_decl| ev_decl.evty == EvType::Unreliable)
+		{
+			self.push_indent();
+			self.push("elseif ");
+
+			if ev_decl.from == EvSource::Client {
+				self.push("not ");
+			}
+
+			self.push(&format!(
+				"isServer and remote_instance == unreliable_{} then\n",
+				ev_decl.id
+			));
+			self.indent();
+
+			self.push_event_callback(ev_decl);
+
+			self.dedent();
 		}
 	}
 }

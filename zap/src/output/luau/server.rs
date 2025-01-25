@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::{cmp::max, collections::HashMap};
 
 use crate::{
-	config::{Config, EvCall, EvDecl, EvSource, EvType, FnCall, FnDecl, NumTy, Parameter, TyDecl},
+	config::{Config, EvCall, EvDecl, EvSource, EvType, FnCall, FnDecl, Parameter, TyDecl},
 	irgen::{des, ser},
 	output::{get_named_values, get_unnamed_values, luau::events_table_name},
 };
@@ -337,7 +337,7 @@ impl<'a> ServerOutput<'a> {
 			));
 
 			self.push_line("load_player(player_2)");
-			self.push_write_event_id(fndecl.client_id, self.config.client_reliable_ty());
+			self.push_write_event_id(fndecl.client_id);
 
 			self.push_line("alloc(1)");
 			self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, call_id_2)");
@@ -358,7 +358,7 @@ impl<'a> ServerOutput<'a> {
 			));
 
 			self.push_line("load_player(player)");
-			self.push_write_event_id(fndecl.client_id, self.config.client_reliable_ty());
+			self.push_write_event_id(fndecl.client_id);
 
 			self.push_line("alloc(1)");
 			self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, call_id)");
@@ -413,41 +413,17 @@ impl<'a> ServerOutput<'a> {
 		self.push_reliable_footer();
 	}
 
-	fn push_unreliable_header(&mut self) {
-		self.push_line("unreliable.OnServerEvent:Connect(function(player, buff, inst)");
+	fn push_unreliable_callback(&mut self, ev: &EvDecl) {
+		let id = ev.id;
+
+		self.push_line(&format!(
+			"unreliable_{id}.OnServerEvent:Connect(function(player, buff, inst)"
+		));
 		self.indent();
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
 		self.push_line("incoming_ipos = 0");
-
-		let server_unreliable_ty = self.config.server_unreliable_ty();
-
-		self.push_line(&format!(
-			"local id = buffer.read{}(buff, read({}))",
-			server_unreliable_ty,
-			server_unreliable_ty.size()
-		));
-	}
-
-	fn push_unreliable_callback(&mut self, first: bool, ev: &EvDecl) {
-		let id = ev.id;
-
-		self.push_indent();
-
-		if first {
-			self.push("if ");
-		} else {
-			self.push("elseif ");
-		}
-
-		// push_line is not used here as indent was pushed above
-		// and we don't want to push it twice, especially after
-		// the if/elseif
-		self.push(&format!("id == {id} then"));
-		self.push("\n");
-
-		self.indent();
 
 		let values = self.get_values(&ev.data);
 
@@ -482,46 +458,31 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("end");
 
 		self.dedent();
-	}
-
-	fn push_unreliable_footer(&mut self) {
-		self.push_line("else");
-		self.indent();
-		self.push_line("error(\"Unknown event id\")");
-		self.dedent();
-		self.push_line("end");
-		self.dedent();
 		self.push_line("end)");
 	}
 
 	fn push_unreliable(&mut self) {
-		self.push_unreliable_header();
-
-		let mut first = true;
-
 		for ev in self
 			.config
 			.evdecls
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Client && ev_decl.evty == EvType::Unreliable)
 		{
-			self.push_unreliable_callback(first, ev);
-			first = false;
+			self.push_unreliable_callback(ev);
 		}
-
-		self.push_unreliable_footer();
 	}
 
 	fn push_callback_lists(&mut self) {
-		self.push_line(&format!(
-			"local reliable_events = table.create({})",
-			self.config.server_reliable_count()
-		));
+		let reliable_count = self.config.server_reliable_count();
+		let unreliable_count = self.config.server_unreliable_count();
 
-		self.push_line(&format!(
-			"local unreliable_events = table.create({})",
-			self.config.server_unreliable_count()
-		));
+		if reliable_count > 0 {
+			self.push_line(&format!("local reliable_events = table.create({})", reliable_count));
+		}
+
+		if unreliable_count > 0 {
+			self.push_line(&format!("local unreliable_events = table.create({})", unreliable_count));
+		}
 
 		for evdecl in self.config.evdecls.iter().filter(|ev_decl| {
 			ev_decl.from == EvSource::Client && matches!(ev_decl.call, EvCall::ManyAsync | EvCall::ManySync)
@@ -533,18 +494,17 @@ impl<'a> ServerOutput<'a> {
 		}
 	}
 
-	fn push_write_event_id(&mut self, id: usize, num_ty: NumTy) {
+	fn push_write_event_id(&mut self, id: usize) {
+		let num_ty = self.config.client_reliable_ty();
+
 		self.push_line(&format!("alloc({})", num_ty.size()));
 		self.push_line(&format!("buffer.write{}(outgoing_buff, outgoing_apos, {id})", num_ty));
 	}
 
 	fn push_write_evdecl_event_id(&mut self, ev: &EvDecl) {
-		let num_ty = match ev.evty {
-			EvType::Reliable => self.config.server_reliable_ty(),
-			EvType::Unreliable => self.config.server_unreliable_ty(),
-		};
-
-		self.push_write_event_id(ev.id, num_ty);
+		if ev.evty == EvType::Reliable {
+			self.push_write_event_id(ev.id);
+		}
 	}
 
 	fn push_value_parameters(&mut self, parameters: &[Parameter]) {
@@ -609,7 +569,10 @@ impl<'a> ServerOutput<'a> {
 			EvType::Unreliable => {
 				self.push_line("local buff = buffer.create(outgoing_used)");
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
-				self.push_line(&format!("unreliable:FireClient({player}, buff, outgoing_inst)"));
+				self.push_line(&format!(
+					"unreliable_{}:FireClient({player}, buff, outgoing_inst)",
+					ev.id
+				));
 			}
 		}
 
@@ -664,7 +627,7 @@ impl<'a> ServerOutput<'a> {
 			EvType::Unreliable => {
 				self.push_line("local buff = buffer.create(outgoing_used)");
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
-				self.push_line("unreliable:FireAllClients(buff, outgoing_inst)")
+				self.push_line(&format!("unreliable_{}:FireAllClients(buff, outgoing_inst)", ev.id));
 			}
 		}
 
@@ -729,7 +692,7 @@ impl<'a> ServerOutput<'a> {
 				self.indent();
 				self.push_line(&format!("if player ~= {except} then"));
 				self.indent();
-				self.push_line("unreliable:FireClient(player, buff, outgoing_inst)");
+				self.push_line(&format!("unreliable_{}:FireClient(player, buff, outgoing_inst)", ev.id));
 				self.dedent();
 				self.push_line("end");
 				self.dedent();
@@ -792,7 +755,7 @@ impl<'a> ServerOutput<'a> {
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
 				self.push_line(&format!("for _, player in {list} do"));
 				self.indent();
-				self.push_line("unreliable:FireClient(player, buff, outgoing_inst)");
+				self.push_line(&format!("unreliable_{}:FireClient(player, buff, outgoing_inst)", ev.id));
 				self.dedent();
 				self.push_line("end");
 			}
@@ -853,7 +816,7 @@ impl<'a> ServerOutput<'a> {
 				self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
 				self.push_line(&format!("for player in {set} do"));
 				self.indent();
-				self.push_line("unreliable:FireClient(player, buff, outgoing_inst)");
+				self.push_line(&format!("unreliable_{}:FireClient(player, buff, outgoing_inst)", ev.id));
 				self.dedent();
 				self.push_line("end");
 			}
@@ -1086,21 +1049,28 @@ impl<'a> ServerOutput<'a> {
 
 		self.push("\n");
 
-		self.push_line(&format!(
-			"local unreliable = remotes:FindFirstChild(\"{}_UNRELIABLE\")",
-			self.config.remote_scope
-		));
-		self.push_line("if unreliable == nil then");
-		self.indent();
-		self.push_line("unreliable = Instance.new(\"UnreliableRemoteEvent\")");
-		self.push_line(&format!(
-			"unreliable.Name = \"{}_UNRELIABLE\"",
-			self.config.remote_scope
-		));
-		self.push_line("unreliable.Parent = remotes");
-		self.dedent();
-		self.push_line("end");
-		self.push("\n");
+		let unreliable_count = max(
+			self.config.client_unreliable_count(),
+			self.config.server_unreliable_count(),
+		);
+
+		for id in 0..unreliable_count {
+			self.push_line(&format!(
+				"local unreliable_{id} = remotes:FindFirstChild(\"{}_UNRELIABLE_{id}\")",
+				self.config.remote_scope
+			));
+			self.push_line(&format!("if unreliable_{id} == nil then"));
+			self.indent();
+			self.push_line(&format!("unreliable_{id} = Instance.new(\"UnreliableRemoteEvent\")"));
+			self.push_line(&format!(
+				"unreliable_{id}.Name = \"{}_UNRELIABLE_{id}\"",
+				self.config.remote_scope
+			));
+			self.push_line(&format!("unreliable_{id}.Parent = remotes"));
+			self.dedent();
+			self.push_line("end");
+			self.push("\n");
+		}
 	}
 
 	pub fn push_player_map(&mut self) {
