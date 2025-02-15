@@ -85,14 +85,7 @@ pub trait Output {
 	}
 
 	fn push_ty(&mut self, ty: &Ty) {
-		if let Ty::Enum(enum_ty) = ty {
-			match enum_ty {
-				Enum::Unit { .. } => self.push("("),
-				Enum::Tagged { .. } => (),
-			};
-		} else {
-			self.push("(");
-		}
+		self.push("(");
 
 		match ty {
 			Ty::Num(..) => self.push("number"),
@@ -169,7 +162,6 @@ pub trait Output {
 						self.push_indent();
 						self.push("}");
 					}
-					self.push("\n");
 				}
 			},
 
@@ -204,14 +196,7 @@ pub trait Output {
 			Ty::CFrame => self.push("CFrame"),
 		}
 
-		if let Ty::Enum(enum_ty) = ty {
-			match enum_ty {
-				Enum::Unit { .. } => self.push(")"),
-				Enum::Tagged { .. } => (),
-			};
-		} else {
-			self.push(")");
-		}
+		self.push(")");
 	}
 
 	fn push_file_header(&mut self, scope: &str) {
