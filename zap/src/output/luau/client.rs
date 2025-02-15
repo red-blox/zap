@@ -940,7 +940,7 @@ impl<'src> ClientOutput<'src> {
 
 		let is_polling_used = filtered_evdecls.clone().next().is_some();
 		if is_polling_used {
-			self.push_line("");
+			self.push("\n");
 		}
 
 		for evdecl in filtered_evdecls {
