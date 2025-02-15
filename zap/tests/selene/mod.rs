@@ -10,7 +10,7 @@ static SELENE: LazyLock<Selene> = LazyLock::new(initialise_selene);
 
 pub fn run_selene_test(input: &str, no_warnings: bool, insta_settings: &mut Settings, file_stem: Cow<'_, str>) {
 	let code = zap::run(
-		&format!("opt tooling = true\nopt types_output = \"network/types.luau\"{input}"),
+		&format!("opt tooling = true\nopt types_output = \"network/types.luau\"\n{input}"),
 		no_warnings,
 	)
 	.code
