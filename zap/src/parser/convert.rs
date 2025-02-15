@@ -237,11 +237,7 @@ impl<'src> Converter<'src> {
 	}
 
 	fn call_default_opt(&mut self, opts: &[SyntaxOpt<'src>]) -> Option<EvCall> {
-		let opt = if let Some(opt) = opts.iter().find(|opt| opt.name.name == "call_default") {
-			opt
-		} else {
-			return None;
-		};
+		let opt = opts.iter().find(|opt| opt.name.name == "call_default")?;
 
 		let (value, span) = if let SyntaxOptValueKind::Str(opt_value) = &opt.value.kind {
 			(Some(self.str(opt_value)), Some(opt_value.span()))
@@ -254,7 +250,7 @@ impl<'src> Converter<'src> {
 			(None, None)
 		};
 
-		return match (value, span) {
+		match (value, span) {
 			(Some("SingleSync"), ..) => Some(EvCall::SingleSync),
 			(Some("ManySync"), ..) => Some(EvCall::ManySync),
 			(Some("SingleAsync"), ..) => Some(EvCall::SingleAsync),
@@ -269,7 +265,7 @@ impl<'src> Converter<'src> {
 				None
 			}
 			_ => None,
-		};
+		}
 	}
 
 	fn boolean_opt(&mut self, name: &'static str, default: bool, opts: &[SyntaxOpt<'src>]) -> (bool, Option<Span>) {
