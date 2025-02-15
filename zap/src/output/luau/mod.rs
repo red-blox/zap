@@ -7,6 +7,8 @@ pub mod client;
 pub mod server;
 pub mod types;
 
+const INITIAL_POLLING_EVENT_CAPACITY: usize = 100;
+
 pub trait Output {
 	fn push(&mut self, s: &str);
 	fn indent(&mut self);

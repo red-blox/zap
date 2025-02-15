@@ -15,8 +15,6 @@ struct ServerOutput<'src> {
 	var_occurrences: HashMap<String, usize>,
 }
 
-const INITIAL_POLLING_EVENT_CAPACITY: usize = 100;
-
 impl Output for ServerOutput<'_> {
 	fn push(&mut self, s: &str) {
 		self.buf.push_str(s);
@@ -1159,11 +1157,11 @@ impl<'a> ServerOutput<'a> {
 
 			self.push_line(&format!(
 				"arguments = table.create({}),",
-				(arguments_size * INITIAL_POLLING_EVENT_CAPACITY).max(1)
+				(arguments_size * super::INITIAL_POLLING_EVENT_CAPACITY).max(1)
 			));
 			self.push_line(&format!(
 				"queue_size = {},",
-				(arguments_size * INITIAL_POLLING_EVENT_CAPACITY).max(1)
+				(arguments_size * super::INITIAL_POLLING_EVENT_CAPACITY).max(1)
 			));
 			self.push_line("read_cursor = 1,");
 			self.push_line("write_cursor = 1,");
