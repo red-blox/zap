@@ -124,7 +124,7 @@ impl<'src> Converter<'src> {
 
 		let (server_output, ..) = self.str_opt("server_output", "network/server.lua", &config.opts);
 		let (client_output, ..) = self.str_opt("client_output", "network/client.lua", &config.opts);
-		let (types_output, ..) = self.str_opt("types_output", "network/types.luau", &config.opts);
+		let types_output: Option<&str> = self.types_output_opt(&config.opts);
 		let (tooling_output, ..) = self.str_opt("tooling_output", "network/tooling.lua", &config.opts);
 
 		let casing = self.casing_opt(&config.opts);
@@ -232,6 +232,21 @@ impl<'src> Converter<'src> {
 			}
 
 			_ => unreachable!(),
+		}
+	}
+
+	fn types_output_opt(&mut self, opts: &[SyntaxOpt<'src>]) -> Option<&'src str> {
+		let opt = opts.iter().find(|opt| opt.name.name == "types_output")?;
+
+		if let SyntaxOptValueKind::Str(opt_value) = &opt.value.kind {
+			Some(self.str(opt_value))
+		} else {
+			self.report(Report::AnalyzeInvalidOptValue {
+				span: opt.value.span(),
+				expected: "Types output path expected.",
+			});
+
+			None
 		}
 	}
 
