@@ -84,7 +84,7 @@ pub fn run(input: &str, no_warnings: bool) -> Return {
 						Some(Output {
 							path: config.types_output.into(),
 							code: output::luau::types::code(&config),
-							defs: None,
+							defs: output::typescript::types::code(&config),
 						})
 					} else {
 						None

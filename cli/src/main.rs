@@ -76,6 +76,16 @@ fn main() -> Result<()> {
 				std::fs::create_dir_all(parent)?;
 			}
 
+			if let Some(defs) = types_output.defs {
+				let defs_path = if types_path.file_stem().unwrap() == "init" {
+					types_path.with_file_name("index.d.ts")
+				} else {
+					types_path.with_extension("d.ts")
+				};
+
+				std::fs::write(defs_path, defs)?;
+			}
+
 			std::fs::write(types_path, types_output.code)?;
 		}
 

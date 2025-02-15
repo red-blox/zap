@@ -2,6 +2,7 @@ use crate::config::{Config, Enum, Parameter, Ty};
 
 pub mod client;
 pub mod server;
+pub mod types;
 
 pub trait ConfigProvider {
 	fn get_config(&self) -> &Config;
