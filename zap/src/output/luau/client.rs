@@ -967,11 +967,11 @@ impl<'src> ClientOutput<'src> {
 
 			self.push_line(&format!(
 				"arguments = table.create({}),",
-				arguments_size * INITIAL_POLLING_EVENT_CAPACITY.max(1)
+				(arguments_size * INITIAL_POLLING_EVENT_CAPACITY).max(1)
 			));
 			self.push_line(&format!(
 				"queue_size = {},",
-				arguments_size * INITIAL_POLLING_EVENT_CAPACITY.max(1)
+				(arguments_size * INITIAL_POLLING_EVENT_CAPACITY).max(1)
 			));
 			self.push_line("read_cursor = 1,");
 			self.push_line("write_cursor = 1,");
