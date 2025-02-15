@@ -69,7 +69,6 @@ The generated remotes will be `ZAP_RELIABLE` and `ZAP_UNRELIABLE` respectively.
 
 The generated remotes will change to be `PACKAGE_NAME_RELIABLE` and `PACKAGE_NAME_UNRELIABLE` respectively.
 
-
 ## `remote_folder`
 
 This option changes the name folder that Zap's remotes are placed inside of ReplicatedStorage.
@@ -180,13 +179,13 @@ This can be mitigated by firing remotes to the server at a timed rate, so as to 
 local Timer = 0
 
 RunService.Heartbeat:Connect(function(DeltaTime)
-        Timer += DeltaTime
+	Timer += DeltaTime
 
-        -- Only send events 60 times per second
-        if Timer >= 1 / 60 then
-            Timer = 0
-            Zap.SendEvents()
-        end
+	-- Only send events 60 times per second
+	if Timer >= 1 / 60 then
+		Timer = 0
+		Zap.SendEvents()
+	end
 end)
 ```
 
