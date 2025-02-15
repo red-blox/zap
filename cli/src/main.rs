@@ -76,7 +76,7 @@ fn main() -> Result<()> {
 				std::fs::create_dir_all(parent)?;
 			}
 
-			std::fs::write(types_path.clone(), types_output.code)?;
+			std::fs::write(types_path, types_output.code)?;
 		}
 
 		if let Some(tooling) = code.tooling {
