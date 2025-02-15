@@ -39,7 +39,7 @@ The paths are relative to the configuration file and should point to a lua(u) fi
 
 <CodeBlock :code="outputExample" />
 
-## `types_output` [`0.6.17+`]
+## `types_output` [`0.6.18+`]
 
 Configures where Luau types will be output.
 
