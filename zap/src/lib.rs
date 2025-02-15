@@ -80,15 +80,11 @@ pub fn run(input: &str, no_warnings: bool) -> Return {
 						code: output::luau::client::code(&config),
 						defs: output::typescript::client::code(&config),
 					},
-					types: if let Some(types_output) = config.types_output {
-						Some(Output {
-							path: types_output.into(),
-							code: output::luau::types::code(&config),
-							defs: output::typescript::types::code(&config),
-						})
-					} else {
-						None
-					},
+					types: config.types_output.map(|types_output| Output {
+						path: types_output.into(),
+						code: output::luau::types::code(&config),
+						defs: output::typescript::types::code(&config),
+					}),
 					tooling: output::tooling::output(&config),
 				}),
 				diagnostics,
