@@ -141,15 +141,12 @@ pub trait Output {
 				),
 
 				Enum::Tagged { tag, variants } => {
-					for (i, (name, _)) in variants.iter().enumerate() {
+					for (i, (name, struct_ty)) in variants.iter().enumerate() {
 						if i != 0 {
-							self.push("\t| ");
+							self.push(" | ");
 						}
-						self.push(&format!("{name}{tag}\n"));
-					}
 
-					for (name, struct_ty) in variants.iter() {
-						self.push(&format!("type {name}{tag} = {{\n"));
+						self.push("{\n");
 						self.indent();
 
 						self.push_indent();
