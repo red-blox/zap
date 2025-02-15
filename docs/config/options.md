@@ -84,6 +84,7 @@ The generated remotes will be in `ReplicatedStorage -> ZAP`.
 
 <CodeBlock code = 'opt remote_scope = "CHARACTER"' />
 
+
 The generated remotes be in `ReplicatedStorage -> CHARACTER`
 
 ## `casing`
