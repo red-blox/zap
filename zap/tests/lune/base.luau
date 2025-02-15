@@ -89,5 +89,5 @@ local types = luau.load(typesCode, {
 local tooling = luau.load(toolingCode, {
 	debugName = "Tooling",
 	codegenEnabled = true,
-	environment = environment,
+	environment = environment
 })()
