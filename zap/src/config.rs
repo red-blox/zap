@@ -23,6 +23,7 @@ pub struct Config<'src> {
 
 	pub server_output: &'src str,
 	pub client_output: &'src str,
+	pub types_output: Option<&'src str>,
 	pub tooling_output: &'src str,
 
 	pub casing: Casing,

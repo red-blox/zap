@@ -3,7 +3,7 @@ local luau = require("@lune/luau")
 local process = require("@lune/process")
 local roblox = require("@lune/roblox")
 local task = require("@lune/task")
-local serverCode, clientCode, toolingCode = unpack(process.args)
+local serverCode, clientCode, typesCode, toolingCode = unpack(process.args)
 
 local noop = function() end
 
@@ -78,6 +78,12 @@ local client = luau.load(clientCode, {
 	debugName = "Client",
 	codegenEnabled = false,
 	environment = environment
+})()
+
+local types = luau.load(typesCode, {
+	debugName = "Types",
+	codegenEnabled = true,
+	environment = environment,
 })()
 
 local tooling = luau.load(toolingCode, {

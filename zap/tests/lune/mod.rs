@@ -4,7 +4,10 @@ use insta::{assert_debug_snapshot, glob, Settings};
 use lune::Runtime;
 
 pub fn run_lune_test(input: &str, no_warnings: bool, insta_settings: Settings) {
-	let script = zap::run(&format!("opt tooling = true\n{input}"), no_warnings);
+	let script = zap::run(
+		&format!("opt tooling = true\nopt types_output = \"network/types.luau\"\n{input}"),
+		no_warnings,
+	);
 
 	assert!(script.code.is_some(), "No code generated!");
 
@@ -12,6 +15,7 @@ pub fn run_lune_test(input: &str, no_warnings: bool, insta_settings: Settings) {
 	let mut runtime = Runtime::new().with_args(vec![
 		&code.server.code,
 		&code.client.code,
+		&code.types.as_ref().unwrap().code,
 		&code.tooling.as_ref().unwrap().code,
 	]);
 
