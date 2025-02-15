@@ -212,6 +212,92 @@ impl<'src> ClientOutput<'src> {
 		}
 	}
 
+	fn push_polling_event(&mut self, ev: &EvDecl) {
+		let id = ev.id;
+		let arguments = (1..=ev.data.len())
+			.map(|i| {
+				if i == 1 {
+					"value".to_string()
+				} else {
+					format!("value{}", i)
+				}
+			})
+			.collect::<Vec<_>>();
+		let returns_length = arguments.len().max(1);
+
+		self.push_line(&format!("local queue = polling_queues[{id}]"));
+		self.push_line("-- `arguments` is a circular buffer.");
+		self.push_line("-- `queue.arguments` can be replaced when it needs to grow.");
+		self.push_line(
+			"-- It's indexed like `arguments[((index - 1) % queue_size) + 1] because Luau has 1-based indexing.",
+		);
+		self.push_line("local arguments = queue.arguments");
+		self.push_line("local queue_size = queue.queue_size");
+		self.push_line("local read_cursor = queue.read_cursor");
+		self.push_line("local write_cursor = queue.write_cursor");
+		self.push_line(&format!(
+			"local unwrapped_write_end_cursor = write_cursor + {returns_length}"
+		));
+		self.push_line("local write_end_cursor = ((unwrapped_write_end_cursor - 1) % queue_size) + 1");
+
+		self.push_line("if (write_cursor < read_cursor and write_end_cursor >= read_cursor) or (unwrapped_write_end_cursor > queue_size and write_end_cursor >= read_cursor) then");
+		self.indent();
+		self.push_line("local new_queue_size = queue_size * 2");
+		self.push_line("local new_arguments = table.create(new_queue_size)");
+		self.push_line("local new_write_cursor");
+
+		self.push_line("if write_cursor >= read_cursor then");
+		self.indent();
+		self.push_line("table.move(arguments, read_cursor, write_cursor, 1, new_arguments)");
+		self.push_line("new_write_cursor = write_cursor - read_cursor + 1");
+		self.dedent();
+		self.push_line("else");
+		self.indent();
+		self.push_line("table.move(arguments, read_cursor, queue_size, 1, new_arguments)");
+		self.push_line("table.move(arguments, 1, write_cursor, (queue_size - read_cursor) + 1, new_arguments)");
+		self.push_line("new_write_cursor = write_cursor + (queue_size - read_cursor) + 1");
+		self.dedent();
+		self.push_line("end");
+
+		self.push_line("queue.arguments = new_arguments");
+		self.push_line("queue.queue_size = new_queue_size");
+		self.push_line("queue.read_cursor = 1");
+		self.push_line("queue.write_cursor = new_write_cursor");
+		for (index, argument) in arguments.iter().enumerate() {
+			if index > 0 {
+				self.push_line(&format!(
+					"new_arguments[((new_write_cursor + {} - 1) % new_queue_size) + 1] = {argument}",
+					index
+				));
+			} else {
+				self.push_line(&format!("new_arguments[new_write_cursor] = {argument}"));
+			}
+		}
+		self.push_line(&format!(
+			"queue.write_cursor = ((write_cursor + {}) % new_queue_size) + 1",
+			returns_length - 1
+		));
+		self.dedent();
+		self.push_line("else");
+		self.indent();
+		for (index, argument) in arguments.iter().enumerate() {
+			if index > 0 {
+				self.push_line(&format!(
+					"arguments[((write_cursor + {} - 1) % queue_size) + 1] = {argument}",
+					index
+				));
+			} else {
+				self.push_line(&format!("arguments[write_cursor] = {argument}"));
+			}
+		}
+		self.push_line(&format!(
+			"queue.write_cursor = ((write_cursor + {}) % queue_size) + 1",
+			returns_length - 1
+		));
+		self.dedent();
+		self.push_line("end");
+	}
+
 	fn push_reliable_callback(&mut self, first: bool, ev: &EvDecl) {
 		let id = ev.id;
 
@@ -248,88 +334,7 @@ impl<'src> ClientOutput<'src> {
 		match ev.call {
 			EvCall::SingleSync | EvCall::SingleAsync => self.push_line(&format!("if reliable_events[{id}] then")),
 			EvCall::ManySync | EvCall::ManyAsync => self.push_line(&format!("if reliable_events[{id}][1] then")),
-			EvCall::Polling => {
-				let arguments = (1..=ev.data.len())
-					.map(|i| {
-						if i == 1 {
-							"value".to_string()
-						} else {
-							format!("value{}", i)
-						}
-					})
-					.collect::<Vec<_>>();
-				let returns_length = arguments.len().max(1);
-
-				self.push_line(&format!("local queue = polling_queues[{id}]"));
-				self.push_line("-- `arguments` is a circular buffer.");
-				self.push_line("-- `queue.arguments` can be replaced when it needs to grow.");
-				self.push_line("-- It's indexed like `arguments[((index - 1) % queue_size) + 1] because Luau has 1-based indexing.");
-				self.push_line("local arguments = queue.arguments");
-				self.push_line("local queue_size = queue.queue_size");
-				self.push_line("local read_cursor = queue.read_cursor");
-				self.push_line("local write_cursor = queue.write_cursor");
-				self.push_line(&format!(
-					"local unwrapped_write_end_cursor = write_cursor + {returns_length}"
-				));
-				self.push_line("local write_end_cursor = ((unwrapped_write_end_cursor - 1) % queue_size) + 1");
-
-				self.push_line("if (write_cursor < read_cursor and write_end_cursor >= read_cursor) or (unwrapped_write_end_cursor > queue_size and write_end_cursor >= read_cursor) then");
-				self.indent();
-				self.push_line("local new_queue_size = queue_size * 2");
-				self.push_line("local new_arguments = table.create(new_queue_size)");
-				self.push_line("local new_write_cursor");
-
-				self.push_line("if write_cursor >= read_cursor then");
-				self.indent();
-				self.push_line("table.move(arguments, read_cursor, write_cursor, 1, new_arguments)");
-				self.push_line("new_write_cursor = write_cursor - read_cursor + 1");
-				self.dedent();
-				self.push_line("else");
-				self.indent();
-				self.push_line("table.move(arguments, read_cursor, queue_size, 1, new_arguments)");
-				self.push_line("table.move(arguments, 1, write_cursor, (queue_size - read_cursor) + 1, new_arguments)");
-				self.push_line("new_write_cursor = write_cursor + (queue_size - read_cursor) + 1");
-				self.dedent();
-				self.push_line("end");
-
-				self.push_line("queue.arguments = new_arguments");
-				self.push_line("queue.queue_size = new_queue_size");
-				self.push_line("queue.read_cursor = 1");
-				self.push_line("queue.write_cursor = new_write_cursor");
-				for (index, argument) in arguments.iter().enumerate() {
-					if index > 0 {
-						self.push_line(&format!(
-							"new_arguments[((new_write_cursor + {} - 1) % new_queue_size) + 1] = {argument}",
-							index
-						));
-					} else {
-						self.push_line(&format!("new_arguments[new_write_cursor] = {argument}"));
-					}
-				}
-				self.push_line(&format!(
-					"queue.write_cursor = ((write_cursor + {}) % new_queue_size) + 1",
-					returns_length - 1
-				));
-				self.dedent();
-				self.push_line("else");
-				self.indent();
-				for (index, argument) in arguments.iter().enumerate() {
-					if index > 0 {
-						self.push_line(&format!(
-							"arguments[((write_cursor + {} - 1) % queue_size) + 1] = {argument}",
-							index
-						));
-					} else {
-						self.push_line(&format!("arguments[write_cursor] = {argument}"));
-					}
-				}
-				self.push_line(&format!(
-					"queue.write_cursor = ((write_cursor + {}) % queue_size) + 1",
-					returns_length - 1
-				));
-				self.dedent();
-				self.push_line("end");
-			}
+			EvCall::Polling => self.push_polling_event(ev),
 		}
 
 		self.indent();
