@@ -178,11 +178,9 @@ impl<'a> ServerOutput<'a> {
 				self.push_indent();
 				let iter = self.config.casing.with("Iter", "iter", "iter");
 
-				self.push(&format!("{iter}: () => () => [Player, "));
-				for (index, parameter) in ev.data.iter().enumerate() {
-					if index > 0 {
-						self.push(", ");
-					}
+				self.push(&format!("{iter}: () => () => [Player"));
+				for parameter in ev.data.iter() {
+					self.push(", ");
 					self.push_ty(&parameter.ty);
 				}
 				self.push("];\n");
