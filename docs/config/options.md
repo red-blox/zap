@@ -49,7 +49,7 @@ The path is relative to the configuration file and should point to a lua(u) file
 
 <CodeBlock :code="typesOutputExample" />
 
-## `call_default` `[0.6.18+]`
+## `call_default` [`0.6.18+`]
 
 The default `call` field that will be used for events. See [call](events.html#call) for possible options.
 
