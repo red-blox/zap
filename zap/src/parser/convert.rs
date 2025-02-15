@@ -237,37 +237,39 @@ impl<'src> Converter<'src> {
 	}
 
 	fn call_default_opt(&mut self, opts: &[SyntaxOpt<'src>]) -> Option<EvCall> {
-		if let Some(opt) = opts.iter().find(|opt| opt.name.name == "call_default") {
-			let (value, span) = if let SyntaxOptValueKind::Str(opt_value) = &opt.value.kind {
-				(Some(self.str(opt_value)), Some(opt_value.span()))
-			} else {
+		let opt = if let Some(opt) = opts.iter().find(|opt| opt.name.name == "call_default") {
+			opt
+		} else {
+			return None;
+		};
+
+		let (value, span) = if let SyntaxOptValueKind::Str(opt_value) = &opt.value.kind {
+			(Some(self.str(opt_value)), Some(opt_value.span()))
+		} else {
+			self.report(Report::AnalyzeInvalidOptValue {
+				span: opt.value.span(),
+				expected: "`\"SingleSync\", \"ManySync\", \"SingleAsync\", \"ManyAsync\", or \"Polling\".",
+			});
+
+			(None, None)
+		};
+
+		return match (value, span) {
+			(Some("SingleSync"), ..) => Some(EvCall::SingleSync),
+			(Some("ManySync"), ..) => Some(EvCall::ManySync),
+			(Some("SingleAsync"), ..) => Some(EvCall::SingleAsync),
+			(Some("ManyAsync"), ..) => Some(EvCall::ManyAsync),
+			(Some("Polling"), ..) => Some(EvCall::Polling),
+			(_, Some(span)) => {
 				self.report(Report::AnalyzeInvalidOptValue {
-					span: opt.value.span(),
+					span,
 					expected: "`\"SingleSync\", \"ManySync\", \"SingleAsync\", \"ManyAsync\", or \"Polling\".",
 				});
 
-				(None, None)
-			};
-
-			return match (value, span) {
-				(Some("SingleSync"), ..) => Some(EvCall::SingleSync),
-				(Some("ManySync"), ..) => Some(EvCall::ManySync),
-				(Some("SingleAsync"), ..) => Some(EvCall::SingleAsync),
-				(Some("ManyAsync"), ..) => Some(EvCall::ManyAsync),
-				(Some("Polling"), ..) => Some(EvCall::Polling),
-				(_, Some(span)) => {
-					self.report(Report::AnalyzeInvalidOptValue {
-						span,
-						expected: "`\"SingleSync\", \"ManySync\", \"SingleAsync\", \"ManyAsync\", or \"Polling\".",
-					});
-
-					None
-				}
-				_ => None,
-			};
-		}
-
-		None
+				None
+			}
+			_ => None,
+		};
 	}
 
 	fn boolean_opt(&mut self, name: &'static str, default: bool, opts: &[SyntaxOpt<'src>]) -> (bool, Option<Span>) {
