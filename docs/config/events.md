@@ -1,23 +1,23 @@
 <script setup lang="ts">
 const example = `event MyEvent = {
- from: Server,
- type: Reliable,
- call: ManyAsync,
- data: (Foo: boolean, Bar: u32, Baz: string)
+	from: Server,
+	type: Reliable,
+	call: ManyAsync,
+	data: (Foo: boolean, Bar: u32, Baz: string)
 }`
 
 const dataExample = `event OneUnnamedParameter = {
- from: Server,
- type: Reliable,
- call: ManyAsync,
- data: boolean
+	from: Server,
+	type: Reliable,
+	call: ManyAsync,
+	data: boolean
 }
 
 event TwoUnnamedParameters = {
- from: Server,
- type: Reliable,
- call: ManyAsync,
- data: (boolean, u32)
+	from: Server,
+	type: Reliable,
+	call: ManyAsync,
+	data: (boolean, u32)
 }`
 </script>
 
