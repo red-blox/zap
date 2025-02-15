@@ -167,8 +167,9 @@ pub trait Output {
 						self.dedent();
 
 						self.push_indent();
-						self.push("}\n");
+						self.push("}");
 					}
+					self.push("\n");
 				}
 			},
 
