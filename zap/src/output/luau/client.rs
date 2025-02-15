@@ -936,10 +936,10 @@ impl<'src> ClientOutput<'src> {
 			.config
 			.evdecls
 			.iter()
-			.filter(|evdecl| evdecl.from == EvSource::Server && evdecl.call == EvCall::Polling);
+			.filter(|evdecl| evdecl.from == EvSource::Server && evdecl.call == EvCall::Polling)
+			.collect::<Vec<&EvDecl>>();
 
-		let is_polling_used = filtered_evdecls.clone().next().is_some();
-		if is_polling_used {
+		if !filtered_evdecls.is_empty() {
 			self.push("\n");
 		}
 

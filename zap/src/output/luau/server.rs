@@ -1126,11 +1126,11 @@ impl<'a> ServerOutput<'a> {
 			.evdecls
 			.iter()
 			.filter(|evdecl| evdecl.from == EvSource::Client)
-			.filter(|evdecl| evdecl.call == EvCall::Polling);
-
-		let is_polling_used = filtered_evdecls.clone().next().is_some();
-		if is_polling_used {
-			self.push_line("");
+			.filter(|evdecl| evdecl.call == EvCall::Polling)
+			.collect::<Vec<&EvDecl>>();
+		
+		if !filtered_evdecls.is_empty() {
+			self.push("\n");
 		}
 
 		for evdecl in filtered_evdecls {
