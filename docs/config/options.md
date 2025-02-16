@@ -191,13 +191,13 @@ This can be mitigated by firing remotes to the server at a timed rate, so as to 
 local Timer = 0
 
 RunService.Heartbeat:Connect(function(DeltaTime)
-    Timer += DeltaTime
+	Timer += DeltaTime
 
-    -- Only send events 60 times per second
-    if Timer >= 1 / 60 then
-        Timer = 0
-        Zap.SendEvents()
-    end
+	-- Only send events 60 times per second
+	if Timer >= 1 / 60 then
+		Timer = 0
+		Zap.SendEvents()
+	end
 end)
 ```
 
