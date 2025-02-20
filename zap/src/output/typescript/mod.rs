@@ -254,6 +254,15 @@ pub trait Output: ConfigProvider {
 		));
 	}
 
+	fn push_iter_type(&mut self) {
+		self.push_line("type Iter<T> = () => {");
+		self.indent();
+		self.push_line("[Symbol.iterator](): Iterator<T>,");
+		self.push_line("(): T | undefined");
+		self.dedent();
+		self.push_line("}");
+	}
+
 	fn push_event_loop(&mut self) {
 		let send_events = self.get_config().casing.with("SendEvents", "sendEvents", "send_events");
 
