@@ -1205,10 +1205,14 @@ impl<'a> ServerOutput<'a> {
 				));
 			}
 			self.push("\n");
-			self.push_line(&format!(
-				"queue.read_cursor = ((queue.read_cursor + {}) % queue.queue_size) + 1",
-				arguments_size - 1
-			));
+			if arguments_size == 1 {
+				self.push_line("queue.read_cursor = (queue.read_cursor % queue.queue_size) + 1");
+			} else {
+				self.push_line(&format!(
+					"queue.read_cursor = ((queue.read_cursor + {}) % queue.queue_size) + 1",
+					arguments_size - 1
+				));
+			}
 			self.push_line(&format!("return index, {}", return_names.join(", ")));
 
 			// dedent generator
