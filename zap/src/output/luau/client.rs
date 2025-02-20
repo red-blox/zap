@@ -1011,7 +1011,7 @@ impl<'src> ClientOutput<'src> {
 				self.push(&format!(
 					"arguments[{}]",
 					if argument_index > 0 {
-						format!("((read_cursor + {} - 1) % queue_size) + 1", argument_index)
+						format!("((read_cursor + {}) % queue_size) + 1", argument_index - 1)
 					} else {
 						String::from("read_cursor")
 					}
