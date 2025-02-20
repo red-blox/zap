@@ -99,23 +99,36 @@ impl<'src> ClientOutput<'src> {
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server)
 		{
-			let callback = self.config.casing.with("Callback", "callback", "callback");
-
 			self.push_line(&format!("export declare const {name}: {{", name = ev.name));
 			self.indent();
 
 			if ev.call == EvCall::Polling {
-				self.push_indent();
 				let iter = self.config.casing.with("Iter", "iter", "iter");
-				self.push(&format!("{iter}: () => () => ["));
+				let index = self.config.casing.with("Index", "index", "index");
+				let value = self.config.casing.with("Value", "value", "value");
+
+				self.push_indent();
+				self.push(&format!("{iter}: () => IterableFunction<LuaTuple<[{index}: number"));
+
 				for (index, parameter) in ev.data.iter().enumerate() {
-					if index > 0 {
-						self.push(", ");
-					}
+					let name = match parameter.name {
+						Some(name) => name.to_string(),
+						None => {
+							if index > 0 {
+								format!("{value}{}", index + 1)
+							} else {
+								value.to_string()
+							}
+						}
+					};
+
+					self.push(&format!(", {}: ", name));
 					self.push_ty(&parameter.ty);
 				}
-				self.push("];\n");
+
+				self.push("]>>;\n");
 			} else {
+				let callback = self.config.casing.with("Callback", "callback", "callback");
 				let set_callback = match ev.call {
 					EvCall::SingleSync | EvCall::SingleAsync => {
 						self.config.casing.with("SetCallback", "setCallback", "set_callback")

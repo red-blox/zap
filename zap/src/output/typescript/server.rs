@@ -175,15 +175,33 @@ impl<'a> ServerOutput<'a> {
 			self.indent();
 
 			if ev.call == EvCall::Polling {
-				self.push_indent();
+				let index = self.config.casing.with("Index", "index", "index");
 				let iter = self.config.casing.with("Iter", "iter", "iter");
+				let player = self.config.casing.with("Player", "player", "player");
+				let value = self.config.casing.with("Value", "value", "value");
 
-				self.push(&format!("{iter}: () => () => [Player"));
-				for parameter in ev.data.iter() {
-					self.push(", ");
+				self.push_indent();
+				self.push(&format!(
+					"{iter}: IterableFunction<LuaTuple<[{index}: number, {player}: Player"
+				));
+
+				for (index, parameter) in ev.data.iter().enumerate() {
+					let name = match parameter.name {
+						Some(name) => name.to_string(),
+						None => {
+							if index > 0 {
+								format!("{value}{}", index + 1)
+							} else {
+								value.to_string()
+							}
+						}
+					};
+
+					self.push(&format!(", {}: ", name));
 					self.push_ty(&parameter.ty);
 				}
-				self.push("];\n");
+
+				self.push("]>>;\n");
 			} else {
 				let set_callback = match ev.call {
 					EvCall::SingleSync | EvCall::SingleAsync => {

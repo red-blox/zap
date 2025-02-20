@@ -130,7 +130,7 @@ pub trait Output: ConfigProvider {
 				self.push_ty(ty);
 
 				if !matches!(**ty, Ty::Unknown) {
-					self.push("| undefined");
+					self.push(" | undefined");
 				}
 			}
 
