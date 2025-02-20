@@ -76,7 +76,13 @@ impl<'a> ServerOutput<'a> {
 				match ev.call {
 					EvCall::SingleSync | EvCall::SingleAsync => self.push_line(&format!("{set_callback} = noop")),
 					EvCall::ManySync | EvCall::ManyAsync => self.push_line(&format!("{on} = noop")),
-					EvCall::Polling => self.push_line(&format!("{iter} = noop,")),
+					EvCall::Polling => {
+						self.push_line(&format!("{iter} = function()"));
+						self.indent();
+						self.push_line("return noop");
+						self.dedent();
+						self.push_line("end");
+					}
 				}
 			} else {
 				self.push_line(&format!("{fire} = noop,"));
