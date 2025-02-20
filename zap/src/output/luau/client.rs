@@ -269,10 +269,14 @@ impl<'src> ClientOutput<'src> {
 				self.push_line(&format!("new_arguments[new_write_cursor] = {argument}"));
 			}
 		}
-		self.push_line(&format!(
-			"queue.write_cursor = ((write_cursor + {}) % new_queue_size) + 1",
-			returns_length - 1
-		));
+		if returns_length == 1 {
+			self.push_line("queue.write_cursor = (write_cursor % new_queue_size) + 1");
+		} else {
+			self.push_line(&format!(
+				"queue.write_cursor = ((write_cursor + {}) % new_queue_size) + 1",
+				returns_length - 1
+			));
+		}
 		self.dedent();
 		self.push_line("else");
 		self.indent();
@@ -286,10 +290,14 @@ impl<'src> ClientOutput<'src> {
 				self.push_line(&format!("arguments[write_cursor] = {argument}"));
 			}
 		}
-		self.push_line(&format!(
-			"queue.write_cursor = ((write_cursor + {}) % queue_size) + 1",
-			returns_length - 1
-		));
+		if returns_length == 1 {
+			self.push_line("queue.write_cursor = (write_cursor % queue_size) + 1");
+		} else {
+			self.push_line(&format!(
+				"queue.write_cursor = ((write_cursor + {}) % queue_size) + 1",
+				returns_length - 1
+			));
+		}
 		self.dedent();
 		self.push_line("end");
 	}
