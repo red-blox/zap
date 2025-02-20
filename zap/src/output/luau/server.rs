@@ -221,15 +221,7 @@ impl<'a> ServerOutput<'a> {
 
 	fn push_polling_event(&mut self, ev: &EvDecl) {
 		let id = ev.id;
-		let arguments = (1..=ev.data.len())
-			.map(|i| {
-				if i == 1 {
-					"value".to_string()
-				} else {
-					format!("value{}", i)
-				}
-			})
-			.collect::<Vec<_>>();
+		let arguments = get_unnamed_values("value", ev.data.len());
 		// player + arguments
 		let returns_length = 1 + arguments.len();
 
@@ -1157,11 +1149,11 @@ impl<'a> ServerOutput<'a> {
 
 			self.push_line(&format!(
 				"arguments = table.create({}),",
-				(arguments_size * super::INITIAL_POLLING_EVENT_CAPACITY).max(1)
+				max(arguments_size * super::INITIAL_POLLING_EVENT_CAPACITY, 1)
 			));
 			self.push_line(&format!(
 				"queue_size = {},",
-				(arguments_size * super::INITIAL_POLLING_EVENT_CAPACITY).max(1)
+				max(arguments_size * super::INITIAL_POLLING_EVENT_CAPACITY, 1)
 			));
 			self.push_line("read_cursor = 1,");
 			self.push_line("write_cursor = 1,");

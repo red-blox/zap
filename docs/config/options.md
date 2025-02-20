@@ -56,7 +56,7 @@ The default `call` field that will be used for events. See [call](events.html#ca
 ### Example
 
 <CodeBlock code = `opt call_default = "ManySync" />
-<CodeBlock code =`opt call_default = "Polling" />
+<CodeBlock code = `opt call_default = "Polling" />
 
 ### Default
 
