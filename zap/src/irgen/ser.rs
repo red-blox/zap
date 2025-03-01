@@ -110,7 +110,7 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writeu16(len_expr.clone());
+					self.push_writenumty(len_expr.clone(), range.numty().unwrap_or(NumTy::U16));
 					self.push_writestring(from_expr, len_expr.clone());
 				}
 			}
@@ -133,7 +133,7 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writeu16(len_expr.clone());
+					self.push_writenumty(len_expr.clone(), range.numty().unwrap_or(NumTy::U16));
 					self.push_write_copy(from_expr, len_name.as_str().into())
 				}
 			}
@@ -162,7 +162,7 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writeu16(len_expr.clone());
+					self.push_writenumty(len_expr.clone(), range.numty().unwrap_or(NumTy::U16));
 
 					self.push_stmt(Stmt::NumFor {
 						var: var_name.clone(),

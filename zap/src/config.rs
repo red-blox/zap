@@ -426,6 +426,14 @@ impl Range {
 			None
 		}
 	}
+
+	pub fn numty(&self) -> Option<NumTy> {
+		let (Some(min), Some(max)) = (self.min, self.max) else {
+			return None;
+		};
+
+		Some(NumTy::from_f64(min, max))
+	}
 }
 
 impl Display for Range {
