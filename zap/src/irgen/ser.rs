@@ -62,6 +62,7 @@ impl Ser<'_> {
 
 			Enum::Tagged { tag, variants } => {
 				let tag_expr = Expr::from(from.clone().nindex(*tag));
+				let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
 
 				for (i, variant) in variants.iter().enumerate() {
 					if i == 0 {
@@ -72,7 +73,7 @@ impl Ser<'_> {
 						));
 					}
 
-					self.push_writeu8((i as f64).into());
+					self.push_writenumty((i as f64).into(), numty);
 					self.push_struct(&variant.1, from.clone());
 				}
 
