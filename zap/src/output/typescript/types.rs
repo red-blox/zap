@@ -72,5 +72,9 @@ impl<'a> TypesOutput<'a> {
 }
 
 pub fn code(config: &Config) -> Option<String> {
+	if !config.typescript {
+		return None;
+	}
+
 	Some(TypesOutput::new(config).output())
 }
