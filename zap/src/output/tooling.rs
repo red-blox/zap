@@ -549,7 +549,7 @@ impl<'src> ToolingOutput<'src> {
 			self.push_indent();
 			self.push("elseif ");
 
-			if ev_decl.from == EvSource::Client {
+			if ev_decl.from == EvSource::Server {
 				self.push("not ");
 			}
 

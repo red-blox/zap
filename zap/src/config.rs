@@ -426,6 +426,10 @@ impl Range {
 			None
 		}
 	}
+
+	pub fn numty(&self) -> Option<NumTy> {
+		Some(NumTy::from_f64(self.min.unwrap_or(0.0), self.max?))
+	}
 }
 
 impl Display for Range {

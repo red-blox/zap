@@ -104,7 +104,10 @@ impl Des<'_> {
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
 
-					self.push_local(len_name.clone(), Some(self.readnumty(NumTy::U16)));
+					self.push_local(
+						len_name.clone(),
+						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
+					);
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
@@ -119,7 +122,10 @@ impl Des<'_> {
 					self.push_read_copy(into, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
-					self.push_local(len_name.clone(), Some(self.readnumty(NumTy::U16)));
+					self.push_local(
+						len_name.clone(),
+						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
+					);
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
@@ -146,7 +152,10 @@ impl Des<'_> {
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
 
-					self.push_local(len_name.clone(), Some(self.readnumty(NumTy::U16)));
+					self.push_local(
+						len_name.clone(),
+						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
+					);
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);

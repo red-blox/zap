@@ -62,6 +62,7 @@ impl Ser<'_> {
 
 			Enum::Tagged { tag, variants } => {
 				let tag_expr = Expr::from(from.clone().eindex(Expr::Str((*tag).into())));
+				let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
 
 				for (i, variant) in variants.iter().enumerate() {
 					if i == 0 {
@@ -72,7 +73,7 @@ impl Ser<'_> {
 						));
 					}
 
-					self.push_writeu8((i as f64).into());
+					self.push_writenumty((i as f64).into(), numty);
 					self.push_struct(&variant.1, from.clone());
 				}
 
@@ -110,7 +111,7 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writeu16(len_expr.clone());
+					self.push_writenumty(len_expr.clone(), range.numty().unwrap_or(NumTy::U16));
 					self.push_writestring(from_expr, len_expr.clone());
 				}
 			}
@@ -133,7 +134,7 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writeu16(len_expr.clone());
+					self.push_writenumty(len_expr.clone(), range.numty().unwrap_or(NumTy::U16));
 					self.push_write_copy(from_expr, len_name.as_str().into())
 				}
 			}
@@ -162,7 +163,7 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writeu16(len_expr.clone());
+					self.push_writenumty(len_expr.clone(), range.numty().unwrap_or(NumTy::U16));
 
 					self.push_stmt(Stmt::NumFor {
 						var: var_name.clone(),

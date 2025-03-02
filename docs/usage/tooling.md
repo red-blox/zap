@@ -48,12 +48,12 @@ local reliable = ReplicatedStorage:WaitForChild("ZAP_RELIABLE")
 local unreliable = ReplicatedStorage:WaitForChild("ZAP_UNRELIABLE")
 
 reliable.OnClientEvent:Connect(function(...)
-	local data = zap_deserialiser(reliable, unpack(...))
+	local data = zap_deserialiser(reliable, ...)
 	print(data)
 end)
 
 unreliable.OnClientEvent:Connect(function(...)
-	local data = zap_deserialiser(unreliable, unpack(...))
+	local data = zap_deserialiser(unreliable, ...)
 	print(data)
 end)`
 
