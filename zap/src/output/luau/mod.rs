@@ -147,14 +147,14 @@ pub trait Output {
 						self.push_indent();
 
 						if *name == "true" || *name == "false" {
-							self.push(&format!("{tag}: {name},\n"));
+							self.push(&format!("[\"{tag}\"]: {name},\n"));
 						} else {
-							self.push(&format!("{tag}: \"{name}\",\n"));
+							self.push(&format!("[\"{tag}\"]: \"{name}\",\n"));
 						}
 
 						for (name, ty) in struct_ty.fields.iter() {
 							self.push_indent();
-							self.push(&format!("{name}: "));
+							self.push(&format!("[\"{name}\"]: "));
 							self.push_ty(ty);
 							self.push(",\n");
 						}
@@ -173,7 +173,7 @@ pub trait Output {
 
 				for (name, ty) in struct_ty.fields.iter() {
 					self.push_indent();
-					self.push(&format!("{name}: "));
+					self.push(&format!("[\"{name}\"]: "));
 					self.push_ty(ty);
 					self.push(",\n");
 				}

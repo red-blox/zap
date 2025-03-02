@@ -158,14 +158,16 @@ pub trait Output: ConfigProvider {
 						self.push_indent();
 
 						if *name == "true" || *name == "false" {
-							self.push(&format!("{tag}: {name},\n"));
+							self.push(&format!("[\"{tag}\"]: {name},\n"));
 						} else {
-							self.push(&format!("{tag}: \"{name}\",\n"));
+							self.push(&format!("[\"{tag}\"]: \"{name}\",\n"));
 						}
 
 						for (name, ty) in struct_ty.fields.iter() {
 							self.push_indent();
+							self.push("[\"");
 							self.push(name);
+							self.push("\"]");
 							self.push_arg_ty(ty);
 							self.push(",\n");
 						}
@@ -184,7 +186,9 @@ pub trait Output: ConfigProvider {
 
 				for (name, ty) in struct_ty.fields.iter() {
 					self.push_indent();
+					self.push("[\"");
 					self.push(name);
+					self.push("\"]");
 					self.push_arg_ty(ty);
 					self.push(",\n");
 				}

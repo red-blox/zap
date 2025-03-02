@@ -33,7 +33,7 @@ impl Gen for Ser<'_> {
 impl Ser<'_> {
 	fn push_struct(&mut self, struct_ty: &Struct, from: Var) {
 		for (name, ty) in struct_ty.fields.iter() {
-			self.push_ty(ty, from.clone().nindex(*name));
+			self.push_ty(ty, from.clone().eindex(Expr::Str((*name).into())));
 		}
 	}
 
@@ -61,7 +61,7 @@ impl Ser<'_> {
 			}
 
 			Enum::Tagged { tag, variants } => {
-				let tag_expr = Expr::from(from.clone().nindex(*tag));
+				let tag_expr = Expr::from(from.clone().eindex(Expr::Str((*tag).into())));
 
 				for (i, variant) in variants.iter().enumerate() {
 					if i == 0 {

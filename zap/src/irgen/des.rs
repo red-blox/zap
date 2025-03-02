@@ -33,7 +33,7 @@ impl Gen for Des<'_> {
 impl Des<'_> {
 	fn push_struct(&mut self, struct_ty: &Struct, into: Var) {
 		for (name, ty) in struct_ty.fields.iter() {
-			self.push_ty(ty, into.clone().nindex(*name))
+			self.push_ty(ty, into.clone().eindex(Expr::Str((*name).into())))
 		}
 	}
 
@@ -72,7 +72,10 @@ impl Des<'_> {
 						self.push_stmt(Stmt::ElseIf(enum_value_expr.clone().eq((i as f64).into())));
 					}
 
-					self.push_assign(into.clone().nindex(*tag), Expr::StrOrBool(name.to_string()));
+					self.push_assign(
+						into.clone().eindex(Expr::Str((*tag).into())),
+						Expr::StrOrBool(name.to_string()),
+					);
 					self.push_struct(struct_ty, into.clone());
 				}
 

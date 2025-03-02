@@ -145,13 +145,13 @@ Enum: SyntaxEnum<'input> = {
 }
 
 EnumKind: SyntaxEnumKind<'input> = {
-    "{" <enumerators:Comma<Identifier>> "}" => SyntaxEnumKind::Unit(enumerators),
+    "{" <enumerators:Comma<KeyIdentifier>> "}" => SyntaxEnumKind::Unit(enumerators),
 
-    <tag:StrLit> "{" <variants:Comma<(<Identifier> <Struct>)>> "}" => SyntaxEnumKind::Tagged { tag, variants },
+    <tag:StrLit> "{" <variants:Comma<(<KeyIdentifier> <Struct>)>> "}" => SyntaxEnumKind::Tagged { tag, variants },
 }
 
 Struct: SyntaxStruct<'input> = {
-    <start:@L> "{" <fields:Comma<(<Identifier> ":" <Ty>)>> "}" <end:@R> => SyntaxStruct { start, fields, end },
+    <start:@L> "{" <fields:Comma<(<KeyIdentifier> ":" <Ty>)>> "}" <end:@R> => SyntaxStruct { start, fields, end },
 }
 
 IntRange: SyntaxRange<'input> = {
@@ -228,6 +228,11 @@ Identifier: SyntaxIdentifier<'input> = {
     <start:@L> "set" <end:@R> => SyntaxIdentifier { start, name: "set", end },
     <start:@L> "true" <end:@R> => SyntaxIdentifier { start, name: "true", end },
     <start:@L> "false" <end:@R> => SyntaxIdentifier { start, name: "false", end },
+}
+
+KeyIdentifier: SyntaxIdentifier<'input> = {
+    Identifier,
+    <start:@L> <s:StrLit> <end:@R> => SyntaxIdentifier { start, name: &s.value[1..s.value.len() - 1], end },
 }
 
 Comma<T>: Vec<T> = {
