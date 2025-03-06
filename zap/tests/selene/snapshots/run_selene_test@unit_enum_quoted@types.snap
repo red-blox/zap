@@ -1,0 +1,6 @@
+---
+source: zap/tests/selene/mod.rs
+expression: types_diagnostics
+input_file: zap/tests/files/unit_enum_quoted.zap
+---
+[]
