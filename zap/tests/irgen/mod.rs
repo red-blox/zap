@@ -299,3 +299,58 @@ async fn test_no_data() {
 
 	runtime.run("Zap", output).await.unwrap();
 }
+
+#[tokio::test]
+async fn test_unit_enum_quoted() {
+	let (config, reports) = parse(include_str!("../files/unit_enum_quoted.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_value = r#""Foo Bar""#;
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("MyEvent", vec![default_value])]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_struct_quoted_fields() {
+	let (config, reports) = parse(include_str!("../files/struct_quoted_fields.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_value = r#"{
+		["foo bar"] = "baz",
+		buzz = 21
+	}"#;
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("MyEvent", vec![default_value])]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_tagged_enum_quoted() {
+	let (config, reports) = parse(include_str!("../files/tagged_enum_quoted.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_value = r#"{
+		["tag with spaces"] = "foo",
+		["value with spaces"] = "buzz",
+		bar = 21
+	}"#;
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("MyEvent", vec![default_value])]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
+}
