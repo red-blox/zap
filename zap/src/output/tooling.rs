@@ -125,6 +125,7 @@ impl<'src> ToolingOutput<'src> {
 			&get_unnamed_values("value", 1),
 			true,
 			&mut HashMap::new(),
+			self.config,
 		);
 		self.push_stmts(statements);
 		self.push_line("return value");
@@ -151,6 +152,7 @@ impl<'src> ToolingOutput<'src> {
 				&values,
 				true,
 				&mut self.var_occurrences,
+				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -215,6 +217,7 @@ impl<'src> ToolingOutput<'src> {
 					&values,
 					true,
 					&mut self.var_occurrences,
+					self.config,
 				);
 				self.push_stmts(statements);
 			}
@@ -247,6 +250,7 @@ impl<'src> ToolingOutput<'src> {
 					&get_unnamed_values("value", data.len()),
 					true,
 					&mut self.var_occurrences,
+					self.config,
 				);
 				self.push_stmts(statements);
 			}

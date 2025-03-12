@@ -133,6 +133,7 @@ impl<'a> ServerOutput<'a> {
 			&["value".to_string()],
 			self.config.write_checks,
 			&mut HashMap::new(),
+			self.config,
 		);
 		self.push_stmts(statements);
 		self.dedent();
@@ -141,7 +142,13 @@ impl<'a> ServerOutput<'a> {
 		self.push_line(&format!("function types.read_{name}()"));
 		self.indent();
 		self.push_line("local value;");
-		let statements = &des::gen(&[ty.clone()], &["value".to_string()], true, &mut HashMap::new());
+		let statements = &des::gen(
+			&[ty.clone()],
+			&["value".to_string()],
+			true,
+			&mut HashMap::new(),
+			self.config,
+		);
 		self.push_stmts(statements);
 		self.push_line("return value");
 		self.dedent();
@@ -345,6 +352,7 @@ impl<'a> ServerOutput<'a> {
 				&get_unnamed_values("value", ev.data.len()),
 				true,
 				&mut self.var_occurrences,
+				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -405,6 +413,7 @@ impl<'a> ServerOutput<'a> {
 				&get_unnamed_values("value", fndecl.args.len()),
 				true,
 				&mut self.var_occurrences,
+				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -450,7 +459,13 @@ impl<'a> ServerOutput<'a> {
 
 			if let Some(types) = &fndecl.rets {
 				let names: Vec<String> = (0..types.len()).map(|i| format!("ret_{}", i + 1)).collect();
-				let statements = &ser::gen(types, &names, self.config.write_checks, &mut self.var_occurrences);
+				let statements = &ser::gen(
+					types,
+					&names,
+					self.config.write_checks,
+					&mut self.var_occurrences,
+					self.config,
+				);
 				self.push_stmts(statements);
 			}
 
@@ -471,7 +486,13 @@ impl<'a> ServerOutput<'a> {
 
 			if let Some(types) = &fndecl.rets {
 				let names: Vec<String> = (0..types.len()).map(|i| format!("ret_{}", i + 1)).collect();
-				let statements = &ser::gen(types, &names, self.config.write_checks, &mut self.var_occurrences);
+				let statements = &ser::gen(
+					types,
+					&names,
+					self.config.write_checks,
+					&mut self.var_occurrences,
+					self.config,
+				);
 				self.push_stmts(statements);
 			}
 
@@ -542,6 +563,7 @@ impl<'a> ServerOutput<'a> {
 				&get_unnamed_values("value", ev.data.len()),
 				true,
 				&mut self.var_occurrences,
+				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -668,6 +690,7 @@ impl<'a> ServerOutput<'a> {
 				&get_named_values(value, parameters),
 				self.config.write_checks,
 				&mut self.var_occurrences,
+				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -714,6 +737,7 @@ impl<'a> ServerOutput<'a> {
 				&get_named_values(value, parameters),
 				self.config.write_checks,
 				&mut self.var_occurrences,
+				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -774,6 +798,7 @@ impl<'a> ServerOutput<'a> {
 				&get_named_values(value, parameters),
 				self.config.write_checks,
 				&mut self.var_occurrences,
+				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -846,6 +871,7 @@ impl<'a> ServerOutput<'a> {
 				&get_named_values(value, parameters),
 				self.config.write_checks,
 				&mut self.var_occurrences,
+				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -910,6 +936,7 @@ impl<'a> ServerOutput<'a> {
 				&get_named_values(value, parameters),
 				self.config.write_checks,
 				&mut self.var_occurrences,
+				self.config,
 			);
 			self.push_stmts(statements);
 		}

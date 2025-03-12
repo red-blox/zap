@@ -33,7 +33,7 @@ pub struct Config<'src> {
 	pub disable_fire_all: bool,
 }
 
-impl Config<'_> {
+impl<'src> Config<'src> {
 	pub fn server_reliable_count(&self) -> usize {
 		let reliable_count = self
 			.evdecls
@@ -74,6 +74,17 @@ impl Config<'_> {
 
 	pub fn client_reliable_ty(&self) -> NumTy {
 		NumTy::from_f64(0.0, self.client_reliable_count() as f64 - 1.0)
+	}
+
+	pub fn resolve_ty<'a>(&'a self, ty: &'a Ty<'src>) -> &'a Ty<'src> {
+		match ty {
+			Ty::Ref(name) => self
+				.tydecls
+				.iter()
+				.find(|decl| decl.name == *name)
+				.map_or(ty, |decl| &decl.ty),
+			_ => ty,
+		}
 	}
 }
 
@@ -251,9 +262,9 @@ impl<'src> Ty<'src> {
 				}
 			}
 
-			Self::Map(..) => (2, None),
+			Self::Map(..) => (self.variants_size().unwrap().size(), None),
 
-			Self::Set(..) => (2, None),
+			Self::Set(..) => (self.variants_size().unwrap().size(), None),
 
 			Self::Opt(ty) => {
 				let (_, ty_max) = ty.size(tydecls, recursed);
@@ -311,6 +322,19 @@ impl<'src> Ty<'src> {
 			Self::AlignedCFrame => (13, Some(13)),
 			Self::CFrame => (24, Some(24)),
 			Self::Unknown => (0, None),
+		}
+	}
+
+	pub fn variants_size(&self) -> Option<NumTy> {
+		match self {
+			Ty::Enum(Enum::Unit(variants)) => Some(NumTy::from_f64(0.0, (variants.len() - 1) as f64)),
+			Ty::Enum(Enum::Tagged { variants, .. }) => Some(NumTy::from_f64(0.0, (variants.len() - 1) as f64)),
+			// TODO: u32 in most situations where this function is used (lengths for example)
+			// doesn't make sense, since it's usually not allowed, so a map of u32 keys would gain
+			// 2 bytes of length from this change, so should this guard remain? or perhaps it should
+			// get moved into .filter calls where needed?
+			Ty::Num(numty, ..) if *numty != NumTy::U32 => Some(*numty),
+			_ => None,
 		}
 	}
 }
