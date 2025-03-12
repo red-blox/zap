@@ -329,10 +329,16 @@ impl<'src> Ty<'src> {
 		match self {
 			Ty::Enum(Enum::Unit(variants)) => Some(NumTy::from_f64(0.0, (variants.len() - 1) as f64)),
 			Ty::Enum(Enum::Tagged { variants, .. }) => Some(NumTy::from_f64(0.0, (variants.len() - 1) as f64)),
-			// TODO: u32 in most situations where this function is used (lengths for example)
-			// doesn't make sense, since it's usually not allowed, so a map of u32 keys would gain
-			// 2 bytes of length from this change, so do we add it regardless?
-			Ty::Num(numty, ..) if *numty == NumTy::U8 || *numty == NumTy::U16 => Some(*numty),
+			Ty::Num(numty, ..) => match numty {
+				NumTy::F32 => None,
+				NumTy::F64 => None,
+				NumTy::U8 => Some(NumTy::U8),
+				NumTy::U16 => Some(NumTy::U16),
+				NumTy::U32 => None,
+				NumTy::I8 => Some(NumTy::U8),
+				NumTy::I16 => Some(NumTy::U16),
+				NumTy::I32 => None,
+			},
 			_ => None,
 		}
 	}
