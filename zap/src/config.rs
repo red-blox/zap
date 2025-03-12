@@ -333,7 +333,7 @@ impl<'src> Enum<'src> {
 	) -> (usize, Option<usize>) {
 		match self {
 			Self::Unit(enumerators) => {
-				let numty = NumTy::from_f64(0.0, enumerators.len() as f64);
+				let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
 
 				(numty.size(), Some(numty.size()))
 			}
