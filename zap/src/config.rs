@@ -331,9 +331,8 @@ impl<'src> Ty<'src> {
 			Ty::Enum(Enum::Tagged { variants, .. }) => Some(NumTy::from_f64(0.0, (variants.len() - 1) as f64)),
 			// TODO: u32 in most situations where this function is used (lengths for example)
 			// doesn't make sense, since it's usually not allowed, so a map of u32 keys would gain
-			// 2 bytes of length from this change, so should this guard remain? or perhaps it should
-			// get moved into .filter calls where needed?
-			Ty::Num(numty, ..) if *numty != NumTy::U32 => Some(*numty),
+			// 2 bytes of length from this change, so do we add it regardless?
+			Ty::Num(numty, ..) if *numty == NumTy::U8 || *numty == NumTy::U16 => Some(*numty),
 			_ => None,
 		}
 	}
