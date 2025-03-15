@@ -217,9 +217,11 @@ impl<'src> Ty<'src> {
 				if let Some(exact) = len.exact() {
 					(exact as usize, Some(exact as usize))
 				} else {
+					let len_size = len.numty().unwrap_or(NumTy::U16).size();
+					
 					(
-						len.min().map(|min| (min as usize) + 2).unwrap_or(2),
-						len.max().map(|max| (max as usize) + 2),
+						len.min().map(|min| min as usize).unwrap_or(0) + len_size,
+						len.max().map(|max| (max as usize) + len_size),
 					)
 				}
 			}
@@ -228,9 +230,11 @@ impl<'src> Ty<'src> {
 				if let Some(exact) = len.exact() {
 					(exact as usize, Some(exact as usize))
 				} else {
+					let len_size = len.numty().unwrap_or(NumTy::U16).size();
+					
 					(
-						len.min().map(|min| (min as usize) + 2).unwrap_or(2),
-						len.max().map(|max| (max as usize) + 2),
+						len.min().map(|min| min as usize).unwrap_or(0) + len_size,
+						len.max().map(|max| (max as usize) + len_size),
 					)
 				}
 			}
@@ -238,16 +242,17 @@ impl<'src> Ty<'src> {
 			Self::Arr(ty, len) => {
 				let (ty_min, ty_max) = ty.size(tydecls, recursed);
 				let len_min = len.min().map(|min| min as usize).unwrap_or(0);
+				let len_size = len.numty().unwrap_or(NumTy::U16).size();
 
 				if let Some(exact) = len.exact() {
 					(ty_min * (exact as usize), ty_max.map(|max| ty_max.unwrap() * max))
 				} else if let Some(len_max) = len.max() {
 					(
-						ty_min * len_min + 2,
-						ty_max.map(|ty_max| ty_max * (len_max as usize) + 2),
+						ty_min * len_min + len_size,
+						ty_max.map(|ty_max| ty_max * (len_max as usize) + len_size),
 					)
 				} else {
-					(ty_min * len_min + 2, None)
+					(ty_min * len_min + len_size, None)
 				}
 			}
 
