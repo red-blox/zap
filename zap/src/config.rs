@@ -218,7 +218,7 @@ impl<'src> Ty<'src> {
 					(exact as usize, Some(exact as usize))
 				} else {
 					let len_size = len.numty().unwrap_or(NumTy::U16).size();
-					
+
 					(
 						len.min().map(|min| min as usize).unwrap_or(0) + len_size,
 						len.max().map(|max| (max as usize) + len_size),
@@ -231,7 +231,7 @@ impl<'src> Ty<'src> {
 					(exact as usize, Some(exact as usize))
 				} else {
 					let len_size = len.numty().unwrap_or(NumTy::U16).size();
-					
+
 					(
 						len.min().map(|min| min as usize).unwrap_or(0) + len_size,
 						len.max().map(|max| (max as usize) + len_size),
