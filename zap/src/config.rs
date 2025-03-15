@@ -316,18 +316,9 @@ impl<'src> Ty<'src> {
 
 	pub fn variants_size(&self) -> Option<NumTy> {
 		match self {
-			Ty::Enum(Enum::Unit(variants)) => Some(NumTy::from_f64(0.0, (variants.len() - 1) as f64)),
-			Ty::Enum(Enum::Tagged { variants, .. }) => Some(NumTy::from_f64(0.0, (variants.len() - 1) as f64)),
-			Ty::Num(numty, ..) => match numty {
-				NumTy::F32 => None,
-				NumTy::F64 => None,
-				NumTy::U8 => Some(NumTy::U8),
-				NumTy::U16 => Some(NumTy::U16),
-				NumTy::U32 => None,
-				NumTy::I8 => Some(NumTy::U8),
-				NumTy::I16 => Some(NumTy::U16),
-				NumTy::I32 => None,
-			},
+			// note the lack of - 1 here, it's because we need to store 0 length as well.
+			Ty::Enum(Enum::Unit(variants)) => Some(NumTy::from_f64(0.0, variants.len() as f64)),
+			Ty::Enum(Enum::Tagged { variants, .. }) => Some(NumTy::from_f64(0.0, variants.len() as f64)),
 			Ty::Ref(.., variants_size) => *variants_size,
 			_ => None,
 		}
