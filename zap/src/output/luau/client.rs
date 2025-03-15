@@ -150,7 +150,6 @@ impl<'src> ClientOutput<'src> {
 			&["value".to_string()],
 			self.config.write_checks,
 			&mut HashMap::new(),
-			self.config,
 		);
 		self.push_stmts(statements);
 		self.dedent();
@@ -159,13 +158,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("function types.read_{name}()"));
 		self.indent();
 		self.push_line("local value;");
-		let statements = &des::gen(
-			&[ty.clone()],
-			&["value".to_string()],
-			false,
-			&mut HashMap::new(),
-			self.config,
-		);
+		let statements = &des::gen(&[ty.clone()], &["value".to_string()], false, &mut HashMap::new());
 		self.push_stmts(statements);
 		self.push_line("return value");
 		self.dedent();
@@ -364,7 +357,6 @@ impl<'src> ClientOutput<'src> {
 				&get_unnamed_values("value", ev.data.len()),
 				true,
 				&mut self.var_occurrences,
-				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -469,7 +461,6 @@ impl<'src> ClientOutput<'src> {
 				&get_unnamed_values("value", data.len()),
 				true,
 				&mut self.var_occurrences,
-				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -568,7 +559,6 @@ impl<'src> ClientOutput<'src> {
 				&get_unnamed_values("value", ev.data.len()),
 				self.config.write_checks,
 				&mut self.var_occurrences,
-				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -776,7 +766,6 @@ impl<'src> ClientOutput<'src> {
 				&get_named_values(value, &ev.data),
 				self.config.write_checks,
 				&mut self.var_occurrences,
-				self.config,
 			);
 			self.push_stmts(statements);
 		}
@@ -1164,7 +1153,6 @@ impl<'src> ClientOutput<'src> {
 					&get_named_values(value, &fndecl.args),
 					self.config.write_checks,
 					&mut self.var_occurrences,
-					self.config,
 				);
 				self.push_stmts(statements);
 			}

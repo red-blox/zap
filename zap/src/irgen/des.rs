@@ -1,4 +1,4 @@
-use crate::config::{Config, Enum, NumTy, Struct, Ty};
+use crate::config::{Enum, NumTy, Struct, Ty};
 use std::collections::HashMap;
 
 use super::{Expr, Gen, Stmt, Var};
@@ -7,7 +7,6 @@ struct Des<'src> {
 	checks: bool,
 	buf: Vec<Stmt>,
 	var_occurrences: &'src mut HashMap<String, usize>,
-	config: &'src Config<'src>,
 }
 
 impl Gen for Des<'_> {
@@ -184,7 +183,7 @@ impl Des<'_> {
 			}
 
 			Ty::Map(key, val) => {
-				let length_numty = self.config.resolve_ty(key).variants_size().unwrap_or(NumTy::U16);
+				let length_numty = key.variants_size().unwrap_or(NumTy::U16);
 
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
@@ -208,7 +207,7 @@ impl Des<'_> {
 			}
 
 			Ty::Set(key) => {
-				let length_numty = self.config.resolve_ty(key).variants_size().unwrap_or(NumTy::U16);
+				let length_numty = key.variants_size().unwrap_or(NumTy::U16);
 
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
@@ -271,7 +270,7 @@ impl Des<'_> {
 				self.push_stmt(Stmt::End);
 			}
 
-			Ty::Ref(name) => {
+			Ty::Ref(name, ..) => {
 				self.push_assign(
 					into,
 					Expr::Call(
@@ -480,13 +479,7 @@ impl Des<'_> {
 	}
 }
 
-pub fn gen<'a, I>(
-	types: I,
-	names: &[String],
-	checks: bool,
-	var_occurrences: &mut HashMap<String, usize>,
-	config: &Config<'_>,
-) -> Vec<Stmt>
+pub fn gen<'a, I>(types: I, names: &[String], checks: bool, var_occurrences: &mut HashMap<String, usize>) -> Vec<Stmt>
 where
 	I: IntoIterator<Item = &'a Ty<'a>>,
 {
@@ -494,7 +487,6 @@ where
 		checks,
 		buf: vec![],
 		var_occurrences,
-		config,
 	}
 	.gen(names, types.into_iter())
 }

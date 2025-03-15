@@ -1,4 +1,4 @@
-use crate::config::{Config, Enum, NumTy, Struct, Ty};
+use crate::config::{Enum, NumTy, Struct, Ty};
 use std::collections::HashMap;
 
 use super::{Expr, Gen, Stmt, Var};
@@ -7,7 +7,6 @@ struct Ser<'src> {
 	checks: bool,
 	buf: Vec<Stmt>,
 	var_occurrences: &'src mut HashMap<String, usize>,
-	config: &'src Config<'src>,
 }
 
 impl Gen for Ser<'_> {
@@ -188,11 +187,11 @@ impl Ser<'_> {
 				let (len_name, len_expr) = self.add_occurrence("len");
 				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
 
-				let length_size = self.config.resolve_ty(key).variants_size().unwrap_or(NumTy::U16).size();
+				let length_numty = key.variants_size().unwrap_or(NumTy::U16);
 
 				self.push_local(
 					len_pos_name.clone(),
-					Some(Var::from("alloc").call(vec![(length_size as f64).into()])),
+					Some(Var::from("alloc").call(vec![(length_numty.size() as f64).into()])),
 				);
 				self.push_local(len_name.clone(), Some(0.0.into()));
 
@@ -212,7 +211,7 @@ impl Ser<'_> {
 				self.push_stmt(Stmt::End);
 
 				self.push_stmt(Stmt::Call(
-					Var::from("buffer").nindex(format!("writeu{}", length_size * 8)),
+					Var::from("buffer").nindex(format!("write{length_numty}")),
 					None,
 					vec!["outgoing_buff".into(), len_pos_expr.clone(), len_expr.clone()],
 				));
@@ -222,11 +221,11 @@ impl Ser<'_> {
 				let (len_name, len_expr) = self.add_occurrence("len");
 				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
 
-				let length_size = self.config.resolve_ty(key).variants_size().unwrap_or(NumTy::U16).size();
+				let length_numty = key.variants_size().unwrap_or(NumTy::U16);
 
 				self.push_local(
 					len_pos_name.clone(),
-					Some(Var::from("alloc").call(vec![(length_size as f64).into()])),
+					Some(Var::from("alloc").call(vec![(length_numty.size() as f64).into()])),
 				);
 				self.push_local(len_name.clone(), Some(0.0.into()));
 
@@ -245,7 +244,7 @@ impl Ser<'_> {
 				self.push_stmt(Stmt::End);
 
 				self.push_stmt(Stmt::Call(
-					Var::from("buffer").nindex(format!("writeu{}", length_size * 8)),
+					Var::from("buffer").nindex(format!("write{length_numty}")),
 					None,
 					vec!["outgoing_buff".into(), len_pos_expr.clone(), len_expr.clone()],
 				));
@@ -264,7 +263,7 @@ impl Ser<'_> {
 				self.push_stmt(Stmt::End);
 			}
 
-			Ty::Ref(name) => self.push_stmt(Stmt::Call(
+			Ty::Ref(name, ..) => self.push_stmt(Stmt::Call(
 				Var::from("types").nindex(format!("write_{name}")),
 				None,
 				vec![from_expr],
@@ -411,13 +410,7 @@ impl Ser<'_> {
 	}
 }
 
-pub fn gen<'a, I>(
-	types: I,
-	names: &[String],
-	checks: bool,
-	var_occurrences: &mut HashMap<String, usize>,
-	config: &Config<'_>,
-) -> Vec<Stmt>
+pub fn gen<'a, I>(types: I, names: &[String], checks: bool, var_occurrences: &mut HashMap<String, usize>) -> Vec<Stmt>
 where
 	I: IntoIterator<Item = &'a Ty<'a>>,
 {
@@ -425,7 +418,6 @@ where
 		checks,
 		buf: vec![],
 		var_occurrences,
-		config,
 	}
 	.gen(names, types.into_iter())
 }

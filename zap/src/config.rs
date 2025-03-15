@@ -33,7 +33,7 @@ pub struct Config<'src> {
 	pub disable_fire_all: bool,
 }
 
-impl<'src> Config<'src> {
+impl Config<'_> {
 	pub fn server_reliable_count(&self) -> usize {
 		let reliable_count = self
 			.evdecls
@@ -74,17 +74,6 @@ impl<'src> Config<'src> {
 
 	pub fn client_reliable_ty(&self) -> NumTy {
 		NumTy::from_f64(0.0, self.client_reliable_count() as f64 - 1.0)
-	}
-
-	pub fn resolve_ty<'a>(&'a self, ty: &'a Ty<'src>) -> &'a Ty<'src> {
-		match ty {
-			Ty::Ref(name) => self
-				.tydecls
-				.iter()
-				.find(|decl| decl.name == *name)
-				.map_or(ty, |decl| &decl.ty),
-			_ => ty,
-		}
 	}
 }
 
@@ -192,7 +181,7 @@ pub enum Ty<'src> {
 	Map(Box<Ty<'src>>, Box<Ty<'src>>),
 	Set(Box<Ty<'src>>),
 	Opt(Box<Ty<'src>>),
-	Ref(&'src str),
+	Ref(&'src str, Option<NumTy>),
 
 	Enum(Enum<'src>),
 	Struct(Struct<'src>),
@@ -272,7 +261,7 @@ impl<'src> Ty<'src> {
 				(1, ty_max.map(|ty_max| ty_max + 1))
 			}
 
-			Self::Ref(name) => {
+			Self::Ref(name, ..) => {
 				if recursed.contains(name) {
 					// 0 is returned here because all valid recursive types are
 					// bounded and all bounded types have their own min size
@@ -339,6 +328,7 @@ impl<'src> Ty<'src> {
 				NumTy::I16 => Some(NumTy::U16),
 				NumTy::I32 => None,
 			},
+			Ty::Ref(.., variants_size) => *variants_size,
 			_ => None,
 		}
 	}

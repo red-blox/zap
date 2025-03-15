@@ -676,14 +676,18 @@ impl<'src> Converter<'src> {
 					"unknown" => Ty::Opt(Box::new(Ty::Unknown)),
 
 					_ => {
-						if !self.tydecls.contains_key(name) {
+						let Some(tydecl) = self.tydecls.get(name).cloned() else {
 							self.report(Report::AnalyzeUnknownTypeRef {
 								span: ref_ty.span(),
 								name,
 							});
-						}
 
-						Ty::Ref(name)
+							return Ty::Unknown;
+						};
+
+						let tydecl = self.tydecl(&tydecl);
+
+						Ty::Ref(name, tydecl.ty.variants_size())
 					}
 				}
 			}
