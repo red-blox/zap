@@ -117,7 +117,7 @@ impl<'src> Converter<'src> {
 		let (tooling, ..) = self.boolean_opt("tooling", false, &config.opts);
 		let (tooling_show_internal_data, ..) = self.boolean_opt("tooling_show_internal_data", false, &config.opts);
 
-		let (write_checks, ..) = self.boolean_opt("write_checks", false, &config.opts);
+		let (write_checks, ..) = self.boolean_opt("write_checks", true, &config.opts);
 		let (manual_event_loop, ..) = self.boolean_opt("manual_event_loop", false, &config.opts);
 
 		let (remote_scope, ..) = self.str_opt("remote_scope", "ZAP", &config.opts);

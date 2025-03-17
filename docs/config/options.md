@@ -142,7 +142,7 @@ For example, Zap will not check if a `string (20)` is a string, but it will chec
 
 ### Default
 
-`false`
+`true`
 
 ### Options
 
