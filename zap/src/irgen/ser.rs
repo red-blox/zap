@@ -119,7 +119,13 @@ impl Ser<'_> {
 			Ty::Buf(range) => {
 				if let Some(len) = range.exact() {
 					if self.checks {
-						self.push_assert(from_expr.clone().len().eq(len.into()), None);
+						self.push_assert(
+							Var::from("buffer")
+								.nindex("len")
+								.call(vec![from_expr.clone()])
+								.eq(len.into()),
+							None,
+						);
 					}
 
 					self.push_write_copy(from_expr, len.into());
