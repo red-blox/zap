@@ -547,24 +547,30 @@ impl<'a> ServerOutput<'a> {
 			self.push_stmts(statements);
 		}
 
-		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line(&format!("if unreliable_events[{id}] then"))
+		if ev.call == EvCall::Polling {
+			self.push_polling_event(ev);
 		} else {
-			self.push_line(&format!("for _, cb in unreliable_events[{id}] do"))
+			if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
+				self.push_line(&format!("if unreliable_events[{id}] then"))
+			} else {
+				self.push_line(&format!("for _, cb in unreliable_events[{id}] do"))
+			}
+
+			self.indent();
+
+			match ev.call {
+				EvCall::SingleSync => self.push_line(&format!("unreliable_events[{id}](player, {values})")),
+				EvCall::SingleAsync => {
+					self.push_line(&format!("task.spawn(unreliable_events[{id}], player, {values})"))
+				}
+				EvCall::ManySync => self.push_line(&format!("cb(player, {values})")),
+				EvCall::ManyAsync => self.push_line(&format!("task.spawn(cb, player, {values})")),
+				EvCall::Polling => (),
+			}
+
+			self.dedent();
+			self.push_line("end");
 		}
-
-		self.indent();
-
-		match ev.call {
-			EvCall::SingleSync => self.push_line(&format!("unreliable_events[{id}](player, {values})")),
-			EvCall::SingleAsync => self.push_line(&format!("task.spawn(unreliable_events[{id}], player, {values})")),
-			EvCall::ManySync => self.push_line(&format!("cb(player, {values})")),
-			EvCall::ManyAsync => self.push_line(&format!("task.spawn(cb, player, {values})")),
-			EvCall::Polling => (),
-		}
-
-		self.dedent();
-		self.push_line("end");
 
 		self.dedent();
 		self.push_line("end)");
