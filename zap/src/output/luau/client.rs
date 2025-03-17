@@ -247,7 +247,8 @@ impl<'src> ClientOutput<'src> {
 		let arguments = get_unnamed_values("value", ev.data.len());
 		let returns_length = arguments.len().max(1);
 
-		self.push_line(&format!("local queue = polling_queues[{id}]"));
+		let type_name = ev.evty.name();
+		self.push_line(&format!("local queue = polling_queues_{type_name}[{id}]"));
 		self.push_line("-- `arguments` is a circular buffer.");
 		self.push_line("-- `queue.arguments` can be replaced when it needs to grow.");
 		self.push_line(
@@ -489,8 +490,9 @@ impl<'src> ClientOutput<'src> {
 		let iter = self.config.casing.with("Iter", "iter", "iter");
 		let id = ev.id;
 		self.push_indent();
+		let type_name = ev.evty.name();
 		self.push(&format!(
-			"{iter} = polling_queues[{id}].iterator :: () -> (() -> (number"
+			"{iter} = polling_queues_{type_name}[{id}].iterator :: () -> (() -> (number"
 		));
 		if !ev.data.is_empty() {
 			for argument in ev.data.iter() {
@@ -997,7 +999,8 @@ impl<'src> ClientOutput<'src> {
 			}
 			let arguments_size = return_names.len().max(1);
 
-			self.push_line(&format!("polling_queues[{id}] = {{"));
+			let type_name = evdecl.evty.name();
+			self.push_line(&format!("polling_queues_{type_name}{id}] = {{"));
 			self.indent();
 
 			self.push_line(&format!(
@@ -1013,7 +1016,8 @@ impl<'src> ClientOutput<'src> {
 			self.push_line("iterator = function()");
 			self.indent();
 
-			self.push_line(&format!("local queue = polling_queues[{id}]"));
+			let type_name = evdecl.evty.name();
+			self.push_line(&format!("local queue = polling_queues_{type_name}[{id}]"));
 			self.push_line("local index = 0");
 			self.push_line("return function()");
 			self.indent();
@@ -1076,7 +1080,8 @@ impl<'src> ClientOutput<'src> {
 			self.dedent();
 			self.push_line("}");
 		}
-		self.push_line("table.freeze(polling_queues)\n");
+		self.push_line("table.freeze(polling_queues_reliable)");
+		self.push_line("table.freeze(polling_queues_unreliable)\n");
 	}
 
 	fn push_return_functions(&mut self) {

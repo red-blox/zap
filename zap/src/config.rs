@@ -156,6 +156,15 @@ pub enum EvType {
 	Unreliable,
 }
 
+impl EvType {
+	pub fn name(&self) -> &str {
+		match &self {
+			EvType::Reliable => "reliable",
+			EvType::Unreliable => "unreliable",
+		}
+	}
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EvCall {
 	SingleSync,
