@@ -1004,7 +1004,7 @@ impl<'src> ClientOutput<'src> {
 			let arguments_size = return_names.len().max(1);
 
 			let type_name = evdecl.evty.name();
-			self.push_line(&format!("polling_queues_{type_name}{id}] = {{"));
+			self.push_line(&format!("polling_queues_{type_name}[{id}] = {{"));
 			self.indent();
 
 			self.push_line(&format!(
