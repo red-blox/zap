@@ -185,6 +185,7 @@ pub enum Ty<'src> {
 
 	Enum(Enum<'src>),
 	Struct(Struct<'src>),
+	Or(Vec<Ty<'src>>),
 	Instance(Option<&'src str>),
 
 	BrickColor,
@@ -282,6 +283,28 @@ impl<'src> Ty<'src> {
 
 			Self::Enum(enum_ty) => enum_ty.size(tydecls, recursed),
 			Self::Struct(struct_ty) => struct_ty.size(tydecls, recursed),
+			Self::Or(or_tys, ..) => {
+				let mut min = 0;
+				let mut max = Some(0usize);
+
+				for ty in or_tys {
+					let (ty_min, ty_max) = ty.size(tydecls, recursed);
+
+					if ty_min < min {
+						min = ty_min;
+					}
+
+					if let Some(ty_max) = ty_max {
+						if let Some(current_max) = max {
+							max = Some(ty_max + current_max);
+						}
+					} else {
+						max = None;
+					}
+				}
+
+				(min + 1, max.map(|max| max + 1))
+			}
 
 			Self::Instance(_) => (4, Some(4)),
 
@@ -316,6 +339,27 @@ impl<'src> Ty<'src> {
 			Self::AlignedCFrame => (13, Some(13)),
 			Self::CFrame => (24, Some(24)),
 			Self::Unknown => (0, None),
+		}
+	}
+
+	pub fn primitive_name(&self) -> Option<&'static str> {
+		match self {
+			Ty::Num(..) => Some("number"),
+			Ty::Str(..) => Some("string"),
+			Ty::Buf(..) => Some("buffer"),
+			Ty::Vector(..) => Some("vector"),
+			Ty::BrickColor => Some("BrickColor"),
+			Ty::DateTimeMillis => Some("DateTime"),
+			Ty::DateTime => Some("DateTime"),
+			Ty::Boolean => Some("boolean"),
+			Ty::Color3 => Some("Color3"),
+			Ty::Vector2 => Some("Vector2"),
+			Ty::Vector3 => Some("Vector3"),
+			Ty::AlignedCFrame => Some("CFrame"),
+			Ty::CFrame => Some("CFrame"),
+			Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => Some("unknown"),
+			Ty::Unknown => Some("unknown"),
+			_ => None,
 		}
 	}
 }

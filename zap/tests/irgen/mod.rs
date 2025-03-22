@@ -354,3 +354,35 @@ async fn test_tagged_enum_quoted() {
 
 	runtime.run("Zap", output).await.unwrap();
 }
+
+#[tokio::test]
+async fn test_or_simple() {
+	let (config, reports) = parse(include_str!("../files/or_simple.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_value = r#""hello world""#;
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("MyEvent", vec![default_value])]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_or_unknown() {
+	let (config, reports) = parse(include_str!("../files/or_unknown.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_value = r#"buffer.create(64)"#;
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("MyEvent", vec![default_value])]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
+}

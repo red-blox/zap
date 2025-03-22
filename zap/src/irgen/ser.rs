@@ -268,6 +268,59 @@ impl Ser<'_> {
 			Ty::Enum(enum_ty) => self.push_enum(enum_ty, from),
 			Ty::Struct(struct_ty) => self.push_struct(struct_ty, from),
 
+			Ty::Or(or_tys) => {
+				let (from_ty_name, from_ty_expr) = self.add_occurrence("ty_name");
+
+				self.push_local(
+					from_ty_name,
+					Some(Expr::Call(
+						Box::new(Var::from("typeof")),
+						None,
+						vec![Expr::from(from.clone())],
+					)),
+				);
+
+				let mut unknown_i = None;
+				let mut initial_if = true;
+
+				for (i, ty) in or_tys.iter().enumerate() {
+					match ty {
+						Ty::Unknown => {
+							unknown_i = Some(i);
+							continue;
+						}
+						Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => {
+							unknown_i = Some(i);
+							continue;
+						}
+						_ => {}
+					};
+
+					let primitive_name = ty.primitive_name().unwrap();
+
+					let condition = from_ty_expr.clone().eq(Expr::Str(primitive_name.to_string()));
+
+					if initial_if {
+						self.push_stmt(Stmt::If(condition));
+						initial_if = false;
+					} else {
+						self.push_stmt(Stmt::ElseIf(condition));
+					}
+
+					self.push_writeu8(Expr::from(i as f64));
+					self.push_ty(ty, from.clone());
+				}
+
+				self.push_stmt(Stmt::Else);
+				if let Some(unknown_i) = unknown_i {
+					self.push_writeu8(Expr::from(unknown_i as f64));
+					self.push_ty(&Ty::Opt(Box::new(Ty::Unknown)), from.clone());
+				} else {
+					self.push_stmt(Stmt::Error("Invalid type".into()));
+				}
+				self.push_stmt(Stmt::End);
+			}
+
 			Ty::Instance(class) => {
 				if self.checks && class.is_some() {
 					self.push_assert(

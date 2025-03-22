@@ -287,6 +287,28 @@ impl Des<'_> {
 				self.push_struct(struct_ty, into)
 			}
 
+			Ty::Or(or_tys) => {
+				self.push_assign(into.clone(), Expr::EmptyTable);
+				let (into_ty_i_name, into_ty_i_expr) = self.add_occurrence("ty_i");
+
+				self.push_local(into_ty_i_name, Some(self.readu8()));
+
+				for (i, ty) in or_tys.iter().enumerate() {
+					let condition = into_ty_i_expr.clone().eq((i as f64).into());
+					if i == 0 {
+						self.push_stmt(Stmt::If(condition));
+					} else {
+						self.push_stmt(Stmt::ElseIf(condition));
+					}
+
+					self.push_ty(ty, into.clone());
+				}
+
+				self.push_stmt(Stmt::Else);
+				self.push_stmt(Stmt::Error("Invalid enumerator".into()));
+				self.push_stmt(Stmt::End);
+			}
+
 			Ty::Instance(class) => {
 				self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
 				self.push_assign(

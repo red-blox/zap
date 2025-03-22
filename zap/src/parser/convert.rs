@@ -693,6 +693,26 @@ impl<'src> Converter<'src> {
 			SyntaxTyKind::Struct(struct_ty) => Ty::Struct(self.struct_ty(struct_ty)),
 
 			SyntaxTyKind::Instance(instance_ty) => Ty::Instance(instance_ty.as_ref().map(|ty| ty.name)),
+
+			SyntaxTyKind::Or(or_tys) => {
+				let mut tys = vec![];
+				let mut used_tys = HashMap::new();
+
+				for syntax_ty in or_tys {
+					let ty = self.ty(syntax_ty);
+
+					if let Some(prev_span) = used_tys.insert(ty.primitive_name().unwrap(), syntax_ty.span()) {
+						self.report(Report::AnalyzeOrDuplicateType {
+							prev_span,
+							dup_span: syntax_ty.span(),
+						});
+					}
+
+					tys.push(ty);
+				}
+
+				Ty::Or(tys)
+			}
 		}
 	}
 
