@@ -125,27 +125,44 @@ PrimitiveTyKind: SyntaxTyKind<'input> = {
     "Instance" <c:("(" <Identifier> ")")?> => SyntaxTyKind::Instance(c),
 }
 
-Ty: SyntaxTy<'input> = {
-    <start:@L> <kind:TyKind> <end:@R> => SyntaxTy { start, kind, end },
+CompoundTy: SyntaxTy<'input> = {
+    <start:@L> <kind:CompoundTyKind> <end:@R> => SyntaxTy { start, kind, end },
 }
 
-TyKind: SyntaxTyKind<'input> = {
+CompoundTyKind: SyntaxTyKind<'input> = {
+    <ty:PrimitiveTy> <mut tys:("|" <PrimitiveTy>)+> => {
+        tys.insert(0, ty);
+        SyntaxTyKind::Or(tys)
+    },
+}
+
+NonCompoundTy: SyntaxTy<'input> = {
+    <start:@L> <kind:NonCompoundTyKind> <end:@R> => SyntaxTy { start, kind, end },
+}
+
+NonCompoundTyKind: SyntaxTyKind<'input> = {
     PrimitiveTyKind,
 
     <ty:Ty> "[" <r:IntRange?> "]" => SyntaxTyKind::Arr(Box::new(ty), r),
     "map" "{" "[" <k:Ty> "]" ":" <v:Ty> "}" => SyntaxTyKind::Map(Box::new(k), Box::new(v)),
     "set" "{" <k:Ty> "}" => SyntaxTyKind::Set(Box::new(k)),
 
-    <ty:Ty> "?" => SyntaxTyKind::Opt(Box::new(ty)),
     <name:Identifier> => SyntaxTyKind::Ref(name),
 
     "enum" <e:Enum> => SyntaxTyKind::Enum(e),
     "struct" <s:Struct> => SyntaxTyKind::Struct(s),
+}
 
-    <ty:PrimitiveTy> <mut tys:("|" <PrimitiveTy>)+> => {
-        tys.insert(0, ty);
-        SyntaxTyKind::Or(tys)
-    },
+Ty: SyntaxTy<'input> = {
+    <start:@L> <kind:TyKind> <end:@R> => SyntaxTy { start, kind, end },
+}
+
+TyKind: SyntaxTyKind<'input> = {
+    NonCompoundTyKind,
+    CompoundTyKind,
+
+    <ty:NonCompoundTy> "?" => SyntaxTyKind::Opt(Box::new(ty)),
+    "(" <ty:CompoundTy> ")?" => SyntaxTyKind::Opt(Box::new(ty)),
 }
 
 Parameters: SyntaxParameters<'input> = {
