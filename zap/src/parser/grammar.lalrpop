@@ -122,6 +122,7 @@ PrimitiveTyKind: SyntaxTyKind<'input> = {
 	<start:@L> "AlignedCFrame" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "AlignedCFrame", end }),
 	<start:@L> "CFrame" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "CFrame", end }),
 	<start:@L> "unknown" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "unknown", end }),
+    "Instance" <c:("(" <Identifier> ")")?> => SyntaxTyKind::Instance(c),
 }
 
 Ty: SyntaxTy<'input> = {
@@ -140,7 +141,6 @@ TyKind: SyntaxTyKind<'input> = {
 
     "enum" <e:Enum> => SyntaxTyKind::Enum(e),
     "struct" <s:Struct> => SyntaxTyKind::Struct(s),
-    "Instance" <c:("(" <Identifier> ")")?> => SyntaxTyKind::Instance(c),
 
     <ty:PrimitiveTy> <mut tys:("|" <PrimitiveTy>)+> => {
         tys.insert(0, ty);

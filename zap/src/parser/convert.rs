@@ -1,8 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+	cmp::Ordering,
+	collections::{HashMap, HashSet},
+};
 
 use crate::config::{
-	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NumTy, Parameter, Range, Struct, Ty, TyDecl,
-	YieldType,
+	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NumTy, Parameter, PrimitiveTy, Range, Struct, Ty,
+	TyDecl, YieldType,
 };
 
 use super::{
@@ -696,12 +699,20 @@ impl<'src> Converter<'src> {
 
 			SyntaxTyKind::Or(or_tys) => {
 				let mut tys = vec![];
+
 				let mut used_tys = HashMap::new();
+				let mut used_instances = HashMap::new();
 
 				for syntax_ty in or_tys {
 					let ty = self.ty(syntax_ty);
 
-					if let Some(prev_span) = used_tys.insert(ty.primitive_name().unwrap(), syntax_ty.span()) {
+					let prev_span = match ty.primitive_ty() {
+						PrimitiveTy::Name(primitive) => used_tys.insert(primitive, syntax_ty.span()),
+						PrimitiveTy::Instance(class) => used_instances.insert(class, syntax_ty.span()),
+						_ => None,
+					};
+
+					if let Some(prev_span) = prev_span {
 						self.report(Report::AnalyzeOrDuplicateType {
 							prev_span,
 							dup_span: syntax_ty.span(),
@@ -710,6 +721,14 @@ impl<'src> Converter<'src> {
 
 					tys.push(ty);
 				}
+
+				tys.sort_by(|ty_a, ty_b| match (ty_a.primitive_ty(), ty_b.primitive_ty()) {
+					(PrimitiveTy::Unknown, _) => Ordering::Greater,
+					(_, PrimitiveTy::Unknown) => Ordering::Less,
+					(PrimitiveTy::Instance(None), _) => Ordering::Greater,
+					(_, PrimitiveTy::Instance(None)) => Ordering::Less,
+					_ => Ordering::Equal,
+				});
 
 				Ty::Or(tys)
 			}

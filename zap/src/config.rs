@@ -200,6 +200,14 @@ pub enum Ty<'src> {
 	Unknown,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum PrimitiveTy<'src> {
+	Name(&'static str),
+	Instance(Option<&'src str>),
+	Unknown,
+	None,
+}
+
 impl<'src> Ty<'src> {
 	/// Returns the amount of data used by this type in bytes.
 	///
@@ -342,24 +350,25 @@ impl<'src> Ty<'src> {
 		}
 	}
 
-	pub fn primitive_name(&self) -> Option<&'static str> {
+	pub fn primitive_ty(&self) -> PrimitiveTy<'src> {
 		match self {
-			Ty::Num(..) => Some("number"),
-			Ty::Str(..) => Some("string"),
-			Ty::Buf(..) => Some("buffer"),
-			Ty::Vector(..) => Some("vector"),
-			Ty::BrickColor => Some("BrickColor"),
-			Ty::DateTimeMillis => Some("DateTime"),
-			Ty::DateTime => Some("DateTime"),
-			Ty::Boolean => Some("boolean"),
-			Ty::Color3 => Some("Color3"),
-			Ty::Vector2 => Some("Vector2"),
-			Ty::Vector3 => Some("Vector3"),
-			Ty::AlignedCFrame => Some("CFrame"),
-			Ty::CFrame => Some("CFrame"),
-			Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => Some("unknown"),
-			Ty::Unknown => Some("unknown"),
-			_ => None,
+			Ty::Num(..) => PrimitiveTy::Name("number"),
+			Ty::Str(..) => PrimitiveTy::Name("string"),
+			Ty::Buf(..) => PrimitiveTy::Name("buffer"),
+			Ty::Vector(..) => PrimitiveTy::Name("vector"),
+			Ty::BrickColor => PrimitiveTy::Name("BrickColor"),
+			Ty::DateTimeMillis => PrimitiveTy::Name("DateTime"),
+			Ty::DateTime => PrimitiveTy::Name("DateTime"),
+			Ty::Boolean => PrimitiveTy::Name("boolean"),
+			Ty::Color3 => PrimitiveTy::Name("Color3"),
+			Ty::Vector2 => PrimitiveTy::Name("Vector2"),
+			Ty::Vector3 => PrimitiveTy::Name("Vector3"),
+			Ty::AlignedCFrame => PrimitiveTy::Name("CFrame"),
+			Ty::CFrame => PrimitiveTy::Name("CFrame"),
+			Ty::Instance(class) => PrimitiveTy::Instance(*class),
+			Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => PrimitiveTy::Unknown,
+			Ty::Unknown => PrimitiveTy::Unknown,
+			_ => PrimitiveTy::None,
 		}
 	}
 }

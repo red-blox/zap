@@ -1,4 +1,4 @@
-use crate::config::{Enum, NumTy, Struct, Ty};
+use crate::config::{Enum, NumTy, PrimitiveTy, Struct, Ty};
 use std::collections::HashMap;
 
 use super::{Expr, Gen, Stmt, Var};
@@ -284,21 +284,25 @@ impl Ser<'_> {
 				let mut initial_if = true;
 
 				for (i, ty) in or_tys.iter().enumerate() {
-					match ty {
-						Ty::Unknown => {
+					let condition = match ty.primitive_ty() {
+						PrimitiveTy::Name(name) => from_ty_expr.clone().eq(Expr::Str(name.to_string())),
+						PrimitiveTy::Instance(class) => {
+							let mut cond = from_ty_expr.clone().eq(Expr::Str("Instance".to_string()));
+							if let Some(class) = class {
+								cond = cond.and(Expr::Call(
+									Box::new(from.clone()),
+									Some("IsA".to_string()),
+									vec![Expr::Str(class.to_string())],
+								))
+							}
+							cond
+						}
+						PrimitiveTy::Unknown => {
 							unknown_i = Some(i);
 							continue;
 						}
-						Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => {
-							unknown_i = Some(i);
-							continue;
-						}
-						_ => {}
+						_ => continue,
 					};
-
-					let primitive_name = ty.primitive_name().unwrap();
-
-					let condition = from_ty_expr.clone().eq(Expr::Str(primitive_name.to_string()));
 
 					if initial_if {
 						self.push_stmt(Stmt::If(condition));
