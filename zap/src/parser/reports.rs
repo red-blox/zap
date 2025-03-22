@@ -127,6 +127,10 @@ pub enum Report<'src> {
 		prev_span: Span,
 		dup_span: Span,
 	},
+
+	AnalyzeOrNonPrimitiveType {
+		span: Span,
+	},
 }
 
 impl Report<'_> {
@@ -159,6 +163,7 @@ impl Report<'_> {
 			Self::AnalyzeDuplicateParameter { .. } => Severity::Error,
 			Self::AnalyzeNamedReturn { .. } => Severity::Error,
 			Self::AnalyzeOrDuplicateType { .. } => Severity::Error,
+			Self::AnalyzeOrNonPrimitiveType { .. } => Severity::Error,
 		}
 	}
 
@@ -194,6 +199,7 @@ impl Report<'_> {
 			Self::AnalyzeDuplicateParameter { name, .. } => format!("duplicate parameter '{}'", name),
 			Self::AnalyzeNamedReturn { .. } => "rets cannot be named".to_string(),
 			Self::AnalyzeOrDuplicateType { .. } => "duplicate types in OR used".to_string(),
+			Self::AnalyzeOrNonPrimitiveType { .. } => "non-primitive type used in OR".to_string(),
 		}
 	}
 
@@ -226,6 +232,7 @@ impl Report<'_> {
 			Self::AnalyzeOversizeVectorComponent { .. } => "3018",
 			Self::AnalyzeMissingEvDeclCall { .. } => "3019",
 			Self::AnalyzeOrDuplicateType { .. } => "3020",
+			Self::AnalyzeOrNonPrimitiveType { .. } => "3021",
 		}
 	}
 
@@ -353,6 +360,10 @@ impl Report<'_> {
 					Label::primary((), dup_span.clone()).with_message("duplicate type usage"),
 				]
 			}
+
+			Self::AnalyzeOrNonPrimitiveType { span } => {
+				vec![Label::primary((), span.clone()).with_message("non-primitive type")]
+			}
 		}
 	}
 
@@ -428,6 +439,7 @@ impl Report<'_> {
 			Self::AnalyzeDuplicateParameter { .. } => None,
 			Self::AnalyzeNamedReturn { .. } => None,
 			Self::AnalyzeOrDuplicateType { .. } => None,
+			Self::AnalyzeOrNonPrimitiveType { .. } => None,
 		}
 	}
 

@@ -711,7 +711,10 @@ impl<'src> Converter<'src> {
 						PrimitiveTy::Name(primitive) => used_tys.insert(primitive, syntax_ty.span()),
 						PrimitiveTy::Instance(class) => used_instances.insert(class, syntax_ty.span()),
 						PrimitiveTy::Unknown => prev_unknown_span.replace(syntax_ty.span()),
-						PrimitiveTy::None => None,
+						PrimitiveTy::None => {
+							self.report(Report::AnalyzeOrNonPrimitiveType { span: syntax_ty.span() });
+							continue;
+						}
 					};
 
 					if let Some(prev_span) = prev_span {
