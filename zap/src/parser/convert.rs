@@ -702,6 +702,7 @@ impl<'src> Converter<'src> {
 
 				let mut used_tys = HashMap::new();
 				let mut used_instances = HashMap::new();
+				let mut prev_unknown_span = None;
 
 				for syntax_ty in or_tys {
 					let ty = self.ty(syntax_ty);
@@ -709,7 +710,8 @@ impl<'src> Converter<'src> {
 					let prev_span = match ty.primitive_ty() {
 						PrimitiveTy::Name(primitive) => used_tys.insert(primitive, syntax_ty.span()),
 						PrimitiveTy::Instance(class) => used_instances.insert(class, syntax_ty.span()),
-						_ => None,
+						PrimitiveTy::Unknown => prev_unknown_span.replace(syntax_ty.span()),
+						PrimitiveTy::None => None,
 					};
 
 					if let Some(prev_span) = prev_span {
