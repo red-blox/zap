@@ -1020,7 +1020,6 @@ impl<'src> ClientOutput<'src> {
 			self.push_line("iterator = function()");
 			self.indent();
 
-			let type_name = evdecl.evty.name();
 			self.push_line(&format!("local queue = polling_queues_{type_name}[{id}]"));
 			self.push_line("local index = 0");
 			self.push_line("return function()");
