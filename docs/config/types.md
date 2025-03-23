@@ -98,9 +98,13 @@ Strings are defined using the word `string`. For example:
 
 <CodeBlock code="string" />
 
-The length of strings can be constrained by placing [a range](#as-a-recap) within parenthesis after the `string` keyword. For example, if you wanted to constrain a string between `3` and `21` characters (like a username) you could do:
+The length of strings can be constrained by placing [a range](#as-a-recap) within parenthesis after the `string` keyword. For example, if you wanted to constrain a string between `3` and `20` characters (like a username) you could do:
 
-<CodeBlock code="string(3..21)" />
+<CodeBlock code="string(3..20)" />
+
+::: tip WARNING
+It's possible for usernames to exceed 20 characters under certain circumstances.
+:::
 
 ## Unknown
 
