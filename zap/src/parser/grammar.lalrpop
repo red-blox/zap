@@ -112,6 +112,8 @@ PrimitiveTyKind: SyntaxTyKind<'input> = {
     "vector" "(" <x_ty:Ty> "," <y_ty:Ty> ")" => SyntaxTyKind::Vector(Box::new(x_ty), Box::new(y_ty), None),
     "vector" "(" <x_ty:Ty> "," <y_ty:Ty> "," <z_ty:Ty> ")" => SyntaxTyKind::Vector(Box::new(x_ty), Box::new(y_ty), Some(Box::new(z_ty))),
 
+    "enum" <e:Enum> => SyntaxTyKind::Enum(e),
+    
     <start:@L> "BrickColor" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "BrickColor", end }),
 	<start:@L> "DateTimeMillis" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "DateTimeMillis", end }),
 	<start:@L> "DateTime" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "DateTime", end }),
@@ -149,7 +151,6 @@ NonCompoundTyKind: SyntaxTyKind<'input> = {
 
     <name:Identifier> => SyntaxTyKind::Ref(name),
 
-    "enum" <e:Enum> => SyntaxTyKind::Enum(e),
     "struct" <s:Struct> => SyntaxTyKind::Struct(s),
 }
 

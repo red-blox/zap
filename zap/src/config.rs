@@ -200,10 +200,11 @@ pub enum Ty<'src> {
 	Unknown,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum PrimitiveTy<'src> {
 	Name(&'static str),
 	Instance(Option<&'src str>),
+	Unit(Vec<&'src str>),
 	Unknown,
 	None,
 }
@@ -366,6 +367,7 @@ impl<'src> Ty<'src> {
 			Ty::AlignedCFrame => PrimitiveTy::Name("CFrame"),
 			Ty::CFrame => PrimitiveTy::Name("CFrame"),
 			Ty::Instance(class) => PrimitiveTy::Instance(*class),
+			Ty::Enum(Enum::Unit(variants)) => PrimitiveTy::Unit(variants.clone()),
 			Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => PrimitiveTy::Unknown,
 			Ty::Unknown => PrimitiveTy::Unknown,
 			_ => PrimitiveTy::None,

@@ -297,11 +297,16 @@ impl Ser<'_> {
 							}
 							cond
 						}
+						PrimitiveTy::Unit(variants) => variants
+							.iter()
+							.map(|variant| from_expr.clone().eq(Expr::Str(variant.to_string())))
+							.reduce(|acc, ex| acc.or(ex))
+							.unwrap(),
 						PrimitiveTy::Unknown => {
 							unknown_i = Some(i);
 							continue;
 						}
-						_ => continue,
+						PrimitiveTy::None => continue,
 					};
 
 					if initial_if {

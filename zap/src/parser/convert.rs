@@ -702,22 +702,31 @@ impl<'src> Converter<'src> {
 
 				let mut used_tys = HashMap::new();
 				let mut used_instances = HashMap::new();
+				let mut used_variants = HashMap::new();
 				let mut prev_unknown_span = None;
 
 				for syntax_ty in or_tys {
 					let ty = self.ty(syntax_ty);
 
-					let prev_span = match ty.primitive_ty() {
-						PrimitiveTy::Name(primitive) => used_tys.insert(primitive, syntax_ty.span()),
-						PrimitiveTy::Instance(class) => used_instances.insert(class, syntax_ty.span()),
-						PrimitiveTy::Unknown => prev_unknown_span.replace(syntax_ty.span()),
+					let prev_spans: Vec<_> = match ty.primitive_ty() {
+						PrimitiveTy::Name(primitive) => {
+							used_tys.insert(primitive, syntax_ty.span()).into_iter().collect()
+						}
+						PrimitiveTy::Instance(class) => {
+							used_instances.insert(class, syntax_ty.span()).into_iter().collect()
+						}
+						PrimitiveTy::Unit(variants) => variants
+							.into_iter()
+							.filter_map(|variant| used_variants.insert(variant, syntax_ty.span()))
+							.collect(),
+						PrimitiveTy::Unknown => prev_unknown_span.replace(syntax_ty.span()).into_iter().collect(),
 						PrimitiveTy::None => {
 							self.report(Report::AnalyzeOrNonPrimitiveType { span: syntax_ty.span() });
 							continue;
 						}
 					};
 
-					if let Some(prev_span) = prev_span {
+					for prev_span in prev_spans {
 						self.report(Report::AnalyzeOrDuplicateType {
 							prev_span,
 							dup_span: syntax_ty.span(),
@@ -727,11 +736,18 @@ impl<'src> Converter<'src> {
 					tys.push(ty);
 				}
 
+				// reorder the types into:
+				// unit enums
+				// ..
+				// instance (no class)
+				// unknown
 				tys.sort_by(|ty_a, ty_b| match (ty_a.primitive_ty(), ty_b.primitive_ty()) {
 					(PrimitiveTy::Unknown, _) => Ordering::Greater,
 					(_, PrimitiveTy::Unknown) => Ordering::Less,
 					(PrimitiveTy::Instance(None), _) => Ordering::Greater,
 					(_, PrimitiveTy::Instance(None)) => Ordering::Less,
+					(PrimitiveTy::Unit(..), _) => Ordering::Less,
+					(_, PrimitiveTy::Unit(..)) => Ordering::Greater,
 					_ => Ordering::Equal,
 				});
 
