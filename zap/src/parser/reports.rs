@@ -198,7 +198,7 @@ impl Report<'_> {
 			Self::AnalyzeDuplicateDecl { name, .. } => format!("duplicate declaration '{}'", name),
 			Self::AnalyzeDuplicateParameter { name, .. } => format!("duplicate parameter '{}'", name),
 			Self::AnalyzeNamedReturn { .. } => "rets cannot be named".to_string(),
-			Self::AnalyzeOrDuplicateType { .. } => "duplicate types in OR used".to_string(),
+			Self::AnalyzeOrDuplicateType { .. } => "duplicate types used in OR".to_string(),
 			Self::AnalyzeOrNonPrimitiveType { .. } => "non-primitive type used in OR".to_string(),
 		}
 	}
