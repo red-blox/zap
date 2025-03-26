@@ -159,8 +159,8 @@ pub enum EvType {
 impl EvType {
 	pub fn name(&self) -> &str {
 		match &self {
-			EvType::Reliable => "reliable",
-			EvType::Unreliable => "unreliable",
+			EvType::Reliable => "reliable_event",
+			EvType::Unreliable => "unreliable_event",
 		}
 	}
 }
