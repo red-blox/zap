@@ -97,5 +97,5 @@ load_empty()
 
 local types = {}
 
-local polling_queues_reliable = {}
-local polling_queues_unreliable = {}
+local polling_queues_reliable_event = {}
+local polling_queues_unreliable_event = {}

@@ -1083,8 +1083,8 @@ impl<'src> ClientOutput<'src> {
 			self.dedent();
 			self.push_line("}");
 		}
-		self.push_line("table.freeze(polling_queues_reliable)");
-		self.push_line("table.freeze(polling_queues_unreliable)\n");
+		self.push_line("table.freeze(polling_queues_reliable_event)");
+		self.push_line("table.freeze(polling_queues_unreliable_event)\n");
 	}
 
 	fn push_return_functions(&mut self) {
