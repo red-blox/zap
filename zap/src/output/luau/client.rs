@@ -5,7 +5,7 @@ use crate::{
 	irgen::{des, ser},
 	output::{
 		get_named_values, get_unnamed_values,
-		luau::{event_queue_table_name, events_table_name},
+		luau::{event_queue_table_name, events_table_name, polling_queues_name},
 	},
 };
 
@@ -247,8 +247,7 @@ impl<'src> ClientOutput<'src> {
 		let arguments = get_unnamed_values("value", ev.data.len());
 		let returns_length = arguments.len().max(1);
 
-		let type_name = ev.evty.name();
-		self.push_line(&format!("local queue = polling_queues_{type_name}[{id}]"));
+		self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(ev)));
 		self.push_line("-- `arguments` is a circular buffer.");
 		self.push_line("-- `queue.arguments` can be replaced when it needs to grow.");
 		self.push_line(
@@ -490,9 +489,9 @@ impl<'src> ClientOutput<'src> {
 		let iter = self.config.casing.with("Iter", "iter", "iter");
 		let id = ev.id;
 		self.push_indent();
-		let type_name = ev.evty.name();
 		self.push(&format!(
-			"{iter} = polling_queues_{type_name}[{id}].iterator :: () -> (() -> (number"
+			"{iter} = {}[{id}].iterator :: () -> (() -> (number",
+			polling_queues_name(ev)
 		));
 		if !ev.data.is_empty() {
 			for argument in ev.data.iter() {
@@ -1003,8 +1002,7 @@ impl<'src> ClientOutput<'src> {
 			}
 			let arguments_size = return_names.len().max(1);
 
-			let type_name = evdecl.evty.name();
-			self.push_line(&format!("polling_queues_{type_name}[{id}] = {{"));
+			self.push_line(&format!("{}[{id}] = {{", polling_queues_name(evdecl)));
 			self.indent();
 
 			self.push_line(&format!(
@@ -1020,7 +1018,7 @@ impl<'src> ClientOutput<'src> {
 			self.push_line("iterator = function()");
 			self.indent();
 
-			self.push_line(&format!("local queue = polling_queues_{type_name}[{id}]"));
+			self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(evdecl)));
 			self.push_line("local index = 0");
 			self.push_line("return function()");
 			self.indent();
@@ -1083,8 +1081,8 @@ impl<'src> ClientOutput<'src> {
 			self.dedent();
 			self.push_line("}");
 		}
-		self.push_line("table.freeze(polling_queues_reliable_event)");
-		self.push_line("table.freeze(polling_queues_unreliable_event)\n");
+		self.push_line("table.freeze(polling_queues_reliable)");
+		self.push_line("table.freeze(polling_queues_unreliable)\n");
 	}
 
 	fn push_return_functions(&mut self) {

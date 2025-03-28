@@ -3,7 +3,7 @@ use std::{cmp::max, collections::HashMap};
 use crate::{
 	config::{Config, EvCall, EvDecl, EvSource, EvType, FnCall, FnDecl, Parameter, TyDecl},
 	irgen::{des, ser},
-	output::{get_named_values, get_unnamed_values, luau::events_table_name},
+	output::{get_named_values, get_unnamed_values, luau::events_table_name, luau::polling_queues_name},
 };
 
 use super::Output;
@@ -231,8 +231,7 @@ impl<'a> ServerOutput<'a> {
 		// player + arguments
 		let returns_length = 1 + arguments.len();
 
-		let type_name = ev.evty.name();
-		self.push_line(&format!("local queue = polling_queues_{type_name}[{id}]"));
+		self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(ev)));
 		self.push_line("-- `arguments` is a circular buffer.");
 		self.push_line("-- `queue.arguments` can be replaced when it needs to grow.");
 		self.push_line(
@@ -1093,9 +1092,9 @@ impl<'a> ServerOutput<'a> {
 		let iter = self.config.casing.with("Iter", "iter", "iter");
 		let id = ev.id;
 		self.push_indent();
-		let type_name = ev.evty.name();
 		self.push(&format!(
-			"{iter} = polling_queues_{type_name}[{id}].iterator :: () -> (() -> (number, Player"
+			"{iter} = {}[{id}].iterator :: () -> (() -> (number, Player",
+			polling_queues_name(ev)
 		));
 		if !ev.data.is_empty() {
 			for argument in ev.data.iter() {
@@ -1165,8 +1164,7 @@ impl<'a> ServerOutput<'a> {
 			}
 			let arguments_size = return_names.len();
 
-			let type_name = evdecl.evty.name();
-			self.push_line(&format!("polling_queues_{type_name}[{id}] = {{"));
+			self.push_line(&format!("{}[{id}] = {{", polling_queues_name(evdecl)));
 			self.indent();
 
 			self.push_line(&format!(
@@ -1182,7 +1180,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_line("iterator = function()");
 			self.indent();
 
-			self.push_line(&format!("local queue = polling_queues_{type_name}[{id}]"));
+			self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(evdecl)));
 			self.push_line("local index = 0");
 			self.push_line("return function()");
 			self.indent();
@@ -1245,8 +1243,8 @@ impl<'a> ServerOutput<'a> {
 			self.dedent();
 			self.push_line("}");
 		}
-		self.push_line("table.freeze(polling_queues_reliable_event)");
-		self.push_line("table.freeze(polling_queues_unreliable_event)\n");
+		self.push_line("table.freeze(polling_queues_reliable)");
+		self.push_line("table.freeze(polling_queues_unreliable)\n");
 	}
 
 	pub fn push_return(&mut self) {

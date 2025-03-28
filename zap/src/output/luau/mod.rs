@@ -228,3 +228,10 @@ fn event_queue_table_name<'a>(evdecl: &EvDecl) -> &'a str {
 		EvType::Unreliable => "unreliable_event_queue",
 	}
 }
+
+fn polling_queues_name<'a>(evdecl: &EvDecl) -> &'a str {
+	match evdecl.evty {
+		EvType::Reliable => "polling_queues_reliable",
+		EvType::Unreliable => "polling_queues_unreliable",
+	}
+}
