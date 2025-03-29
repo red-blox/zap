@@ -40,7 +40,7 @@ impl Des<'_> {
 	fn push_enum(&mut self, enum_ty: &Enum, into: Var) {
 		match enum_ty {
 			Enum::Unit(enumerators) => {
-				let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
+				let numty = NumTy::from_f64_max(enumerators.len() as f64 - 1.0);
 
 				let (enum_value_name, enum_value_expr) = self.add_occurrence("enum_value");
 				self.push_local(enum_value_name, Some(self.readnumty(numty)));
@@ -60,7 +60,7 @@ impl Des<'_> {
 			}
 
 			Enum::Tagged { tag, variants } => {
-				let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
+				let numty = NumTy::from_f64_max(variants.len() as f64 - 1.0);
 
 				let (enum_value_name, enum_value_expr) = self.add_occurrence("enum_value");
 				self.push_local(enum_value_name, Some(self.readnumty(numty)));
@@ -103,10 +103,11 @@ impl Des<'_> {
 					self.push_assign(into, self.readstring(len.into()));
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
+					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
 
 					self.push_local(
 						len_name.clone(),
-						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
+						Some(self.readnumty(len_numty).add(Expr::Num(len_offset))),
 					);
 
 					if self.checks {
@@ -122,9 +123,11 @@ impl Des<'_> {
 					self.push_read_copy(into, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
+					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
+
 					self.push_local(
 						len_name.clone(),
-						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
+						Some(self.readnumty(len_numty).add(Expr::Num(len_offset))),
 					);
 
 					if self.checks {
@@ -151,10 +154,11 @@ impl Des<'_> {
 					self.push_stmt(Stmt::End);
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
+					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
 
 					self.push_local(
 						len_name.clone(),
-						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
+						Some(self.readnumty(len_numty).add(Expr::Num(len_offset))),
 					);
 
 					if self.checks {

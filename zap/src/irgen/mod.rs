@@ -373,6 +373,7 @@ pub enum Expr {
 
 	// Arithmetic Binary Operators
 	Add(Box<Expr>, Box<Expr>),
+	Sub(Box<Expr>, Box<Expr>),
 	Mul(Box<Expr>, Box<Expr>),
 }
 
@@ -419,6 +420,10 @@ impl Expr {
 
 	pub fn add(self, other: Self) -> Self {
 		Self::Add(Box::new(self), Box::new(other))
+	}
+
+	pub fn sub(self, other: Self) -> Self {
+		Self::Sub(Box::new(self), Box::new(other))
 	}
 }
 
@@ -508,6 +513,7 @@ impl Display for Expr {
 			Self::Eq(lhs, rhs) => write!(f, "{} == {}", lhs, rhs),
 
 			Self::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
+			Self::Sub(lhs, rhs) => write!(f, "{} - {}", lhs, rhs),
 			Self::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
 		}
 	}
