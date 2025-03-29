@@ -259,7 +259,7 @@ impl Ser<'_> {
 				self.push_stmt(Stmt::End);
 			}
 
-			Ty::Ref(name) => self.push_stmt(Stmt::Call(
+			Ty::Ref(name, ..) => self.push_stmt(Stmt::Call(
 				Var::from("types").nindex(format!("write_{name}")),
 				None,
 				vec![from_expr],

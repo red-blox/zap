@@ -1,7 +1,4 @@
-use std::{
-	collections::{HashMap, HashSet},
-	fmt::Display,
-};
+use std::{collections::HashSet, fmt::Display};
 
 #[derive(Debug, Clone)]
 pub struct Config<'src> {
@@ -181,7 +178,7 @@ pub enum Ty<'src> {
 	Map(Box<Ty<'src>>, Box<Ty<'src>>),
 	Set(Box<Ty<'src>>),
 	Opt(Box<Ty<'src>>),
-	Ref(&'src str),
+	Ref(&'src str, Box<Ty<'src>>),
 
 	Enum(Enum<'src>),
 	Struct(Struct<'src>),
@@ -215,11 +212,7 @@ impl<'src> Ty<'src> {
 	/// Note that this is not the same as the size of the type in the buffer.
 	/// For example, an `Instance` will always send 4 bytes of data, but the
 	/// size of the type in the buffer will be 0 bytes.
-	pub fn size(
-		&self,
-		tydecls: &HashMap<&'src str, &Ty<'src>>,
-		recursed: &mut HashSet<&'src str>,
-	) -> (usize, Option<usize>) {
+	pub fn size(&self, recursed: &mut HashSet<&'src str>) -> (usize, Option<usize>) {
 		match self {
 			Self::Num(numty, ..) => (numty.size(), Some(numty.size())),
 
@@ -250,7 +243,7 @@ impl<'src> Ty<'src> {
 			}
 
 			Self::Arr(ty, len) => {
-				let (ty_min, ty_max) = ty.size(tydecls, recursed);
+				let (ty_min, ty_max) = ty.size(recursed);
 				let len_min = len.min().map(|min| min as usize).unwrap_or(0);
 				let len_size = len.numty().unwrap_or(NumTy::U16).size();
 
@@ -271,12 +264,12 @@ impl<'src> Ty<'src> {
 			Self::Set(..) => (2, None),
 
 			Self::Opt(ty) => {
-				let (_, ty_max) = ty.size(tydecls, recursed);
+				let (_, ty_max) = ty.size(recursed);
 
 				(1, ty_max.map(|ty_max| ty_max + 1))
 			}
 
-			Self::Ref(name) => {
+			Self::Ref(name, tydecl) => {
 				if recursed.contains(name) {
 					// 0 is returned here because all valid recursive types are
 					// bounded and all bounded types have their own min size
@@ -284,20 +277,18 @@ impl<'src> Ty<'src> {
 				} else {
 					recursed.insert(name);
 
-					let tydecl = tydecls.get(name).unwrap();
-
-					tydecl.size(tydecls, recursed)
+					tydecl.size(recursed)
 				}
 			}
 
-			Self::Enum(enum_ty) => enum_ty.size(tydecls, recursed),
-			Self::Struct(struct_ty) => struct_ty.size(tydecls, recursed),
+			Self::Enum(enum_ty) => enum_ty.size(recursed),
+			Self::Struct(struct_ty) => struct_ty.size(recursed),
 			Self::Or(or_tys, ..) => {
 				let mut min = 0;
 				let mut max = Some(0usize);
 
 				for ty in or_tys {
-					let (ty_min, ty_max) = ty.size(tydecls, recursed);
+					let (ty_min, ty_max) = ty.size(recursed);
 
 					if ty_min < min {
 						min = ty_min;
@@ -368,6 +359,7 @@ impl<'src> Ty<'src> {
 			Ty::CFrame => PrimitiveTy::Name("CFrame"),
 			Ty::Instance(class) => PrimitiveTy::Instance(*class),
 			Ty::Enum(Enum::Unit(variants)) => PrimitiveTy::Unit(variants.clone()),
+			Ty::Ref(.., ty) => ty.primitive_ty(),
 			Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => PrimitiveTy::Unknown,
 			Ty::Unknown => PrimitiveTy::Unknown,
 			_ => PrimitiveTy::None,
@@ -386,11 +378,7 @@ pub enum Enum<'src> {
 }
 
 impl<'src> Enum<'src> {
-	pub fn size(
-		&self,
-		tydecls: &HashMap<&'src str, &Ty<'src>>,
-		recursed: &mut HashSet<&'src str>,
-	) -> (usize, Option<usize>) {
+	pub fn size(&self, recursed: &mut HashSet<&'src str>) -> (usize, Option<usize>) {
 		match self {
 			Self::Unit(enumerators) => {
 				let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
@@ -403,7 +391,7 @@ impl<'src> Enum<'src> {
 				let mut max = Some(0);
 
 				for (_, ty) in variants.iter() {
-					let (ty_min, ty_max) = ty.size(tydecls, recursed);
+					let (ty_min, ty_max) = ty.size(recursed);
 
 					if ty_min < min {
 						min = ty_min;
@@ -432,16 +420,12 @@ pub struct Struct<'src> {
 }
 
 impl<'src> Struct<'src> {
-	pub fn size(
-		&self,
-		tydecls: &HashMap<&'src str, &Ty<'src>>,
-		recursed: &mut HashSet<&'src str>,
-	) -> (usize, Option<usize>) {
+	pub fn size(&self, recursed: &mut HashSet<&'src str>) -> (usize, Option<usize>) {
 		let mut min = 0;
 		let mut max = Some(0);
 
 		for (_, ty) in self.fields.iter() {
-			let (ty_min, ty_max) = ty.size(tydecls, recursed);
+			let (ty_min, ty_max) = ty.size(recursed);
 
 			if ty_min < min {
 				min = ty_min;

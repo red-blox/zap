@@ -62,11 +62,6 @@ impl<'src> Converter<'src> {
 			tydecls.push(self.tydecl(tydecl));
 		}
 
-		let tydecl_hashmap = tydecls
-			.iter()
-			.map(|tydecl| (tydecl.name, &tydecl.ty))
-			.collect::<HashMap<_, _>>();
-
 		for evdecl in config.decls.iter().filter_map(|decl| match decl {
 			SyntaxDecl::Ev(evdecl) => Some(evdecl),
 			_ => None,
@@ -98,7 +93,7 @@ impl<'src> Converter<'src> {
 				},
 			};
 
-			evdecls.push(self.evdecl(evdecl, id, &tydecl_hashmap));
+			evdecls.push(self.evdecl(evdecl, id));
 		}
 
 		for fndecl in config.decls.iter().filter_map(|decl| match decl {
@@ -406,12 +401,7 @@ impl<'src> Converter<'src> {
 		}
 	}
 
-	fn evdecl(
-		&mut self,
-		evdecl: &SyntaxEvDecl<'src>,
-		id: usize,
-		tydecls: &HashMap<&'src str, &Ty<'src>>,
-	) -> EvDecl<'src> {
+	fn evdecl(&mut self, evdecl: &SyntaxEvDecl<'src>, id: usize) -> EvDecl<'src> {
 		if let Some(syntax_parameters) = &evdecl.data {
 			self.check_duplicate_parameters(syntax_parameters);
 		}
@@ -446,7 +436,7 @@ impl<'src> Converter<'src> {
 			let mut max = Some(0);
 
 			for parameter in data.as_ref().unwrap() {
-				let (ty_min, ty_max) = parameter.ty.size(tydecls, &mut HashSet::new());
+				let (ty_min, ty_max) = parameter.ty.size(&mut HashSet::new());
 
 				min += ty_min;
 
@@ -679,14 +669,16 @@ impl<'src> Converter<'src> {
 					"unknown" => Ty::Opt(Box::new(Ty::Unknown)),
 
 					_ => {
-						if !self.tydecls.contains_key(name) {
+						let Some(tydecl) = self.tydecls.get(name).cloned() else {
 							self.report(Report::AnalyzeUnknownTypeRef {
 								span: ref_ty.span(),
 								name,
 							});
-						}
 
-						Ty::Ref(name)
+							return Ty::Ref(name, Box::new(Ty::Opt(Box::new(Ty::Unknown))));
+						};
+
+						Ty::Ref(name, Box::new(self.tydecl(&tydecl).ty))
 					}
 				}
 			}

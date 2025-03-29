@@ -266,7 +266,7 @@ impl Des<'_> {
 				self.push_stmt(Stmt::End);
 			}
 
-			Ty::Ref(name) => {
+			Ty::Ref(name, ..) => {
 				self.push_assign(
 					into,
 					Expr::Call(

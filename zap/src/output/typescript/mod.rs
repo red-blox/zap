@@ -134,7 +134,7 @@ pub trait Output: ConfigProvider {
 				}
 			}
 
-			Ty::Ref(name) => self.push(name),
+			Ty::Ref(name, ..) => self.push(name),
 
 			Ty::Enum(enum_ty) => match enum_ty {
 				Enum::Unit(enumerators) => self.push(
