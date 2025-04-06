@@ -310,7 +310,7 @@ impl Ser<'_> {
 							}
 							cond
 						}
-						PrimitiveTy::Unit(variants) => {
+						PrimitiveTy::Enum(Enum::Unit(variants)) => {
 							i_offset += variants.len() - 1;
 
 							for (offset, variant) in variants.into_iter().enumerate() {
@@ -323,6 +323,28 @@ impl Ser<'_> {
 								}
 
 								self.push_writenumty(Expr::from((i + offset) as f64), *discriminant_numty);
+							}
+
+							continue;
+						}
+						PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
+							i_offset += variants.len() - 1;
+
+							for (offset, (variant, data)) in variants.into_iter().enumerate() {
+								let condition = from_ty_expr.clone().eq(Expr::Str("table".to_string())).and(
+									Expr::Var(Box::new(from.clone().eindex(Expr::Str(tag.to_string()))))
+										.eq(Expr::Str(variant.to_string())),
+								);
+
+								if initial_if {
+									self.push_stmt(Stmt::If(condition));
+									initial_if = false;
+								} else {
+									self.push_stmt(Stmt::ElseIf(condition));
+								}
+
+								self.push_writenumty(Expr::from((i + offset) as f64), *discriminant_numty);
+								self.push_struct(&data, from.clone());
 							}
 
 							continue;

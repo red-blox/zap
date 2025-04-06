@@ -695,6 +695,7 @@ impl<'src> Converter<'src> {
 				let mut used_tys = HashMap::new();
 				let mut used_instances = HashMap::new();
 				let mut used_variants = HashMap::new();
+				let mut used_tags_values = HashMap::new();
 				let mut prev_unknown_span = None;
 
 				for syntax_ty in or_tys {
@@ -707,9 +708,13 @@ impl<'src> Converter<'src> {
 						PrimitiveTy::Instance(class) => {
 							used_instances.insert(class, syntax_ty.span()).into_iter().collect()
 						}
-						PrimitiveTy::Unit(variants) => variants
+						PrimitiveTy::Enum(Enum::Unit(variants)) => variants
 							.into_iter()
 							.filter_map(|variant| used_variants.insert(variant, syntax_ty.span()))
+							.collect(),
+						PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => variants
+							.into_iter()
+							.filter_map(|(variant, _)| used_tags_values.insert((tag, variant), syntax_ty.span()))
 							.collect(),
 						PrimitiveTy::Unknown => prev_unknown_span.replace(syntax_ty.span()).into_iter().collect(),
 						PrimitiveTy::None => {
@@ -730,6 +735,7 @@ impl<'src> Converter<'src> {
 
 				// reorder the types into:
 				// unit enums
+				// tagged enums
 				// ..
 				// instance (no class)
 				// unknown
@@ -738,8 +744,10 @@ impl<'src> Converter<'src> {
 					(_, PrimitiveTy::Unknown) => Ordering::Less,
 					(PrimitiveTy::Instance(None), _) => Ordering::Greater,
 					(_, PrimitiveTy::Instance(None)) => Ordering::Less,
-					(PrimitiveTy::Unit(..), _) => Ordering::Less,
-					(_, PrimitiveTy::Unit(..)) => Ordering::Greater,
+					(PrimitiveTy::Enum(Enum::Unit(..)), _) => Ordering::Less,
+					(_, PrimitiveTy::Enum(Enum::Unit(..))) => Ordering::Greater,
+					(PrimitiveTy::Enum(Enum::Tagged { .. }), _) => Ordering::Less,
+					(_, PrimitiveTy::Enum(Enum::Tagged { .. })) => Ordering::Greater,
 					_ => Ordering::Equal,
 				});
 

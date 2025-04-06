@@ -438,7 +438,9 @@ impl Report<'_> {
 			Self::AnalyzeDuplicateDecl { .. } => None,
 			Self::AnalyzeDuplicateParameter { .. } => None,
 			Self::AnalyzeNamedReturn { .. } => None,
-			Self::AnalyzeOrDuplicateType { .. } => None,
+			Self::AnalyzeOrDuplicateType { .. } => Some(vec![
+				"consider using a tagged enum to differenciate between ambiguous types".to_string(),
+			]),
 			Self::AnalyzeOrNonPrimitiveType { .. } => None,
 		}
 	}

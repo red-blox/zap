@@ -301,22 +301,47 @@ impl Des<'_> {
 				for (i, ty) in or_tys.iter().enumerate() {
 					let i = i + i_offset;
 
-					if let PrimitiveTy::Unit(variants) = ty.primitive_ty() {
-						i_offset += variants.len() - 1;
+					match ty.primitive_ty() {
+						PrimitiveTy::Enum(Enum::Unit(variants)) => {
+							i_offset += variants.len() - 1;
 
-						for (offset, variant) in variants.into_iter().enumerate() {
-							let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
-							if initial_if {
-								self.push_stmt(Stmt::If(condition));
-								initial_if = false;
-							} else {
-								self.push_stmt(Stmt::ElseIf(condition));
+							for (offset, variant) in variants.into_iter().enumerate() {
+								let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
+								if initial_if {
+									self.push_stmt(Stmt::If(condition));
+									initial_if = false;
+								} else {
+									self.push_stmt(Stmt::ElseIf(condition));
+								}
+
+								self.push_assign(into.clone(), Expr::Str(variant.to_string()));
 							}
 
-							self.push_assign(into.clone(), Expr::Str(variant.to_string()));
+							continue;
 						}
+						PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
+							i_offset += variants.len() - 1;
 
-						continue;
+							for (offset, (variant, data)) in variants.into_iter().enumerate() {
+								let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
+								if initial_if {
+									self.push_stmt(Stmt::If(condition));
+									initial_if = false;
+								} else {
+									self.push_stmt(Stmt::ElseIf(condition));
+								}
+
+								self.push_assign(into.clone(), Expr::EmptyTable);
+								self.push_assign(
+									into.clone().eindex(Expr::Str(tag.to_string())),
+									Expr::Str(variant.to_string()),
+								);
+								self.push_struct(&data, into.clone());
+							}
+
+							continue;
+						}
+						_ => {}
 					}
 
 					let condition = into_ty_i_expr.clone().eq((i as f64).into());

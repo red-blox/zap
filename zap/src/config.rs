@@ -201,7 +201,7 @@ pub enum Ty<'src> {
 pub enum PrimitiveTy<'src> {
 	Name(&'static str),
 	Instance(Option<&'src str>),
-	Unit(Vec<&'src str>),
+	Enum(Enum<'src>),
 	Unknown,
 	None,
 }
@@ -357,6 +357,10 @@ impl<'src> Ty<'src> {
 
 	pub fn primitive_ty(&self) -> PrimitiveTy<'src> {
 		match self {
+			Ty::Arr(..) => PrimitiveTy::Name("table"),
+			Ty::Set(..) => PrimitiveTy::Name("table"),
+			Ty::Map(..) => PrimitiveTy::Name("table"),
+			Ty::Struct(..) => PrimitiveTy::Name("table"),
 			Ty::Num(..) => PrimitiveTy::Name("number"),
 			Ty::Str(..) => PrimitiveTy::Name("string"),
 			Ty::Buf(..) => PrimitiveTy::Name("buffer"),
@@ -371,7 +375,7 @@ impl<'src> Ty<'src> {
 			Ty::AlignedCFrame => PrimitiveTy::Name("CFrame"),
 			Ty::CFrame => PrimitiveTy::Name("CFrame"),
 			Ty::Instance(class) => PrimitiveTy::Instance(*class),
-			Ty::Enum(Enum::Unit(variants)) => PrimitiveTy::Unit(variants.clone()),
+			Ty::Enum(r#enum) => PrimitiveTy::Enum(r#enum.clone()),
 			Ty::Ref(.., ty) => ty.primitive_ty(),
 			Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => PrimitiveTy::Unknown,
 			Ty::Unknown => PrimitiveTy::Unknown,
