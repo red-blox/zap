@@ -103,11 +103,11 @@ impl Des<'_> {
 					self.push_assign(into, self.readstring(len.into()));
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
-					let len_numty = range.numty().unwrap_or_default();
+					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
 
 					self.push_local(
 						len_name.clone(),
-						Some(self.readnumty(len_numty.numty).add(Expr::Num(len_numty.offset))),
+						Some(self.readnumty(len_numty).add(Expr::Num(len_offset))),
 					);
 
 					if self.checks {
@@ -123,11 +123,11 @@ impl Des<'_> {
 					self.push_read_copy(into, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
-					let len_numty = range.numty().unwrap_or_default();
+					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
 
 					self.push_local(
 						len_name.clone(),
-						Some(self.readnumty(len_numty.numty).add(Expr::Num(len_numty.offset))),
+						Some(self.readnumty(len_numty).add(Expr::Num(len_offset))),
 					);
 
 					if self.checks {
@@ -154,11 +154,11 @@ impl Des<'_> {
 					self.push_stmt(Stmt::End);
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
-					let len_numty = range.numty().unwrap_or_default();
+					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
 
 					self.push_local(
 						len_name.clone(),
-						Some(self.readnumty(len_numty.numty).add(Expr::Num(len_numty.offset))),
+						Some(self.readnumty(len_numty).add(Expr::Num(len_offset))),
 					);
 
 					if self.checks {

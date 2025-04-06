@@ -105,7 +105,7 @@ impl Ser<'_> {
 					self.push_writestring(from_expr, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
-					let len_numty = range.numty().unwrap_or_default();
+					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
 
 					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
@@ -113,7 +113,7 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writenumty(len_expr.clone().sub(Expr::Num(len_numty.offset)), len_numty.numty);
+					self.push_writenumty(len_expr.clone().sub(Expr::Num(len_offset)), len_numty);
 					self.push_writestring(from_expr, len_expr.clone());
 				}
 			}
@@ -133,7 +133,7 @@ impl Ser<'_> {
 					self.push_write_copy(from_expr, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
-					let len_numty = range.numty().unwrap_or_default();
+					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
 
 					self.push_local(
 						len_name.clone(),
@@ -144,7 +144,7 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writenumty(len_expr.clone().sub(Expr::Num(len_numty.offset)), len_numty.numty);
+					self.push_writenumty(len_expr.clone().sub(Expr::Num(len_offset)), len_numty);
 					self.push_write_copy(from_expr, len_name.as_str().into())
 				}
 			}
@@ -167,7 +167,7 @@ impl Ser<'_> {
 					self.push_stmt(Stmt::End);
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
-					let len_numty = range.numty().unwrap_or_default();
+					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
 
 					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
@@ -175,7 +175,7 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writenumty(len_expr.clone().sub(Expr::Num(len_numty.offset)), len_numty.numty);
+					self.push_writenumty(len_expr.clone().sub(Expr::Num(len_offset)), len_numty);
 
 					self.push_stmt(Stmt::NumFor {
 						var: var_name.clone(),
