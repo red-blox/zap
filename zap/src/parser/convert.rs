@@ -698,7 +698,7 @@ impl<'src> Converter<'src> {
 				let mut used_tags_values = HashMap::new();
 				let mut prev_unknown_span = None;
 
-				let mut or_tys = or_tys.into_iter().collect::<VecDeque<_>>();
+				let mut or_tys = or_tys.iter().collect::<VecDeque<_>>();
 
 				while let Some(syntax_ty) = or_tys.pop_front() {
 					if let SyntaxTyKind::Or(tys) = &syntax_ty.kind {
