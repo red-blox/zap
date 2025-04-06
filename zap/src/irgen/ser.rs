@@ -113,7 +113,12 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writenumty(len_expr.clone().sub(Expr::Num(len_offset)), len_numty);
+					let mut offset_len_expr = len_expr.clone();
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.sub(Expr::Num(len_offset))
+					}
+
+					self.push_writenumty(offset_len_expr, len_numty);
 					self.push_writestring(from_expr, len_expr.clone());
 				}
 			}
@@ -144,7 +149,12 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writenumty(len_expr.clone().sub(Expr::Num(len_offset)), len_numty);
+					let mut offset_len_expr = len_expr.clone();
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.sub(Expr::Num(len_offset))
+					}
+
+					self.push_writenumty(offset_len_expr, len_numty);
 					self.push_write_copy(from_expr, len_name.as_str().into())
 				}
 			}
@@ -175,7 +185,12 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writenumty(len_expr.clone().sub(Expr::Num(len_offset)), len_numty);
+					let mut offset_len_expr = len_expr.clone();
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.sub(Expr::Num(len_offset))
+					}
+
+					self.push_writenumty(offset_len_expr, len_numty);
 
 					self.push_stmt(Stmt::NumFor {
 						var: var_name.clone(),

@@ -105,10 +105,12 @@ impl Des<'_> {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
 
-					self.push_local(
-						len_name.clone(),
-						Some(self.readnumty(len_numty).add(Expr::Num(len_offset))),
-					);
+					let mut offset_len_expr = self.readnumty(len_numty);
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
+					}
+
+					self.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
@@ -125,10 +127,12 @@ impl Des<'_> {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
 
-					self.push_local(
-						len_name.clone(),
-						Some(self.readnumty(len_numty).add(Expr::Num(len_offset))),
-					);
+					let mut offset_len_expr = self.readnumty(len_numty);
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
+					}
+
+					self.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
@@ -156,10 +160,12 @@ impl Des<'_> {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty().unwrap_or((NumTy::U16, 0.0));
 
-					self.push_local(
-						len_name.clone(),
-						Some(self.readnumty(len_numty).add(Expr::Num(len_offset))),
-					);
+					let mut offset_len_expr = self.readnumty(len_numty);
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
+					}
+
+					self.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
