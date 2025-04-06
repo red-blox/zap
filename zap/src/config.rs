@@ -69,11 +69,11 @@ impl Config<'_> {
 	}
 
 	pub fn server_reliable_ty(&self) -> NumTy {
-		NumTy::from_f64_max(self.server_reliable_count() as f64 - 1.0)
+		NumTy::from_f64(0.0, self.server_reliable_count() as f64 - 1.0)
 	}
 
 	pub fn client_reliable_ty(&self) -> NumTy {
-		NumTy::from_f64_max(self.client_reliable_count() as f64 - 1.0)
+		NumTy::from_f64(0.0, self.client_reliable_count() as f64 - 1.0)
 	}
 }
 
@@ -217,7 +217,7 @@ impl<'src> Ty<'src> {
 				if let Some(exact) = len.exact() {
 					(exact as usize, Some(exact as usize))
 				} else {
-					let len_numty = len.numty().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
+					let len_numty = len.numty().map(|numty| numty.numty).unwrap_or(NumTy::U16);
 
 					(
 						len.min().map(|_| len_numty.min() as usize).unwrap_or(0) + len_numty.size(),
@@ -230,7 +230,7 @@ impl<'src> Ty<'src> {
 				if let Some(exact) = len.exact() {
 					(exact as usize, Some(exact as usize))
 				} else {
-					let len_numty = len.numty().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
+					let len_numty = len.numty().map(|numty| numty.numty).unwrap_or(NumTy::U16);
 
 					(
 						len.min().map(|_| len_numty.min() as usize).unwrap_or(0) + len_numty.size(),
@@ -241,7 +241,7 @@ impl<'src> Ty<'src> {
 
 			Self::Arr(ty, len) => {
 				let (ty_min, ty_max) = ty.size(tydecls, recursed);
-				let len_numty = len.numty().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
+				let len_numty = len.numty().map(|numty| numty.numty).unwrap_or(NumTy::U16);
 
 				if let Some(exact) = len.exact() {
 					(ty_min * (exact as usize), ty_max.map(|max| ty_max.unwrap() * max))
@@ -337,7 +337,7 @@ impl<'src> Enum<'src> {
 	) -> (usize, Option<usize>) {
 		match self {
 			Self::Unit(enumerators) => {
-				let numty = NumTy::from_f64_max(enumerators.len() as f64 - 1.0);
+				let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
 
 				(numty.size(), Some(numty.size()))
 			}
@@ -431,8 +431,8 @@ impl Range {
 		}
 	}
 
-	pub fn numty(&self) -> Option<(NumTy, f64)> {
-		Some(NumTy::from_f64(self.min.unwrap_or(0.0), self.max?))
+	pub fn numty(&self) -> Option<OffsetNumTy> {
+		Some(OffsetNumTy::from_f64(self.min.unwrap_or(0.0), self.max?))
 	}
 }
 
@@ -462,14 +462,8 @@ pub enum NumTy {
 }
 
 impl NumTy {
-	pub fn from_f64(min: f64, max: f64) -> (NumTy, f64) {
-		let (min, max, offset) = if min > 0.0 {
-			(0.0, max - min, min)
-		} else {
-			(min, max, 0.0)
-		};
-
-		let numty = if min < 0.0 {
+	pub fn from_f64(min: f64, max: f64) -> NumTy {
+		if min < 0.0 {
 			if max < 0.0 {
 				NumTy::I32
 			} else if max <= u8::MAX as f64 {
@@ -487,13 +481,7 @@ impl NumTy {
 			NumTy::U32
 		} else {
 			NumTy::F64
-		};
-
-		(numty, offset)
-	}
-
-	pub fn from_f64_max(max: f64) -> NumTy {
-		NumTy::from_f64(0.0, max).0
+		}
 	}
 
 	pub fn size(&self) -> usize {
@@ -555,6 +543,36 @@ impl Display for NumTy {
 			NumTy::I8 => write!(f, "i8"),
 			NumTy::I16 => write!(f, "i16"),
 			NumTy::I32 => write!(f, "i32"),
+		}
+	}
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct OffsetNumTy {
+	pub numty: NumTy,
+	pub offset: f64,
+}
+
+impl Default for OffsetNumTy {
+	fn default() -> Self {
+		OffsetNumTy {
+			numty: NumTy::U16,
+			offset: 0.0,
+		}
+	}
+}
+
+impl OffsetNumTy {
+	pub fn from_f64(min: f64, max: f64) -> OffsetNumTy {
+		let (min, max, offset) = if min > 0.0 {
+			(0.0, max - min, min)
+		} else {
+			(min, max, 0.0)
+		};
+
+		OffsetNumTy {
+			numty: NumTy::from_f64(min, max),
+			offset,
 		}
 	}
 }
