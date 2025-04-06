@@ -1,4 +1,4 @@
-use crate::config::{Enum, NumTy, Struct, Ty};
+use crate::config::{Enum, NumTy, PrimitiveTy, Struct, Ty};
 use std::collections::HashMap;
 
 use super::{Expr, Gen, Stmt, Var};
@@ -291,16 +291,38 @@ impl Des<'_> {
 				self.push_struct(struct_ty, into)
 			}
 
-			Ty::Or(or_tys) => {
-				self.push_assign(into.clone(), Expr::EmptyTable);
+			Ty::Or(or_tys, discriminant_numty) => {
 				let (into_ty_i_name, into_ty_i_expr) = self.add_occurrence("ty_i");
 
-				self.push_local(into_ty_i_name, Some(self.readu8()));
+				self.push_local(into_ty_i_name, Some(self.readnumty(*discriminant_numty)));
+				let mut initial_if = true;
+				let mut i_offset = 0usize;
 
 				for (i, ty) in or_tys.iter().enumerate() {
+					let i = i + i_offset;
+
+					if let PrimitiveTy::Unit(variants) = ty.primitive_ty() {
+						i_offset += variants.len() - 1;
+
+						for (offset, variant) in variants.into_iter().enumerate() {
+							let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
+							if initial_if {
+								self.push_stmt(Stmt::If(condition));
+								initial_if = false;
+							} else {
+								self.push_stmt(Stmt::ElseIf(condition));
+							}
+
+							self.push_assign(into.clone(), Expr::Str(variant.to_string()));
+						}
+
+						continue;
+					}
+
 					let condition = into_ty_i_expr.clone().eq((i as f64).into());
-					if i == 0 {
+					if initial_if {
 						self.push_stmt(Stmt::If(condition));
+						initial_if = false;
 					} else {
 						self.push_stmt(Stmt::ElseIf(condition));
 					}

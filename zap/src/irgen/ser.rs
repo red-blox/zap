@@ -278,7 +278,7 @@ impl Ser<'_> {
 			Ty::Enum(enum_ty) => self.push_enum(enum_ty, from),
 			Ty::Struct(struct_ty) => self.push_struct(struct_ty, from),
 
-			Ty::Or(or_tys) => {
+			Ty::Or(or_tys, discriminant_numty) => {
 				let (from_ty_name, from_ty_expr) = self.add_occurrence("ty_name");
 
 				self.push_local(
@@ -292,8 +292,11 @@ impl Ser<'_> {
 
 				let mut unknown_i = None;
 				let mut initial_if = true;
+				let mut i_offset = 0usize;
 
 				for (i, ty) in or_tys.iter().enumerate() {
+					let i = i + i_offset;
+
 					let condition = match ty.primitive_ty() {
 						PrimitiveTy::Name(name) => from_ty_expr.clone().eq(Expr::Str(name.to_string())),
 						PrimitiveTy::Instance(class) => {
@@ -307,16 +310,28 @@ impl Ser<'_> {
 							}
 							cond
 						}
-						PrimitiveTy::Unit(variants) => variants
-							.iter()
-							.map(|variant| from_expr.clone().eq(Expr::Str(variant.to_string())))
-							.reduce(|acc, ex| acc.or(ex))
-							.unwrap(),
+						PrimitiveTy::Unit(variants) => {
+							i_offset += variants.len() - 1;
+
+							for (offset, variant) in variants.into_iter().enumerate() {
+								let condition = from_expr.clone().eq(Expr::Str(variant.to_string()));
+								if initial_if {
+									self.push_stmt(Stmt::If(condition));
+									initial_if = false;
+								} else {
+									self.push_stmt(Stmt::ElseIf(condition));
+								}
+
+								self.push_writenumty(Expr::from((i + offset) as f64), *discriminant_numty);
+							}
+
+							continue;
+						}
 						PrimitiveTy::Unknown => {
 							unknown_i = Some(i);
 							continue;
 						}
-						PrimitiveTy::None => continue,
+						PrimitiveTy::None => unreachable!(),
 					};
 
 					if initial_if {
@@ -326,13 +341,13 @@ impl Ser<'_> {
 						self.push_stmt(Stmt::ElseIf(condition));
 					}
 
-					self.push_writeu8(Expr::from(i as f64));
+					self.push_writenumty(Expr::from(i as f64), *discriminant_numty);
 					self.push_ty(ty, from.clone());
 				}
 
 				self.push_stmt(Stmt::Else);
 				if let Some(unknown_i) = unknown_i {
-					self.push_writeu8(Expr::from(unknown_i as f64));
+					self.push_writenumty(Expr::from(unknown_i as f64), *discriminant_numty);
 					self.push_ty(&Ty::Opt(Box::new(Ty::Unknown)), from.clone());
 				} else {
 					self.push_stmt(Stmt::Error("Invalid type".into()));

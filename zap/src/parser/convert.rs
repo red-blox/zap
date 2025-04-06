@@ -743,7 +743,16 @@ impl<'src> Converter<'src> {
 					_ => Ordering::Equal,
 				});
 
-				Ty::Or(tys)
+				Ty::Or(
+					tys,
+					NumTy::from_f64(
+						0.0,
+						(used_tys.len()
+							+ used_instances.len()
+							+ used_variants.len() + prev_unknown_span.is_some() as usize
+							- 1) as f64,
+					),
+				)
 			}
 		}
 	}

@@ -198,7 +198,7 @@ pub trait Output: ConfigProvider {
 				self.push("}");
 			}
 
-			Ty::Or(or_tys) => {
+			Ty::Or(or_tys, ..) => {
 				for (i, ty) in or_tys.iter().enumerate() {
 					if i != 0 {
 						self.push(" | ");
