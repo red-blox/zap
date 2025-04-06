@@ -5,7 +5,7 @@ use crate::{
 	irgen::{des, ser},
 	output::{
 		get_named_values, get_unnamed_values,
-		luau::{event_queue_table_name, events_table_name},
+		luau::{event_queue_table_name, events_table_name, polling_queues_name},
 	},
 };
 
@@ -247,7 +247,7 @@ impl<'src> ClientOutput<'src> {
 		let arguments = get_unnamed_values("value", ev.data.len());
 		let returns_length = arguments.len().max(1);
 
-		self.push_line(&format!("local queue = polling_queues[{id}]"));
+		self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(ev)));
 		self.push_line("-- `arguments` is a circular buffer.");
 		self.push_line("-- `queue.arguments` can be replaced when it needs to grow.");
 		self.push_line(
@@ -490,7 +490,8 @@ impl<'src> ClientOutput<'src> {
 		let id = ev.id;
 		self.push_indent();
 		self.push(&format!(
-			"{iter} = polling_queues[{id}].iterator :: () -> (() -> (number"
+			"{iter} = {}[{id}].iterator :: () -> (() -> (number",
+			polling_queues_name(ev)
 		));
 		if !ev.data.is_empty() {
 			for argument in ev.data.iter() {
@@ -563,68 +564,72 @@ impl<'src> ClientOutput<'src> {
 			self.push_stmts(statements);
 		}
 
-		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line(&format!("if unreliable_events[{id}] then"));
+		if ev.call == EvCall::Polling {
+			self.push_polling_event(ev)
 		} else {
-			self.push_line(&format!("if unreliable_events[{id}][1] then"));
-		}
+			if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
+				self.push_line(&format!("if unreliable_events[{id}] then"));
+			} else {
+				self.push_line(&format!("if unreliable_events[{id}][1] then"));
+			}
 
-		self.indent();
-
-		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
-			self.push_line(&format!("for _, cb in unreliable_events[{id}] do"));
 			self.indent();
-		}
 
-		match ev.call {
-			EvCall::SingleSync => self.push_line(&format!("unreliable_events[{id}]({values})")),
-			EvCall::SingleAsync => self.push_line(&format!("task.spawn(unreliable_events[{id}], {values})")),
-			EvCall::ManySync => self.push_line(&format!("cb({values})")),
-			EvCall::ManyAsync => self.push_line(&format!("task.spawn(cb, {values})")),
-			EvCall::Polling => (),
-		}
+			if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
+				self.push_line(&format!("for _, cb in unreliable_events[{id}] do"));
+				self.indent();
+			}
 
-		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
+			match ev.call {
+				EvCall::SingleSync => self.push_line(&format!("unreliable_events[{id}]({values})")),
+				EvCall::SingleAsync => self.push_line(&format!("task.spawn(unreliable_events[{id}], {values})")),
+				EvCall::ManySync => self.push_line(&format!("cb({values})")),
+				EvCall::ManyAsync => self.push_line(&format!("task.spawn(cb, {values})")),
+				EvCall::Polling => (),
+			}
+
+			if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
+				self.dedent();
+				self.push_line("end");
+			}
+
+			self.dedent();
+			self.push_line("else");
+			self.indent();
+
+			if !ev.data.is_empty() {
+				if ev.data.len() > 1 {
+					self.push_line(&format!("table.insert(unreliable_event_queue[{id}], {{ {values} }})"));
+				} else {
+					self.push_line(&format!("table.insert(unreliable_event_queue[{id}], value)"));
+				}
+
+				self.push_line(&format!("if #unreliable_event_queue[{id}] > 64 then"));
+			} else {
+				self.push_line(&format!("unreliable_event_queue[{id}] += 1"));
+				self.push_line(&format!("if unreliable_event_queue[{id}] > 16 then"));
+			}
+
+			self.indent();
+			self.push_indent();
+
+			self.push("warn(`[ZAP] {");
+
+			if !ev.data.is_empty() {
+				self.push("#")
+			}
+
+			self.push(&format!(
+				"unreliable_event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)\n",
+				ev.name
+			));
+
+			self.dedent();
+			self.push_line("end");
+
 			self.dedent();
 			self.push_line("end");
 		}
-
-		self.dedent();
-		self.push_line("else");
-		self.indent();
-
-		if !ev.data.is_empty() {
-			if ev.data.len() > 1 {
-				self.push_line(&format!("table.insert(unreliable_event_queue[{id}], {{ {values} }})"));
-			} else {
-				self.push_line(&format!("table.insert(unreliable_event_queue[{id}], value)"));
-			}
-
-			self.push_line(&format!("if #unreliable_event_queue[{id}] > 64 then"));
-		} else {
-			self.push_line(&format!("unreliable_event_queue[{id}] += 1"));
-			self.push_line(&format!("if unreliable_event_queue[{id}] > 16 then"));
-		}
-
-		self.indent();
-		self.push_indent();
-
-		self.push("warn(`[ZAP] {");
-
-		if !ev.data.is_empty() {
-			self.push("#")
-		}
-
-		self.push(&format!(
-			"unreliable_event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)\n",
-			ev.name
-		));
-
-		self.dedent();
-		self.push_line("end");
-
-		self.dedent();
-		self.push_line("end");
 
 		self.dedent();
 		self.push_line("end)");
@@ -997,7 +1002,7 @@ impl<'src> ClientOutput<'src> {
 			}
 			let arguments_size = return_names.len().max(1);
 
-			self.push_line(&format!("polling_queues[{id}] = {{"));
+			self.push_line(&format!("{}[{id}] = {{", polling_queues_name(evdecl)));
 			self.indent();
 
 			self.push_line(&format!(
@@ -1013,7 +1018,7 @@ impl<'src> ClientOutput<'src> {
 			self.push_line("iterator = function()");
 			self.indent();
 
-			self.push_line(&format!("local queue = polling_queues[{id}]"));
+			self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(evdecl)));
 			self.push_line("local index = 0");
 			self.push_line("return function()");
 			self.indent();
@@ -1076,7 +1081,8 @@ impl<'src> ClientOutput<'src> {
 			self.dedent();
 			self.push_line("}");
 		}
-		self.push_line("table.freeze(polling_queues)\n");
+		self.push_line("table.freeze(polling_queues_reliable)");
+		self.push_line("table.freeze(polling_queues_unreliable)\n");
 	}
 
 	fn push_return_functions(&mut self) {
@@ -1273,6 +1279,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_file_header("Client");
 
 		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
+			self.push_line("return {}");
 			return self.buf;
 		};
 

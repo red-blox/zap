@@ -183,12 +183,14 @@ impl Des<'_> {
 			}
 
 			Ty::Map(key, val) => {
+				let length_numty = key.variants_size().unwrap_or(NumTy::U16);
+
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
 				self.push_stmt(Stmt::NumFor {
 					var: "_".into(),
 					from: 1.0.into(),
-					to: self.readu16(),
+					to: self.readnumty(length_numty),
 				});
 
 				let (key_name, key_expr) = self.add_occurrence("key");
@@ -205,12 +207,14 @@ impl Des<'_> {
 			}
 
 			Ty::Set(key) => {
+				let length_numty = key.variants_size().unwrap_or(NumTy::U16);
+
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
 				self.push_stmt(Stmt::NumFor {
 					var: "_".into(),
 					from: 1.0.into(),
-					to: self.readu16(),
+					to: self.readnumty(length_numty),
 				});
 
 				let (key_name, key_expr) = self.add_occurrence("key");

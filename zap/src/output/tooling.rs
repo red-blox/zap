@@ -285,9 +285,10 @@ impl<'src> ToolingOutput<'src> {
 			env!("CARGO_PKG_VERSION")
 		));
 
-		// if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
-		// 	return self.buf;
-		// };
+		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
+			self.push_line("return function() end");
+			return self.buf;
+		};
 
 		self.push_line("local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")");
 		self.push("\n");
@@ -566,7 +567,7 @@ impl<'src> ToolingOutput<'src> {
 	}
 }
 
-pub fn output(config: &Config) -> Option<Output> {
+pub fn code(config: &Config) -> Option<Output> {
 	if !config.tooling {
 		return None;
 	}

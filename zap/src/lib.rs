@@ -85,7 +85,7 @@ pub fn run(input: &str, no_warnings: bool) -> Return {
 						code: output::luau::types::code(&config),
 						defs: output::typescript::types::code(&config),
 					}),
-					tooling: output::tooling::output(&config),
+					tooling: output::tooling::code(&config),
 				}),
 				diagnostics,
 			};
@@ -138,7 +138,7 @@ pub fn run(input: &str, no_warnings: bool) -> Return {
 						code: output::luau::types::code(&config),
 						defs: output::typescript::types::code(&config),
 					}),
-					tooling: output::tooling::output(&config),
+					tooling: output::tooling::code(&config),
 				}),
 				diagnostics,
 			};

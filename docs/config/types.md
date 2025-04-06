@@ -102,6 +102,10 @@ The length of strings can be constrained by placing [a range](#as-a-recap) withi
 
 <CodeBlock code="string(3..20)" />
 
+::: tip WARNING
+It's possible for usernames to exceed 20 characters under certain circumstances.
+:::
+
 ## Unknown
 
 The keyword `unknown` represents data of a type that can't be known until runtime. For values that can be one of multiple known types, use [tagged enums](#tagged-enums) instead.

@@ -284,6 +284,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_file_header("Server");
 
 		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
+			self.push_line("export {}");
 			return self.buf;
 		};
 

@@ -3,7 +3,7 @@ use std::{cmp::max, collections::HashMap};
 use crate::{
 	config::{Config, EvCall, EvDecl, EvSource, EvType, FnCall, FnDecl, Parameter, TyDecl},
 	irgen::{des, ser},
-	output::{get_named_values, get_unnamed_values, luau::events_table_name},
+	output::{get_named_values, get_unnamed_values, luau::events_table_name, luau::polling_queues_name},
 };
 
 use super::Output;
@@ -231,7 +231,7 @@ impl<'a> ServerOutput<'a> {
 		// player + arguments
 		let returns_length = 1 + arguments.len();
 
-		self.push_line(&format!("local queue = polling_queues[{id}]"));
+		self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(ev)));
 		self.push_line("-- `arguments` is a circular buffer.");
 		self.push_line("-- `queue.arguments` can be replaced when it needs to grow.");
 		self.push_line(
@@ -546,24 +546,30 @@ impl<'a> ServerOutput<'a> {
 			self.push_stmts(statements);
 		}
 
-		if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
-			self.push_line(&format!("if unreliable_events[{id}] then"))
+		if ev.call == EvCall::Polling {
+			self.push_polling_event(ev);
 		} else {
-			self.push_line(&format!("for _, cb in unreliable_events[{id}] do"))
+			if ev.call == EvCall::SingleSync || ev.call == EvCall::SingleAsync {
+				self.push_line(&format!("if unreliable_events[{id}] then"))
+			} else {
+				self.push_line(&format!("for _, cb in unreliable_events[{id}] do"))
+			}
+
+			self.indent();
+
+			match ev.call {
+				EvCall::SingleSync => self.push_line(&format!("unreliable_events[{id}](player, {values})")),
+				EvCall::SingleAsync => {
+					self.push_line(&format!("task.spawn(unreliable_events[{id}], player, {values})"))
+				}
+				EvCall::ManySync => self.push_line(&format!("cb(player, {values})")),
+				EvCall::ManyAsync => self.push_line(&format!("task.spawn(cb, player, {values})")),
+				EvCall::Polling => (),
+			}
+
+			self.dedent();
+			self.push_line("end");
 		}
-
-		self.indent();
-
-		match ev.call {
-			EvCall::SingleSync => self.push_line(&format!("unreliable_events[{id}](player, {values})")),
-			EvCall::SingleAsync => self.push_line(&format!("task.spawn(unreliable_events[{id}], player, {values})")),
-			EvCall::ManySync => self.push_line(&format!("cb(player, {values})")),
-			EvCall::ManyAsync => self.push_line(&format!("task.spawn(cb, player, {values})")),
-			EvCall::Polling => (),
-		}
-
-		self.dedent();
-		self.push_line("end");
 
 		self.dedent();
 		self.push_line("end)");
@@ -1087,7 +1093,8 @@ impl<'a> ServerOutput<'a> {
 		let id = ev.id;
 		self.push_indent();
 		self.push(&format!(
-			"{iter} = polling_queues[{id}].iterator :: () -> (() -> (number, Player"
+			"{iter} = {}[{id}].iterator :: () -> (() -> (number, Player",
+			polling_queues_name(ev)
 		));
 		if !ev.data.is_empty() {
 			for argument in ev.data.iter() {
@@ -1157,7 +1164,7 @@ impl<'a> ServerOutput<'a> {
 			}
 			let arguments_size = return_names.len();
 
-			self.push_line(&format!("polling_queues[{id}] = {{"));
+			self.push_line(&format!("{}[{id}] = {{", polling_queues_name(evdecl)));
 			self.indent();
 
 			self.push_line(&format!(
@@ -1173,7 +1180,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_line("iterator = function()");
 			self.indent();
 
-			self.push_line(&format!("local queue = polling_queues[{id}]"));
+			self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(evdecl)));
 			self.push_line("local index = 0");
 			self.push_line("return function()");
 			self.indent();
@@ -1236,7 +1243,8 @@ impl<'a> ServerOutput<'a> {
 			self.dedent();
 			self.push_line("}");
 		}
-		self.push_line("table.freeze(polling_queues)\n");
+		self.push_line("table.freeze(polling_queues_reliable)");
+		self.push_line("table.freeze(polling_queues_unreliable)\n");
 	}
 
 	pub fn push_return(&mut self) {
@@ -1368,6 +1376,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_file_header("Server");
 
 		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
+			self.push_line("return {}");
 			return self.buf;
 		};
 
