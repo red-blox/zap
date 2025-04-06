@@ -379,7 +379,7 @@ impl<'src> Ty<'src> {
 			Ty::Ref(.., ty) => ty.primitive_ty(),
 			Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => PrimitiveTy::Unknown,
 			Ty::Unknown => PrimitiveTy::Unknown,
-			_ => PrimitiveTy::None,
+			Ty::Opt(..) | Ty::Or(..) => PrimitiveTy::None,
 		}
 	}
 }

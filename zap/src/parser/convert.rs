@@ -1,6 +1,6 @@
 use std::{
 	cmp::Ordering,
-	collections::{HashMap, HashSet},
+	collections::{HashMap, HashSet, VecDeque},
 };
 
 use crate::config::{
@@ -698,7 +698,14 @@ impl<'src> Converter<'src> {
 				let mut used_tags_values = HashMap::new();
 				let mut prev_unknown_span = None;
 
-				for syntax_ty in or_tys {
+				let mut or_tys = or_tys.into_iter().collect::<VecDeque<_>>();
+
+				while let Some(syntax_ty) = or_tys.pop_front() {
+					if let SyntaxTyKind::Or(tys) = &syntax_ty.kind {
+						or_tys.extend(tys);
+						continue;
+					}
+
 					let ty = self.ty(syntax_ty);
 
 					let prev_spans: Vec<_> = match ty.primitive_ty() {
