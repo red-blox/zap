@@ -86,11 +86,11 @@ TyDecl: SyntaxTyDecl<'input> = {
     <start:@L> "type" <name:Identifier> "=" <ty:Ty> ";"? <end:@R> => SyntaxTyDecl { start, name, ty, end },
 }
 
-PrimitiveTy: SyntaxTy<'input> = {
-    <start:@L> <kind:PrimitiveTyKind> <end:@R> => SyntaxTy { start, kind, end },
+Ty: SyntaxTy<'input> = {
+    <start:@L> <kind:TyKind> <end:@R> => SyntaxTy { start, kind, end },
 }
 
-PrimitiveTyKind: SyntaxTyKind<'input> = {
+TyKind: SyntaxTyKind<'input> = {
     "f32" <r:("(" <NumRange> ")")?> => SyntaxTyKind::Num(NumTy::F32, r),
     "f64" <r:("(" <NumRange> ")")?> => SyntaxTyKind::Num(NumTy::F64, r),
 
@@ -112,58 +112,21 @@ PrimitiveTyKind: SyntaxTyKind<'input> = {
     "vector" "(" <x_ty:Ty> "," <y_ty:Ty> ")" => SyntaxTyKind::Vector(Box::new(x_ty), Box::new(y_ty), None),
     "vector" "(" <x_ty:Ty> "," <y_ty:Ty> "," <z_ty:Ty> ")" => SyntaxTyKind::Vector(Box::new(x_ty), Box::new(y_ty), Some(Box::new(z_ty))),
 
-    "enum" <e:Enum> => SyntaxTyKind::Enum(e),
-    
-    <start:@L> "BrickColor" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "BrickColor", end }),
-	<start:@L> "DateTimeMillis" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "DateTimeMillis", end }),
-	<start:@L> "DateTime" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "DateTime", end }),
-	<start:@L> "boolean" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "boolean", end }),
-	<start:@L> "Color3" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "Color3", end }),
-	<start:@L> "Vector2" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "Vector2", end }),
-	<start:@L> "Vector3" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "Vector3", end }),
-	<start:@L> "AlignedCFrame" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "AlignedCFrame", end }),
-	<start:@L> "CFrame" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "CFrame", end }),
-	<start:@L> "unknown" <end:@R> => SyntaxTyKind::Ref(SyntaxIdentifier { start, name: "unknown", end }),
-    "Instance" <c:("(" <Identifier> ")")?> => SyntaxTyKind::Instance(c),
-}
-
-CompoundTy: SyntaxTy<'input> = {
-    <start:@L> <kind:CompoundTyKind> <end:@R> => SyntaxTy { start, kind, end },
-}
-
-CompoundTyKind: SyntaxTyKind<'input> = {
-    <ty:PrimitiveTy> <mut tys:("|" <PrimitiveTy>)+> => {
-        tys.insert(0, ty);
-        SyntaxTyKind::Or(tys)
-    },
-}
-
-NonCompoundTy: SyntaxTy<'input> = {
-    <start:@L> <kind:NonCompoundTyKind> <end:@R> => SyntaxTy { start, kind, end },
-}
-
-NonCompoundTyKind: SyntaxTyKind<'input> = {
-    PrimitiveTyKind,
-
     <ty:Ty> "[" <r:IntRange?> "]" => SyntaxTyKind::Arr(Box::new(ty), r),
     "map" "{" "[" <k:Ty> "]" ":" <v:Ty> "}" => SyntaxTyKind::Map(Box::new(k), Box::new(v)),
     "set" "{" <k:Ty> "}" => SyntaxTyKind::Set(Box::new(k)),
 
+    <ty:Ty> "?" => SyntaxTyKind::Opt(Box::new(ty)),
     <name:Identifier> => SyntaxTyKind::Ref(name),
 
+    "enum" <e:Enum> => SyntaxTyKind::Enum(e),
     "struct" <s:Struct> => SyntaxTyKind::Struct(s),
-}
-
-Ty: SyntaxTy<'input> = {
-    <start:@L> <kind:TyKind> <end:@R> => SyntaxTy { start, kind, end },
-}
-
-TyKind: SyntaxTyKind<'input> = {
-    NonCompoundTyKind,
-    CompoundTyKind,
-
-    <ty:NonCompoundTy> "?" => SyntaxTyKind::Opt(Box::new(ty)),
-    "(" <ty:CompoundTy> ")?" => SyntaxTyKind::Opt(Box::new(ty)),
+    "Instance" <c:("(" <Identifier> ")")?> => SyntaxTyKind::Instance(c),
+    
+    "(" <ty:Ty> <mut tys:("|" <Ty>)+> ")" => {
+        tys.insert(0, ty);
+        SyntaxTyKind::Or(tys)
+    },
 }
 
 Parameters: SyntaxParameters<'input> = {
