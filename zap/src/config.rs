@@ -197,13 +197,19 @@ pub enum Ty<'src> {
 	Unknown,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum NonPrimitiveTy {
+	Opt,
+	Or,
+}
+
 #[derive(Debug, Clone)]
 pub enum PrimitiveTy<'src> {
 	Name(&'static str),
 	Instance(Option<&'src str>),
 	Enum(Enum<'src>),
 	Unknown,
-	None,
+	None(NonPrimitiveTy),
 }
 
 impl<'src> Ty<'src> {
@@ -379,7 +385,8 @@ impl<'src> Ty<'src> {
 			Ty::Ref(.., ty) => ty.primitive_ty(),
 			Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => PrimitiveTy::Unknown,
 			Ty::Unknown => PrimitiveTy::Unknown,
-			Ty::Opt(..) | Ty::Or(..) => PrimitiveTy::None,
+			Ty::Opt(..) => PrimitiveTy::None(NonPrimitiveTy::Opt),
+			Ty::Or(..) => PrimitiveTy::None(NonPrimitiveTy::Or),
 		}
 	}
 }

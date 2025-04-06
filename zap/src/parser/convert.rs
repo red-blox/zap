@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::config::{
-	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NumTy, Parameter, PrimitiveTy, Range, Struct, Ty,
-	TyDecl, YieldType,
+	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NonPrimitiveTy, NumTy, Parameter, PrimitiveTy,
+	Range, Struct, Ty, TyDecl, YieldType,
 };
 
 use super::{
@@ -724,10 +724,12 @@ impl<'src> Converter<'src> {
 							.filter_map(|(variant, _)| used_tags_values.insert((tag, variant), syntax_ty.span()))
 							.collect(),
 						PrimitiveTy::Unknown => prev_unknown_span.replace(syntax_ty.span()).into_iter().collect(),
-						PrimitiveTy::None => {
-							self.report(Report::AnalyzeOrNonPrimitiveType { span: syntax_ty.span() });
+						PrimitiveTy::None(NonPrimitiveTy::Opt) => {
+							self.report(Report::AnalyzeOrNestedOptional { span: syntax_ty.span() });
 							continue;
 						}
+						// handled by the nested OR resolution above
+						PrimitiveTy::None(NonPrimitiveTy::Or) => unreachable!(),
 					};
 
 					for prev_span in prev_spans {

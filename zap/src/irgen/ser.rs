@@ -353,7 +353,7 @@ impl Ser<'_> {
 							unknown_i = Some(i);
 							continue;
 						}
-						PrimitiveTy::None => unreachable!(),
+						PrimitiveTy::None(..) => unreachable!(),
 					};
 
 					if initial_if {

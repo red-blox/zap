@@ -128,7 +128,7 @@ pub enum Report<'src> {
 		dup_span: Span,
 	},
 
-	AnalyzeOrNonPrimitiveType {
+	AnalyzeOrNestedOptional {
 		span: Span,
 	},
 }
@@ -163,7 +163,7 @@ impl Report<'_> {
 			Self::AnalyzeDuplicateParameter { .. } => Severity::Error,
 			Self::AnalyzeNamedReturn { .. } => Severity::Error,
 			Self::AnalyzeOrDuplicateType { .. } => Severity::Error,
-			Self::AnalyzeOrNonPrimitiveType { .. } => Severity::Error,
+			Self::AnalyzeOrNestedOptional { .. } => Severity::Error,
 		}
 	}
 
@@ -199,7 +199,7 @@ impl Report<'_> {
 			Self::AnalyzeDuplicateParameter { name, .. } => format!("duplicate parameter '{}'", name),
 			Self::AnalyzeNamedReturn { .. } => "rets cannot be named".to_string(),
 			Self::AnalyzeOrDuplicateType { .. } => "duplicate types used in OR".to_string(),
-			Self::AnalyzeOrNonPrimitiveType { .. } => "non-primitive type used in OR".to_string(),
+			Self::AnalyzeOrNestedOptional { .. } => "optional type used in OR".to_string(),
 		}
 	}
 
@@ -232,7 +232,7 @@ impl Report<'_> {
 			Self::AnalyzeOversizeVectorComponent { .. } => "3018",
 			Self::AnalyzeMissingEvDeclCall { .. } => "3019",
 			Self::AnalyzeOrDuplicateType { .. } => "3020",
-			Self::AnalyzeOrNonPrimitiveType { .. } => "3021",
+			Self::AnalyzeOrNestedOptional { .. } => "3021",
 		}
 	}
 
@@ -361,8 +361,8 @@ impl Report<'_> {
 				]
 			}
 
-			Self::AnalyzeOrNonPrimitiveType { span } => {
-				vec![Label::primary((), span.clone()).with_message("non-primitive type")]
+			Self::AnalyzeOrNestedOptional { span } => {
+				vec![Label::primary((), span.clone()).with_message("optional type")]
 			}
 		}
 	}
@@ -441,7 +441,10 @@ impl Report<'_> {
 			Self::AnalyzeOrDuplicateType { .. } => Some(vec![
 				"consider using a tagged enum to differenciate between ambiguous types".to_string(),
 			]),
-			Self::AnalyzeOrNonPrimitiveType { .. } => None,
+			Self::AnalyzeOrNestedOptional { .. } => Some(vec![
+				"optional types cannot be used in ORs".to_string(),
+				"consider making the whole OR optional".to_string(),
+			]),
 		}
 	}
 
