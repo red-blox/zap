@@ -256,9 +256,9 @@ impl<'src> Ty<'src> {
 				}
 			}
 
-			Self::Map(..) => (self.variants_size().unwrap().size(), None),
+			Self::Map(..) => (self.variants_size().unwrap_or(NumTy::U16).size(), None),
 
-			Self::Set(..) => (self.variants_size().unwrap().size(), None),
+			Self::Set(..) => (self.variants_size().unwrap_or(NumTy::U16).size(), None),
 
 			Self::Opt(ty) => {
 				let (_, ty_max) = ty.size(tydecls, recursed);
