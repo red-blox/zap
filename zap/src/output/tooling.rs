@@ -545,7 +545,7 @@ impl<'src> ToolingOutput<'src> {
 			.config
 			.evdecls
 			.iter()
-			.filter(|ev_decl| ev_decl.evty == EvType::Unreliable)
+			.filter(|ev_decl| matches!(ev_decl.evty, EvType::Unreliable(_)))
 		{
 			self.push_indent();
 			self.push("elseif ");

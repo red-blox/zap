@@ -47,7 +47,7 @@ impl Config<'_> {
 	pub fn server_unreliable_count(&self) -> usize {
 		self.evdecls
 			.iter()
-			.filter(|evdecl| evdecl.from == EvSource::Client && evdecl.evty == EvType::Unreliable)
+			.filter(|evdecl| evdecl.from == EvSource::Client && matches!(evdecl.evty, EvType::Unreliable(_)))
 			.count()
 	}
 
@@ -64,7 +64,7 @@ impl Config<'_> {
 	pub fn client_unreliable_count(&self) -> usize {
 		self.evdecls
 			.iter()
-			.filter(|evdecl| evdecl.from == EvSource::Server && evdecl.evty == EvType::Unreliable)
+			.filter(|evdecl| evdecl.from == EvSource::Server && matches!(evdecl.evty, EvType::Unreliable(_)))
 			.count()
 	}
 
@@ -136,6 +136,7 @@ pub struct EvDecl<'src> {
 	pub call: EvCall,
 	pub data: Vec<Parameter<'src>>,
 	pub id: usize,
+	pub order_id: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -153,7 +154,7 @@ pub enum EvSource {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EvType {
 	Reliable,
-	Unreliable,
+	Unreliable(bool),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

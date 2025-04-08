@@ -218,20 +218,20 @@ pub trait Output {
 fn events_table_name<'a>(evdecl: &EvDecl) -> &'a str {
 	match evdecl.evty {
 		EvType::Reliable => "reliable_events",
-		EvType::Unreliable => "unreliable_events",
+		EvType::Unreliable(_) => "unreliable_events",
 	}
 }
 
 fn event_queue_table_name<'a>(evdecl: &EvDecl) -> &'a str {
 	match evdecl.evty {
 		EvType::Reliable => "reliable_event_queue",
-		EvType::Unreliable => "unreliable_event_queue",
+		EvType::Unreliable(_) => "unreliable_event_queue",
 	}
 }
 
 fn polling_queues_name<'a>(evdecl: &EvDecl) -> &'a str {
 	match evdecl.evty {
 		EvType::Reliable => "polling_queues_reliable",
-		EvType::Unreliable => "polling_queues_unreliable",
+		EvType::Unreliable(_) => "polling_queues_unreliable",
 	}
 }

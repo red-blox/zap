@@ -640,7 +640,7 @@ impl<'src> ClientOutput<'src> {
 			.config
 			.evdecls
 			.iter()
-			.filter(|ev_decl| ev_decl.from == EvSource::Server && ev_decl.evty == EvType::Unreliable)
+			.filter(|ev_decl| ev_decl.from == EvSource::Server && matches!(ev_decl.evty, EvType::Unreliable(_)))
 		{
 			self.push_unreliable_callback(ev);
 		}
@@ -758,7 +758,7 @@ impl<'src> ClientOutput<'src> {
 		self.push(")\n");
 		self.indent();
 
-		if ev.evty == EvType::Unreliable {
+		if matches!(ev.evty, EvType::Unreliable(_)) {
 			self.push_line("local saved = save()");
 			self.push_line("load_empty()");
 		}
@@ -775,7 +775,7 @@ impl<'src> ClientOutput<'src> {
 			self.push_stmts(statements);
 		}
 
-		if ev.evty == EvType::Unreliable {
+		if matches!(ev.evty, EvType::Unreliable(_)) {
 			self.push_line("local buff = buffer.create(outgoing_used)");
 			self.push_line("buffer.copy(buff, 0, outgoing_buff, 0, outgoing_used)");
 			self.push_line(&format!("unreliable[{}]:FireServer(buff, outgoing_inst)", ev.id + 1));
@@ -1311,7 +1311,7 @@ impl<'src> ClientOutput<'src> {
 			.config
 			.evdecls
 			.iter()
-			.any(|ev| ev.evty == EvType::Unreliable && ev.from == EvSource::Server)
+			.any(|ev| matches!(ev.evty, EvType::Unreliable(_)) && ev.from == EvSource::Server)
 		{
 			self.push_unreliable();
 		}

@@ -74,7 +74,8 @@ EvCall: EvCall = {
 
 EvTy: EvType = {
     "Reliable" => EvType::Reliable,
-    "Unreliable" => EvType::Unreliable,
+    "Unreliable" => EvType::Unreliable(false),
+    "Unreliable" "(" "Ordered" ")" => EvType::Unreliable(true),
 }
 
 EvSource: EvSource = {
@@ -228,6 +229,7 @@ Identifier: SyntaxIdentifier<'input> = {
     <start:@L> "set" <end:@R> => SyntaxIdentifier { start, name: "set", end },
     <start:@L> "true" <end:@R> => SyntaxIdentifier { start, name: "true", end },
     <start:@L> "false" <end:@R> => SyntaxIdentifier { start, name: "false", end },
+    <start:@L> "Ordered" <end:@R> => SyntaxIdentifier { start, name: "Ordered", end },
 }
 
 KeyIdentifier: SyntaxIdentifier<'input> = {
