@@ -719,13 +719,17 @@ impl<'src> ClientOutput<'src> {
 	fn push_write_order_id(&mut self, id: usize) {
 		let id = id + 1;
 		self.push_line(&format!("local order_id = outgoing_ids[{id}]"));
-		self.push_line(&format!("outgoing_ids[{id}] += 1"));
 		self.push_line(&format!(
-			"if outgoing_ids[{id}] > {} then",
+			"if order_id and order_id <= {} then",
 			UNRELIABLE_ORDER_NUMTY.max()
 		));
 		self.indent();
+		self.push_line(&format!("outgoing_ids[{id}] += 1"));
+		self.dedent();
+		self.push_line("else");
+		self.indent();
 		self.push_line(&format!("outgoing_ids[{id}] = 0"));
+		self.push_line("order_id = 0");
 		self.dedent();
 		self.push_line("end");
 		self.push_line(&format!("alloc({})", UNRELIABLE_ORDER_NUMTY.size()));
