@@ -73,7 +73,7 @@ local function save()
 		used = outgoing_used,
 		size = outgoing_size,
 		inst = outgoing_inst,
-		ids = outgoing_ids
+		ids = outgoing_ids,
 	}
 end
 
@@ -82,7 +82,7 @@ local function load(data: {
 	used: number,
 	size: number,
 	inst: { Instance },
-	ids: { number }
+	ids: { number },
 })
 	outgoing_buff = data.buff
 	outgoing_used = data.used

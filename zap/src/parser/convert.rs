@@ -49,10 +49,8 @@ impl<'src> Converter<'src> {
 
 		let mut server_reliable_id = 0;
 		let mut server_unreliable_id = 0;
-		let mut server_unreliable_order_id = 0;
 		let mut client_reliable_id = 0;
 		let mut client_unreliable_id = 0;
-		let mut client_unreliable_order_id = 0;
 
 		for tydecl in config.decls.iter().filter_map(|decl| match decl {
 			SyntaxDecl::Ty(tydecl) => Some(tydecl),
@@ -70,42 +68,34 @@ impl<'src> Converter<'src> {
 			SyntaxDecl::Ev(evdecl) => Some(evdecl),
 			_ => None,
 		}) {
-			let (id, order_id) = match evdecl.from {
+			let id = match evdecl.from {
 				EvSource::Server => match evdecl.evty {
 					EvType::Reliable => {
 						let current_id = client_reliable_id;
 						client_reliable_id += 1;
-						(current_id, 0)
+						current_id
 					}
-					EvType::Unreliable(ordered) => {
+					EvType::Unreliable(_) => {
 						let current_id = client_unreliable_id;
-						let current_order_id = client_unreliable_order_id;
 						client_unreliable_id += 1;
-						if ordered {
-							client_unreliable_order_id += 1
-						};
-						(current_id, current_order_id)
+						current_id
 					}
 				},
 				EvSource::Client => match evdecl.evty {
 					EvType::Reliable => {
 						let current_id = server_reliable_id;
 						server_reliable_id += 1;
-						(current_id, 0)
+						current_id
 					}
-					EvType::Unreliable(ordered) => {
+					EvType::Unreliable(_) => {
 						let current_id = server_unreliable_id;
-						let current_order_id = server_unreliable_order_id;
 						server_unreliable_id += 1;
-						if ordered {
-							server_unreliable_order_id += 1
-						};
-						(current_id, current_order_id)
+						current_id
 					}
 				},
 			};
 
-			evdecls.push(self.evdecl(evdecl, id, order_id, &tydecl_hashmap));
+			evdecls.push(self.evdecl(evdecl, id, &tydecl_hashmap));
 		}
 
 		for fndecl in config.decls.iter().filter_map(|decl| match decl {
@@ -417,7 +407,6 @@ impl<'src> Converter<'src> {
 		&mut self,
 		evdecl: &SyntaxEvDecl<'src>,
 		id: usize,
-		order_id: usize,
 		tydecls: &HashMap<&'src str, &Ty<'src>>,
 	) -> EvDecl<'src> {
 		if let Some(syntax_parameters) = &evdecl.data {
@@ -486,7 +475,6 @@ impl<'src> Converter<'src> {
 			call,
 			data: data.unwrap_or_default(),
 			id,
-			order_id,
 		}
 	}
 

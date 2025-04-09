@@ -3,6 +3,8 @@ use std::{
 	fmt::Display,
 };
 
+pub const UNRELIABLE_ORDER_NUMTY: NumTy = NumTy::U16;
+
 #[derive(Debug, Clone)]
 pub struct Config<'src> {
 	pub tydecls: Vec<TyDecl<'src>>,
@@ -136,7 +138,6 @@ pub struct EvDecl<'src> {
 	pub call: EvCall,
 	pub data: Vec<Parameter<'src>>,
 	pub id: usize,
-	pub order_id: usize,
 }
 
 #[derive(Debug, Clone)]

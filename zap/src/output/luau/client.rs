@@ -1,7 +1,7 @@
 use std::{cmp::max, collections::HashMap};
 
 use crate::{
-	config::{Config, EvCall, EvDecl, EvSource, EvType, FnDecl, Parameter, TyDecl, YieldType},
+	config::{Config, EvCall, EvDecl, EvSource, EvType, FnDecl, Parameter, TyDecl, YieldType, UNRELIABLE_ORDER_NUMTY},
 	irgen::{des, ser},
 	output::{
 		get_named_values, get_unnamed_values,
@@ -716,9 +716,29 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("buffer.write{}(outgoing_buff, outgoing_apos, {id})", num_ty));
 	}
 
+	fn push_write_order_id(&mut self, id: usize) {
+		let id = id + 1;
+		self.push_line(&format!("local order_id = outgoing_ids[{id}]"));
+		self.push_line(&format!("outgoing_ids[{id}] += 1"));
+		self.push_line(&format!(
+			"if outgoing_ids[{id}] > {} then",
+			UNRELIABLE_ORDER_NUMTY.max()
+		));
+		self.indent();
+		self.push_line(&format!("outgoing_ids[{id}] = 0"));
+		self.dedent();
+		self.push_line("end");
+		self.push_line(&format!("alloc({})", UNRELIABLE_ORDER_NUMTY.size()));
+		self.push_line(&format!(
+			"buffer.write{UNRELIABLE_ORDER_NUMTY}(outgoing_buff, outgoing_apos, order_id)"
+		));
+	}
+
 	fn push_write_evdecl_event_id(&mut self, ev: &EvDecl) {
-		if ev.evty == EvType::Reliable {
-			self.push_write_event_id(ev.id);
+		match ev.evty {
+			EvType::Reliable => self.push_write_event_id(ev.id),
+			EvType::Unreliable(true) => self.push_write_order_id(ev.id),
+			_ => {}
 		}
 	}
 
@@ -758,12 +778,12 @@ impl<'src> ClientOutput<'src> {
 		self.push(")\n");
 		self.indent();
 
+		self.push_write_evdecl_event_id(ev);
+
 		if matches!(ev.evty, EvType::Unreliable(_)) {
 			self.push_line("local saved = save()");
 			self.push_line("load_empty()");
 		}
-
-		self.push_write_evdecl_event_id(ev);
 
 		if !ev.data.is_empty() {
 			let statements = &ser::gen(
