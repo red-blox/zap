@@ -550,6 +550,23 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("incoming_read = 0");
 		self.push_line("incoming_ipos = 0");
 
+		if ev.evty == EvType::Unreliable(true) {
+			self.push_line(&format!(
+				"local order_id = buffer.read{UNRELIABLE_ORDER_NUMTY}(incoming_buff, read({}))",
+				UNRELIABLE_ORDER_NUMTY.size()
+			));
+			let last = format!("incoming_ids[{}]", id + 1);
+			self.push_line(&format!(
+				"if {last} and order_id < {last} and {last} - order_id > {} then",
+				(UNRELIABLE_ORDER_NUMTY.max() / 2.0).floor(),
+			));
+			self.indent();
+			self.push_line("return");
+			self.dedent();
+			self.push_line("end");
+			self.push_line(&format!("{last} = order_id"));
+		}
+
 		let values = self.get_values(ev.data.len());
 
 		self.push_line(&format!("local {values}"));
