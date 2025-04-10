@@ -733,7 +733,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("buffer.write{}(outgoing_buff, outgoing_apos, {id})", num_ty));
 	}
 
-	fn push_write_order_id(&mut self, id: usize) {
+	fn push_get_order_id(&mut self, id: usize) {
 		let id = id + 1;
 		self.push_line(&format!("local order_id = outgoing_ids[{id}]"));
 		self.push_line(&format!(
@@ -749,6 +749,9 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("order_id = 0");
 		self.dedent();
 		self.push_line("end");
+	}
+
+	fn push_write_order_id(&mut self) {
 		self.push_line(&format!("alloc({})", UNRELIABLE_ORDER_NUMTY.size()));
 		self.push_line(&format!(
 			"buffer.write{UNRELIABLE_ORDER_NUMTY}(outgoing_buff, outgoing_apos, order_id)"
@@ -758,7 +761,7 @@ impl<'src> ClientOutput<'src> {
 	fn push_write_evdecl_event_id(&mut self, ev: &EvDecl) {
 		match ev.evty {
 			EvType::Reliable => self.push_write_event_id(ev.id),
-			EvType::Unreliable(true) => self.push_write_order_id(ev.id),
+			EvType::Unreliable(true) => self.push_get_order_id(ev.id),
 			_ => {}
 		}
 	}
@@ -804,6 +807,7 @@ impl<'src> ClientOutput<'src> {
 		if matches!(ev.evty, EvType::Unreliable(_)) {
 			self.push_line("local saved = save()");
 			self.push_line("load_empty()");
+			self.push_write_order_id();
 		}
 
 		if !ev.data.is_empty() {
