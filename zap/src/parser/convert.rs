@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::config::{
 	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NumTy, Parameter, Range, Struct, Ty, TyDecl,
-	YieldType,
+	YieldType, UNRELIABLE_ORDER_NUMTY,
 };
 
 use super::{
@@ -439,8 +439,12 @@ impl<'src> Converter<'src> {
 		});
 
 		if data.is_some() && matches!(evty, EvType::Unreliable(_)) {
-			let mut min = 0;
-			let mut max = Some(0);
+			let start_size = match evty {
+				EvType::Unreliable(true) => UNRELIABLE_ORDER_NUMTY.size(),
+				_ => 0,
+			};
+			let mut min = start_size;
+			let mut max = Some(start_size);
 
 			for parameter in data.as_ref().unwrap() {
 				let (ty_min, ty_max) = parameter.ty.size(tydecls, &mut HashSet::new());
