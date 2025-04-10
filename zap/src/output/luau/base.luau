@@ -74,7 +74,7 @@ local function save()
 		size = outgoing_size,
 		inst = outgoing_inst,
 		outgoing_ids = outgoing_ids,
-		incoming_ids = outgoing_ids,
+		incoming_ids = incoming_ids,
 	}
 end
 
@@ -91,7 +91,7 @@ local function load(data: {
 	outgoing_size = data.size
 	outgoing_inst = data.inst
 	outgoing_ids = data.outgoing_ids
-	outgoing_ids = data.incoming_ids
+	incoming_ids = data.incoming_ids
 end
 
 local function load_empty()

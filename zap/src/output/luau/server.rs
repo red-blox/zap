@@ -544,7 +544,7 @@ impl<'a> ServerOutput<'a> {
 			));
 			let last = format!("incoming_ids[{}]", id + 1);
 			self.push_line(&format!(
-				"if {last} and order_id < {last} and {last} - order_id > {} then",
+				"if {last} and (order_id <= {last} or {last} - order_id > {}) then",
 				(UNRELIABLE_ORDER_NUMTY.max() / 2.0).floor(),
 			));
 			self.indent();
