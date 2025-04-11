@@ -803,10 +803,12 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_write_evdecl_event_id(ev);
 
-		if matches!(ev.evty, EvType::Unreliable(_)) {
+		if let EvType::Unreliable(ordered) = ev.evty {
 			self.push_line("local saved = save()");
 			self.push_line("load_empty()");
-			self.push_write_order_id();
+			if ordered {
+				self.push_write_order_id();
+			}
 		}
 
 		if !ev.data.is_empty() {
