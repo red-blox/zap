@@ -542,7 +542,7 @@ impl<'a> ServerOutput<'a> {
 				"local order_id = buffer.read{UNRELIABLE_ORDER_NUMTY}(incoming_buff, read({}))",
 				UNRELIABLE_ORDER_NUMTY.size()
 			));
-			let last = format!("incoming_ids[{}]", id + 1);
+			let last = format!("incoming_ids[{id}]");
 			self.push_line(&format!(
 				"if {last} and (order_id <= {last} or {last} - order_id > {}) then",
 				(UNRELIABLE_ORDER_NUMTY.max() / 2.0).floor(),
@@ -677,7 +677,6 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_unreliable_order_id(&mut self, player: &str, id: usize) {
-		let id = id + 1;
 		self.push_line(&format!("load_player({player})"));
 		self.push_line(&format!("local order_id = outgoing_ids[{id}]"));
 		self.push_line(&format!(
