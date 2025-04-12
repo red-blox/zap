@@ -761,7 +761,7 @@ impl<'src> ClientOutput<'src> {
 		match ev.evty {
 			EvType::Reliable => self.push_write_event_id(ev.id),
 			EvType::Unreliable(true) => self.push_get_order_id(ev.id),
-			_ => {}
+			EvType::Unreliable(false) => {}
 		}
 	}
 
