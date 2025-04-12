@@ -294,8 +294,8 @@ impl Ser<'_> {
 				let mut initial_if = true;
 				let mut i_offset = 0usize;
 
-				for (i, ty) in or_tys.iter().enumerate() {
-					let i = i + i_offset;
+				for ty in or_tys {
+					let i = i_offset;
 
 					let condition = match ty.primitive_ty() {
 						PrimitiveTy::Name(name) => from_ty_expr.clone().eq(Expr::Str(name.to_string())),
@@ -311,7 +311,7 @@ impl Ser<'_> {
 							cond
 						}
 						PrimitiveTy::Enum(Enum::Unit(variants)) => {
-							i_offset += variants.len() - 1;
+							i_offset += variants.len();
 
 							for (offset, variant) in variants.into_iter().enumerate() {
 								let condition = from_expr.clone().eq(Expr::Str(variant.to_string()));
@@ -328,7 +328,7 @@ impl Ser<'_> {
 							continue;
 						}
 						PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
-							i_offset += variants.len() - 1;
+							i_offset += variants.len();
 
 							for (offset, (variant, data)) in variants.into_iter().enumerate() {
 								let condition = from_ty_expr.clone().eq(Expr::Str("table".to_string())).and(
@@ -351,10 +351,13 @@ impl Ser<'_> {
 						}
 						PrimitiveTy::Unknown => {
 							unknown_i = Some(i);
+							i_offset += 1;
 							continue;
 						}
 						PrimitiveTy::None(..) => unreachable!(),
 					};
+
+					i_offset += 1;
 
 					if initial_if {
 						self.push_stmt(Stmt::If(condition));

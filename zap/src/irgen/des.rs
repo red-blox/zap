@@ -298,12 +298,12 @@ impl Des<'_> {
 				let mut initial_if = true;
 				let mut i_offset = 0usize;
 
-				for (i, ty) in or_tys.iter().enumerate() {
-					let i = i + i_offset;
+				for ty in or_tys {
+					let i = i_offset;
 
 					match ty.primitive_ty() {
 						PrimitiveTy::Enum(Enum::Unit(variants)) => {
-							i_offset += variants.len() - 1;
+							i_offset += variants.len();
 
 							for (offset, variant) in variants.into_iter().enumerate() {
 								let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
@@ -320,7 +320,7 @@ impl Des<'_> {
 							continue;
 						}
 						PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
-							i_offset += variants.len() - 1;
+							i_offset += variants.len();
 
 							for (offset, (variant, data)) in variants.into_iter().enumerate() {
 								let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
@@ -343,6 +343,8 @@ impl Des<'_> {
 						}
 						_ => {}
 					}
+
+					i_offset += 1;
 
 					let condition = into_ty_i_expr.clone().eq((i as f64).into());
 					if initial_if {
