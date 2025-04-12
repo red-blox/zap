@@ -245,7 +245,7 @@ impl<'src> Ty<'src> {
 				let (len_numty, ..) = len.numty();
 
 				if let Some(exact) = len.exact() {
-					(ty_min * (exact as usize), ty_max.map(|max| ty_max.unwrap() * max))
+					(ty_min * (exact as usize), ty_max.map(|max| max * exact as usize))
 				} else {
 					(
 						ty_min * len_min + len_numty.size(),
