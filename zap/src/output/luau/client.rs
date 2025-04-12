@@ -778,20 +778,11 @@ impl<'src> ClientOutput<'src> {
 		if let EvType::Unreliable(ordered) = ev.evty {
 			let id = ev.id;
 			if ordered {
-				self.push_line(&format!("local order_id = outgoing_ids[{id}]"));
 				self.push_line(&format!(
-					"if order_id and order_id <= {} then",
-					UNRELIABLE_ORDER_NUMTY.max()
+					"local order_id = ((outgoing_ids[{id}] or -1) + 1) % {}",
+					UNRELIABLE_ORDER_NUMTY.max() + 1.0
 				));
-				self.indent();
-				self.push_line(&format!("outgoing_ids[{id}] += 1"));
-				self.dedent();
-				self.push_line("else");
-				self.indent();
-				self.push_line(&format!("outgoing_ids[{id}] = 1"));
-				self.push_line("order_id = 0");
-				self.dedent();
-				self.push_line("end");
+				self.push_line(&format!("outgoing_ids[{id}] = order_id"));
 			}
 			self.push_line("local saved = save()");
 			self.push_line("load_empty()");

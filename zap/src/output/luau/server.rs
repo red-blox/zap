@@ -678,20 +678,11 @@ impl<'a> ServerOutput<'a> {
 
 	fn push_unreliable_order_id(&mut self, player: &str, id: usize) {
 		self.push_line(&format!("load_player({player})"));
-		self.push_line(&format!("local order_id = outgoing_ids[{id}]"));
 		self.push_line(&format!(
-			"if order_id and order_id <= {} then",
-			UNRELIABLE_ORDER_NUMTY.max()
+			"local order_id = ((outgoing_ids[{id}] or -1) + 1) % {}",
+			UNRELIABLE_ORDER_NUMTY.max() + 1.0
 		));
-		self.indent();
-		self.push_line(&format!("outgoing_ids[{id}] += 1"));
-		self.dedent();
-		self.push_line("else");
-		self.indent();
-		self.push_line(&format!("outgoing_ids[{id}] = 1"));
-		self.push_line("order_id = 0");
-		self.dedent();
-		self.push_line("end");
+		self.push_line(&format!("outgoing_ids[{id}] = order_id"));
 		self.push_line(&format!("player_map[{player}] = save()"));
 		self.push_line("load(saved)");
 		self.push_line(&format!(
