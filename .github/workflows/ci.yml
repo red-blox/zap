@@ -46,7 +46,7 @@ jobs:
         run: cargo build --locked --verbose
 
       - name: Build (WASM)
-        run: wasm-pack build zap -d package --no-opt
+        run: wasm-pack build zap -d package --no-opt --locked --verbose
 
       - name: Test
         run: cargo test --locked --verbose
