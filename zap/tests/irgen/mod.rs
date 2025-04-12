@@ -132,7 +132,9 @@ impl<'src> TestOutput<'src> {
 		self.push_stmts(&des_statements);
 
 		for (ser_name, des_name) in ser_names.iter().zip(des_names.iter()) {
-			self.push_line(&format!("assert(deepEquals({ser_name}, {des_name}))"));
+			self.push_line(&format!(
+				r#"assert(deepEquals({ser_name}, {des_name}), "deserialised value differs from original!")"#
+			));
 		}
 
 		self.dedent();

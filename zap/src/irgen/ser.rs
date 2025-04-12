@@ -99,7 +99,10 @@ impl Ser<'_> {
 			Ty::Str(range) => {
 				if let Some(len) = range.exact() {
 					if self.checks {
-						self.push_assert(from_expr.clone().len().eq(len.into()), None);
+						self.push_assert(
+							from_expr.clone().len().eq(len.into()),
+							format!("length is not equal to {len}!"),
+						);
 					}
 
 					self.push_writestring(from_expr, len.into());
@@ -131,7 +134,7 @@ impl Ser<'_> {
 								.nindex("len")
 								.call(vec![from_expr.clone()])
 								.eq(len.into()),
-							None,
+							format!("length is not equal to {len}!"),
 						);
 					}
 
@@ -164,7 +167,10 @@ impl Ser<'_> {
 
 				if let Some(len) = range.exact() {
 					if self.checks {
-						self.push_assert(from_expr.clone().len().eq(len.into()), None);
+						self.push_assert(
+							from_expr.clone().len().eq(len.into()),
+							format!("length is not equal to {len}!"),
+						);
 					}
 
 					self.push_stmt(Stmt::NumFor {
@@ -307,7 +313,7 @@ impl Ser<'_> {
 							Some("IsA".into()),
 							vec![Expr::Str(class.unwrap().into())],
 						),
-						None,
+						format!("received instance is not of the {} class!", class.unwrap()),
 					);
 				}
 
@@ -402,10 +408,7 @@ impl Ser<'_> {
 					)),
 				);
 
-				self.push_assert(
-					axis_alignment_expr.clone(),
-					Some("CFrame not aligned to an axis!".to_string()),
-				);
+				self.push_assert(axis_alignment_expr.clone(), "CFrame not aligned to an axis!".into());
 
 				self.push_writeu8(axis_alignment_expr.clone());
 

@@ -257,7 +257,7 @@ impl Des<'_> {
 									Some("IsA".into()),
 									vec![Expr::Str(class.unwrap().into())],
 								)),
-								None,
+								format!("received instance is not of the {} class!", class.unwrap()),
 							)
 						}
 					}
@@ -312,7 +312,7 @@ impl Des<'_> {
 
 				// always assert non-optional instances as roblox
 				// will sometimes vaporize them
-				self.push_assert(into_expr.clone().neq(Expr::Nil), None);
+				self.push_assert(into_expr.clone().neq(Expr::Nil), "received instance is nil!".into());
 
 				if self.checks && class.is_some() {
 					self.push_assert(
@@ -321,7 +321,7 @@ impl Des<'_> {
 							Some("IsA".into()),
 							vec![Expr::Str(class.unwrap().into())],
 						),
-						None,
+						format!("received instance is not of the {} class!", class.unwrap()),
 					)
 				}
 			}

@@ -21,7 +21,7 @@ pub trait Gen {
 		self.push_stmt(Stmt::Assign(var, expr))
 	}
 
-	fn push_assert(&mut self, expr: Expr, msg: Option<String>) {
+	fn push_assert(&mut self, expr: Expr, msg: String) {
 		self.push_stmt(Stmt::Assert(expr, msg))
 	}
 
@@ -248,11 +248,11 @@ pub trait Gen {
 
 	fn push_range_check(&mut self, expr: Expr, range: Range) {
 		if let Some(min) = range.min() {
-			self.push_assert(expr.clone().gte(min.into()), None)
+			self.push_assert(expr.clone().gte(min.into()), format!("value is less than {min}!"))
 		}
 
 		if let Some(max) = range.max() {
-			self.push_assert(expr.clone().lte(max.into()), None)
+			self.push_assert(expr.clone().lte(max.into()), format!("value is more than {max}!"))
 		}
 	}
 
@@ -280,7 +280,7 @@ pub enum Stmt {
 	LocalTuple(Vec<String>, Option<Expr>),
 	Assign(Var, Expr),
 	Error(String),
-	Assert(Expr, Option<String>),
+	Assert(Expr, String),
 
 	Call(Var, Option<String>, Vec<Expr>),
 
