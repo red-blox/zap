@@ -103,11 +103,14 @@ impl Des<'_> {
 					self.push_assign(into, self.readstring(len.into()));
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
+					let (len_numty, len_offset) = range.numty();
 
-					self.push_local(
-						len_name.clone(),
-						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
-					);
+					let mut offset_len_expr = self.readnumty(len_numty);
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
+					}
+
+					self.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
@@ -122,10 +125,14 @@ impl Des<'_> {
 					self.push_read_copy(into, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
-					self.push_local(
-						len_name.clone(),
-						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
-					);
+					let (len_numty, len_offset) = range.numty();
+
+					let mut offset_len_expr = self.readnumty(len_numty);
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
+					}
+
+					self.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
@@ -151,11 +158,14 @@ impl Des<'_> {
 					self.push_stmt(Stmt::End);
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
+					let (len_numty, len_offset) = range.numty();
 
-					self.push_local(
-						len_name.clone(),
-						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
-					);
+					let mut offset_len_expr = self.readnumty(len_numty);
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
+					}
+
+					self.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
@@ -247,7 +257,7 @@ impl Des<'_> {
 									Some("IsA".into()),
 									vec![Expr::Str(class.unwrap().into())],
 								)),
-								None,
+								format!("received instance is not of the {} class!", class.unwrap()),
 							)
 						}
 					}
@@ -367,7 +377,7 @@ impl Des<'_> {
 
 				// always assert non-optional instances as roblox
 				// will sometimes vaporize them
-				self.push_assert(into_expr.clone().neq(Expr::Nil), None);
+				self.push_assert(into_expr.clone().neq(Expr::Nil), "received instance is nil!".into());
 
 				if self.checks && class.is_some() {
 					self.push_assert(
@@ -376,7 +386,7 @@ impl Des<'_> {
 							Some("IsA".into()),
 							vec![Expr::Str(class.unwrap().into())],
 						),
-						None,
+						format!("received instance is not of the {} class!", class.unwrap()),
 					)
 				}
 			}
