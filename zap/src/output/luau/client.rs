@@ -733,35 +733,9 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("buffer.write{}(outgoing_buff, outgoing_apos, {id})", num_ty));
 	}
 
-	fn push_get_order_id(&mut self, id: usize) {
-		self.push_line(&format!("local order_id = outgoing_ids[{id}]"));
-		self.push_line(&format!(
-			"if order_id and order_id <= {} then",
-			UNRELIABLE_ORDER_NUMTY.max()
-		));
-		self.indent();
-		self.push_line(&format!("outgoing_ids[{id}] += 1"));
-		self.dedent();
-		self.push_line("else");
-		self.indent();
-		self.push_line(&format!("outgoing_ids[{id}] = 1"));
-		self.push_line("order_id = 0");
-		self.dedent();
-		self.push_line("end");
-	}
-
-	fn push_write_order_id(&mut self) {
-		self.push_line(&format!("alloc({})", UNRELIABLE_ORDER_NUMTY.size()));
-		self.push_line(&format!(
-			"buffer.write{UNRELIABLE_ORDER_NUMTY}(outgoing_buff, outgoing_apos, order_id)"
-		));
-	}
-
 	fn push_write_evdecl_event_id(&mut self, ev: &EvDecl) {
-		match ev.evty {
-			EvType::Reliable => self.push_write_event_id(ev.id),
-			EvType::Unreliable(true) => self.push_get_order_id(ev.id),
-			EvType::Unreliable(false) => {}
+		if ev.evty == EvType::Reliable {
+			self.push_write_event_id(ev.id);
 		}
 	}
 
@@ -801,15 +775,35 @@ impl<'src> ClientOutput<'src> {
 		self.push(")\n");
 		self.indent();
 
-		self.push_write_evdecl_event_id(ev);
-
 		if let EvType::Unreliable(ordered) = ev.evty {
+			let id = ev.id;
+			if ordered {
+				self.push_line(&format!("local order_id = outgoing_ids[{id}]"));
+				self.push_line(&format!(
+					"if order_id and order_id <= {} then",
+					UNRELIABLE_ORDER_NUMTY.max()
+				));
+				self.indent();
+				self.push_line(&format!("outgoing_ids[{id}] += 1"));
+				self.dedent();
+				self.push_line("else");
+				self.indent();
+				self.push_line(&format!("outgoing_ids[{id}] = 1"));
+				self.push_line("order_id = 0");
+				self.dedent();
+				self.push_line("end");
+			}
 			self.push_line("local saved = save()");
 			self.push_line("load_empty()");
 			if ordered {
-				self.push_write_order_id();
+				self.push_line(&format!("alloc({})", UNRELIABLE_ORDER_NUMTY.size()));
+				self.push_line(&format!(
+					"buffer.write{UNRELIABLE_ORDER_NUMTY}(outgoing_buff, outgoing_apos, order_id)"
+				));
 			}
 		}
+
+		self.push_write_evdecl_event_id(ev);
 
 		if !ev.data.is_empty() {
 			let statements = &ser::gen(
