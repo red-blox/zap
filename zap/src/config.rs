@@ -250,8 +250,8 @@ impl<'src> Ty<'src> {
 					(
 						ty_min * len_min + len_numty.size(),
 						ty_max
-							.and_then(|ty_max| len.max().map(|max| (ty_max, max as usize)))
-							.map(|(ty_max, max)| ty_max * max + len_numty.size()),
+							.zip(len.max())
+							.map(|(ty_max, max)| ty_max * max as usize + len_numty.size()),
 					)
 				}
 			}
