@@ -217,7 +217,7 @@ impl<'src> Ty<'src> {
 				if let Some(exact) = len.exact() {
 					(exact as usize, Some(exact as usize))
 				} else {
-					let len_numty = len.numty().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
+					let (len_numty, ..) = len.numty();
 
 					(
 						len.min().map(|min| min as usize).unwrap_or(0) + len_numty.size(),
@@ -230,7 +230,7 @@ impl<'src> Ty<'src> {
 				if let Some(exact) = len.exact() {
 					(exact as usize, Some(exact as usize))
 				} else {
-					let len_numty = len.numty().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
+					let (len_numty, ..) = len.numty();
 
 					(
 						len.min().map(|min| min as usize).unwrap_or(0) + len_numty.size(),
@@ -242,7 +242,7 @@ impl<'src> Ty<'src> {
 			Self::Arr(ty, len) => {
 				let (ty_min, ty_max) = ty.size(tydecls, recursed);
 				let len_min = len.min().map(|min| min as usize).unwrap_or(0);
-				let len_numty = len.numty().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
+				let (len_numty, ..) = len.numty();
 
 				if let Some(exact) = len.exact() {
 					(ty_min * (exact as usize), ty_max.map(|max| ty_max.unwrap() * max))
@@ -432,9 +432,9 @@ impl Range {
 		}
 	}
 
-	pub fn numty(&self) -> Option<(NumTy, f64)> {
+	pub fn numty(&self) -> (NumTy, f64) {
 		let min = self.min.unwrap_or(0.0);
-		let max = self.max?;
+		let Some(max) = self.max else { return (NumTy::U16, 0.0) };
 
 		let (min, max, offset) = if min > 0.0 {
 			(0.0, max - min, min)
@@ -442,7 +442,7 @@ impl Range {
 			(min, max, 0.0)
 		};
 
-		Some((NumTy::from_f64(min, max), offset))
+		(NumTy::from_f64(min, max), offset)
 	}
 }
 
