@@ -650,7 +650,7 @@ impl<'a> ServerOutput<'a> {
 		match ev.evty {
 			EvType::Reliable => self.push_write_event_id(ev.id),
 			EvType::Unreliable(true) => self.push_alloc_order_id(),
-			_ => {}
+			EvType::Unreliable(false) => {}
 		}
 	}
 
