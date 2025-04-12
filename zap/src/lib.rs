@@ -12,7 +12,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use codespan_reporting::{
 	diagnostic::Severity,
 	files::SimpleFile,
-	term::{self, termcolor::NoColor},
+	term::{self, termcolor::Buffer},
 };
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -100,10 +100,14 @@ pub fn run(input: &str, no_warnings: bool) -> Return {
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn run(input: &str, no_warnings: bool) -> Return {
+pub fn run(input: &str, no_warnings: bool, ansi_output_supported: bool) -> Return {
 	let (config, reports) = parser::parse(input);
 
-	let mut writer = NoColor::new(Vec::new());
+	let mut writer = if ansi_output_supported {
+		Buffer::ansi()
+	} else {
+		Buffer::no_color()
+	};
 
 	let file = SimpleFile::new("input.zap", input);
 	let term_config = term::Config::default();

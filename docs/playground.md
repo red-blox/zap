@@ -21,11 +21,9 @@
 
 <PluginTabs sharedStateKey="outputTab">
 	<PluginTabsTab :label="!compiledResult.code ? 'Errors' : 'Warnings'" v-if="compiledResult.diagnostics">
-		<CodeBlock
-			:code="compiledResult.diagnostics"
-			lang="text"
-			:isCodeBlock="false"
-		/>
+		<pre>
+			<Ansi class="ansi monaco-component" useClasses>{{ compiledResult.diagnostics }}</Ansi>
+		</pre>
 	</PluginTabsTab>
 	<PluginTabsTab label="Client" v-if="compiledResult.code">
 		<CodeBlock
@@ -83,6 +81,7 @@
 <script setup lang="ts">
 import MonacoEditor from "@guolao/vue-monaco-editor";
 import type { Monaco } from "@monaco-editor/loader";
+import Ansi from "ansi-to-vue3";
 import { useData, useRouter } from "vitepress";
 import { ref, watch, onMounted } from "vue";
 import { run } from "../zap/package";
@@ -130,7 +129,7 @@ const clamp = (number, min, max) => Math.max(min, Math.min(number, max));
 
 watch([code, noWarnings], ([newCode, noWarnings]) => {
 	try {
-		compiledResult.value = run(newCode, noWarnings);
+		compiledResult.value = run(newCode, noWarnings, true);
 
 		if (compiledResult.value.code?.client.defs && compiledResult.value.code?.server.defs) {
 			isTypeScript.value = true
@@ -189,8 +188,31 @@ const toggleNoWarnings = () => {
 .button span {
 	margin-right: 8px
 }
-
 .button:hover {
 	transform: scale(1.1)
+}
+
+.ansi {
+	display: block;
+	padding: 0px 16px;
+	font-size: 12px;
+}
+.ansi-bold {
+	font-weight: bold
+}
+.ansi-yellow-fg {
+	color: var(--vscode-charts-yellow)
+}
+.ansi-blue-fg {
+	color: var(--vscode-charts-blue)
+}
+.ansi-red-fg {
+	color: var(--vscode-charts-red)
+}
+.ansi-bright-yellow-fg {
+	color: var(--vscode-editorWarning-foreground)
+}
+.ansi-bright-red-fg {
+	color: var(--vscode-editorError-foreground)
 }
 </style>

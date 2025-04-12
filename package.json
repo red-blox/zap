@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "@guolao/vue-monaco-editor": "1.5.5",
+    "ansi-to-vue3": "0.1.2",
     "monaco-editor": "0.52.2",
     "vite-plugin-wasm": "3.4.1",
     "vitepress": "1.6.3",
