@@ -127,10 +127,7 @@ jobs:
           echo "PROJECT_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
           echo "Version is: ${{ env.PROJECT_VERSION }}"
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - uses: oven-sh/setup-bun@v2
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1

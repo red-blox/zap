@@ -18,10 +18,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: yarn
+      - uses: oven-sh/setup-bun@v2
       - name: Get latest zap release
         uses: robinraju/release-downloader@v1
         with:
@@ -31,9 +28,9 @@ jobs:
       - name: Extract file
         run: tar -xvzf staging/zap-*-wasm.tgz -C zap
       - name: Install Dependencies
-        run: yarn install --frozen-lockfile --force
+        run: bun install --frozen-lockfile --force
       - name: Build
-        run: yarn docs:build
+        run: bun docs:build
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
