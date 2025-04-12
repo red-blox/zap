@@ -240,29 +240,27 @@ impl Des<'_> {
 			Ty::Opt(ty) => {
 				self.push_stmt(Stmt::If(self.readu8().eq(1.0.into())));
 
-				match **ty {
-					Ty::Instance(class) => {
-						self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
-						self.push_assign(
-							into.clone(),
-							Var::from("incoming_inst")
-								.eindex(Var::from("incoming_ipos").into())
-								.into(),
-						);
+				if let Ty::Instance(class) = **ty {
+					self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
+					self.push_assign(
+						into.clone(),
+						Var::from("incoming_inst")
+							.eindex(Var::from("incoming_ipos").into())
+							.into(),
+					);
 
-						if self.checks && class.is_some() {
-							self.push_assert(
-								into_expr.clone().eq(Expr::Nil).or(Expr::Call(
-									Box::new(into.clone()),
-									Some("IsA".into()),
-									vec![Expr::Str(class.unwrap().into())],
-								)),
-								format!("received instance is not of the {} class!", class.unwrap()),
-							)
-						}
+					if self.checks && class.is_some() {
+						self.push_assert(
+							into_expr.clone().eq(Expr::Nil).or(Expr::Call(
+								Box::new(into.clone()),
+								Some("IsA".into()),
+								vec![Expr::Str(class.unwrap().into())],
+							)),
+							format!("received instance is not of the {} class!", class.unwrap()),
+						)
 					}
-
-					_ => self.push_ty(ty, into.clone()),
+				} else {
+					self.push_ty(ty, into.clone())
 				}
 
 				self.push_stmt(Stmt::Else);
@@ -391,7 +389,6 @@ impl Des<'_> {
 				}
 			}
 
-			// unknown is always an opt
 			Ty::Unknown => {
 				self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
 				self.push_assign(
