@@ -373,7 +373,7 @@ impl Ser<'_> {
 				self.push_stmt(Stmt::Else);
 				if let Some(unknown_i) = unknown_i {
 					self.push_writenumty(Expr::from(unknown_i as f64), *discriminant_numty);
-					self.push_ty(&Ty::Opt(Box::new(Ty::Unknown)), from.clone());
+					self.push_ty(&Ty::Unknown, from.clone());
 				} else {
 					self.push_stmt(Stmt::Error("Invalid type".into()));
 				}

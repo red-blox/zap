@@ -252,16 +252,6 @@ impl Des<'_> {
 						}
 					}
 
-					Ty::Unknown => {
-						self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
-						self.push_assign(
-							into.clone(),
-							Var::from("incoming_inst")
-								.eindex(Var::from("incoming_ipos").into())
-								.into(),
-						);
-					}
-
 					_ => self.push_ty(ty, into.clone()),
 				}
 
@@ -300,6 +290,7 @@ impl Des<'_> {
 
 				for ty in or_tys {
 					let i = i_offset;
+					let mut is_unknown = false;
 
 					match ty.primitive_ty() {
 						PrimitiveTy::Enum(Enum::Unit(variants)) => {
@@ -341,6 +332,9 @@ impl Des<'_> {
 
 							continue;
 						}
+						PrimitiveTy::Unknown => {
+							is_unknown = true;
+						}
 						_ => {}
 					}
 
@@ -354,7 +348,7 @@ impl Des<'_> {
 						self.push_stmt(Stmt::ElseIf(condition));
 					}
 
-					self.push_ty(ty, into.clone());
+					self.push_ty(if is_unknown { &Ty::Unknown } else { ty }, into.clone());
 				}
 
 				self.push_stmt(Stmt::Else);
@@ -388,7 +382,15 @@ impl Des<'_> {
 			}
 
 			// unknown is always an opt
-			Ty::Unknown => unreachable!(),
+			Ty::Unknown => {
+				self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
+				self.push_assign(
+					into.clone(),
+					Var::from("incoming_inst")
+						.eindex(Var::from("incoming_ipos").into())
+						.into(),
+				);
+			}
 
 			Ty::BrickColor => self.push_assign(
 				into,

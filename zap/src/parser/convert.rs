@@ -760,7 +760,7 @@ impl<'src> Converter<'src> {
 					_ => Ordering::Equal,
 				});
 
-				Ty::Or(
+				let ty = Ty::Or(
 					tys,
 					NumTy::from_f64(
 						0.0,
@@ -769,7 +769,13 @@ impl<'src> Converter<'src> {
 							+ used_variants.len() + prev_unknown_span.is_some() as usize
 							- 1) as f64,
 					),
-				)
+				);
+
+				if prev_unknown_span.is_some() {
+					Ty::Opt(Box::new(ty))
+				} else {
+					ty
+				}
 			}
 		}
 	}

@@ -1,0 +1,25 @@
+---
+source: zap/tests/selene/mod.rs
+expression: server_diagnostics
+input_file: zap/tests/files/or_complex.zap
+---
+[
+    CheckerDiagnostic {
+        diagnostic: Diagnostic {
+            code: "incorrect_standard_library_use",
+            message: "standard library function `assert` requires 2 parameters, 1 passed",
+            notes: [
+                "A failed assertion without a message is unhelpful to users.",
+            ],
+            primary_label: Label {
+                message: None,
+                range: (
+                    5690,
+                    5710,
+                ),
+            },
+            secondary_labels: [],
+        },
+        severity: Error,
+    },
+]
