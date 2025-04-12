@@ -302,7 +302,9 @@ impl<'src> Ty<'src> {
 
 					if let Some(ty_max) = ty_max {
 						if let Some(current_max) = max {
-							max = Some(ty_max + current_max);
+							if ty_max > current_max {
+								max = Some(ty_max);
+							}
 						}
 					} else {
 						max = None;
