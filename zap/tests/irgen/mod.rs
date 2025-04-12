@@ -396,7 +396,7 @@ async fn test_or_complex() {
 	assert!(config.is_some());
 	assert!(reports.is_empty());
 
-	let default_value = r#"{ test = "a", b: 127 }"#;
+	let default_value = r#"{ test = "a", b = 127 }"#;
 
 	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("Test", vec![default_value])]);
 	let output = TestOutput::new(&config.unwrap(), default_values).output();
