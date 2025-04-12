@@ -14,7 +14,7 @@ crate-type = ["lib", "cdylib"]
 lalrpop = "0.22.0"
 
 [dependencies]
-codespan-reporting = "0.11.0"
+codespan-reporting = "0.12.0"
 lalrpop-util = "0.22.0"
 num-traits = "0.2.17"
 wasm-bindgen = "0.2"

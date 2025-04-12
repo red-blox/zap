@@ -540,7 +540,7 @@ version = "0.6.19"
 dependencies = [
  "anyhow",
  "clap",
- "codespan-reporting",
+ "codespan-reporting 0.12.0",
  "zap",
 ]
 
@@ -568,7 +568,7 @@ version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3362992a0d9f1dd7c3d0e89e0ab2bb540b7a95fea8cd798090e758fda2899b5e"
 dependencies = [
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
 ]
 
 [[package]]
@@ -579,6 +579,17 @@ checksum = "3538270d33cc669650c4b093848450d380def10c331d38c768e34cac80576e6e"
 dependencies = [
  "termcolor",
  "unicode-width 0.1.11",
+]
+
+[[package]]
+name = "codespan-reporting"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe6d2e5af09e8c8ad56c969f2157a3d4238cebc7c55f0a517728c38f7b200f81"
+dependencies = [
+ "serde",
+ "termcolor",
+ "unicode-width 0.2.0",
 ]
 
 [[package]]
@@ -3025,7 +3036,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed0b52d775c95521cd77fdc81841cb47888dc69abb6408e8fe1fa1633168005e"
 dependencies = [
  "codespan",
- "codespan-reporting",
+ "codespan-reporting 0.11.1",
  "full_moon",
  "id-arena",
  "if_chain",
@@ -4318,7 +4329,7 @@ name = "zap"
 version = "0.6.19"
 dependencies = [
  "anyhow",
- "codespan-reporting",
+ "codespan-reporting 0.12.0",
  "full_moon",
  "insta",
  "lalrpop",
