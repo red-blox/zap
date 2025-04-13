@@ -95,7 +95,6 @@ impl Des<'_> {
 
 		for ty in tys {
 			let i = i_offset;
-			let mut is_unknown = false;
 
 			match ty.primitive_ty() {
 				PrimitiveTy::Enum(Enum::Unit(variants)) => {
@@ -112,8 +111,6 @@ impl Des<'_> {
 
 						self.push_assign(into.clone(), Expr::Str(variant.to_string()));
 					}
-
-					continue;
 				}
 				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
 					i_offset += variants.len();
@@ -134,26 +131,35 @@ impl Des<'_> {
 						);
 						self.push_struct(&data, into.clone());
 					}
-
-					continue;
 				}
 				PrimitiveTy::Unknown => {
-					is_unknown = true;
+					i_offset += 1;
+
+					let condition = into_ty_i_expr.clone().eq((i as f64).into());
+					if initial_if {
+						self.push_stmt(Stmt::If(condition));
+						initial_if = false;
+					} else {
+						self.push_stmt(Stmt::ElseIf(condition));
+					}
+
+					self.push_ty(&Ty::Unknown, into.clone());
 				}
-				_ => {}
-			}
+				PrimitiveTy::None(..) => unreachable!(),
+				_ => {
+					i_offset += 1;
 
-			i_offset += 1;
+					let condition = into_ty_i_expr.clone().eq((i as f64).into());
+					if initial_if {
+						self.push_stmt(Stmt::If(condition));
+						initial_if = false;
+					} else {
+						self.push_stmt(Stmt::ElseIf(condition));
+					}
 
-			let condition = into_ty_i_expr.clone().eq((i as f64).into());
-			if initial_if {
-				self.push_stmt(Stmt::If(condition));
-				initial_if = false;
-			} else {
-				self.push_stmt(Stmt::ElseIf(condition));
-			}
-
-			self.push_ty(if is_unknown { &Ty::Unknown } else { ty }, into.clone());
+					self.push_ty(ty, into.clone());
+				}
+			};
 		}
 
 		if optional {

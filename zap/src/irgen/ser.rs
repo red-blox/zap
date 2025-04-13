@@ -103,18 +103,43 @@ impl Ser<'_> {
 		for ty in tys {
 			let i = i_offset;
 
-			let condition = match ty.primitive_ty() {
-				PrimitiveTy::Name(name) => from_ty_expr.clone().eq(Expr::Str(name.to_string())),
+			match ty.primitive_ty() {
+				PrimitiveTy::Name(name) => {
+					i_offset += 1;
+
+					let condition = from_ty_expr.clone().eq(Expr::Str(name.to_string()));
+
+					if initial_if {
+						self.push_stmt(Stmt::If(condition));
+						initial_if = false;
+					} else {
+						self.push_stmt(Stmt::ElseIf(condition));
+					}
+
+					self.push_writenumty(Expr::from(i as f64), discriminant_numty);
+					self.push_ty(ty, from.clone());
+				}
 				PrimitiveTy::Instance(class) => {
-					let mut cond = from_ty_expr.clone().eq(Expr::Str("Instance".to_string()));
+					i_offset += 1;
+
+					let mut condition = from_ty_expr.clone().eq(Expr::Str("Instance".to_string()));
 					if let Some(class) = class {
-						cond = cond.and(Expr::Call(
+						condition = condition.and(Expr::Call(
 							Box::new(from.clone()),
 							Some("IsA".to_string()),
 							vec![Expr::Str(class.to_string())],
 						))
 					}
-					cond
+
+					if initial_if {
+						self.push_stmt(Stmt::If(condition));
+						initial_if = false;
+					} else {
+						self.push_stmt(Stmt::ElseIf(condition));
+					}
+
+					self.push_writenumty(Expr::from(i as f64), discriminant_numty);
+					self.push_ty(ty, from.clone());
 				}
 				PrimitiveTy::Enum(Enum::Unit(variants)) => {
 					i_offset += variants.len();
@@ -130,8 +155,6 @@ impl Ser<'_> {
 
 						self.push_writenumty(Expr::from((i + offset) as f64), discriminant_numty);
 					}
-
-					continue;
 				}
 				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
 					i_offset += variants.len();
@@ -152,28 +175,13 @@ impl Ser<'_> {
 						self.push_writenumty(Expr::from((i + offset) as f64), discriminant_numty);
 						self.push_struct(&data, from.clone());
 					}
-
-					continue;
 				}
 				PrimitiveTy::Unknown => {
 					unknown_i = Some(i);
 					i_offset += 1;
-					continue;
 				}
 				PrimitiveTy::None(..) => unreachable!(),
 			};
-
-			i_offset += 1;
-
-			if initial_if {
-				self.push_stmt(Stmt::If(condition));
-				initial_if = false;
-			} else {
-				self.push_stmt(Stmt::ElseIf(condition));
-			}
-
-			self.push_writenumty(Expr::from(i as f64), discriminant_numty);
-			self.push_ty(ty, from.clone());
 		}
 
 		if optional {
