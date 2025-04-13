@@ -335,7 +335,7 @@ impl Ser<'_> {
 				let (len_name, len_expr) = self.add_occurrence("len");
 				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
 
-				let length_numty = key.variants_size().unwrap_or(NumTy::U16);
+				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
 				self.push_local(
 					len_pos_name.clone(),
@@ -369,7 +369,7 @@ impl Ser<'_> {
 				let (len_name, len_expr) = self.add_occurrence("len");
 				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
 
-				let length_numty = key.variants_size().unwrap_or(NumTy::U16);
+				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
 				self.push_local(
 					len_pos_name.clone(),

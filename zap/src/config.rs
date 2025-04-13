@@ -265,9 +265,27 @@ impl<'src> Ty<'src> {
 				}
 			}
 
-			Self::Map(..) => (self.variants_size().unwrap_or(NumTy::U16).size(), None),
+			Self::Map(k, v) => {
+				if let Some((variants_numty, variants)) = k.variants() {
+					(
+						variants_numty.size(),
+						v.size(recursed).1.map(|size| variants * size + variants_numty.size()),
+					)
+				} else {
+					(2, None)
+				}
+			}
 
-			Self::Set(..) => (self.variants_size().unwrap_or(NumTy::U16).size(), None),
+			Self::Set(k) => {
+				if let Some((variants_numty, variants)) = k.variants() {
+					(
+						variants_numty.size(),
+						k.size(recursed).1.map(|size| variants * size + variants_numty.size()),
+					)
+				} else {
+					(2, None)
+				}
+			}
 
 			Self::Opt(ty) => {
 				let (_, ty_max) = ty.size(recursed);
@@ -353,14 +371,20 @@ impl<'src> Ty<'src> {
 		}
 	}
 
-	pub fn variants_size(&self) -> Option<NumTy> {
+	pub fn variants(&self) -> Option<(NumTy, usize)> {
 		match self {
 			// note the lack of - 1 here, it's because we need to store 0 length as well.
-			Ty::Enum(Enum::Unit(variants)) => Some(NumTy::from_f64(0.0, variants.len() as f64)),
-			Ty::Enum(Enum::Tagged { variants, .. }) => Some(NumTy::from_f64(0.0, variants.len() as f64)),
-			Ty::Ref(.., ty) => ty.variants_size(),
+			Ty::Enum(Enum::Unit(variants)) => Some(variants.len()),
+			Ty::Enum(Enum::Tagged { variants, .. }) => Some(variants.len()),
+			Ty::Num(num, ..) if matches!(num, NumTy::U8 | NumTy::U16 | NumTy::I8 | NumTy::I16) => {
+				Some((num.min().abs() + num.max()) as usize + 1)
+			}
+			// prevent an increase from u16 on previous versions to u32
+			Ty::Num(num, ..) => return Some((NumTy::U16, (num.min().abs() + num.max()) as usize + 1)),
+			Ty::Ref(.., ty) => return ty.variants(),
 			_ => None,
 		}
+		.map(|variants| (NumTy::from_f64(0.0, variants as f64), variants))
 	}
 
 	pub fn primitive_ty(&self) -> PrimitiveTy<'src> {

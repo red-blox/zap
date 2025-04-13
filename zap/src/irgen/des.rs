@@ -279,7 +279,7 @@ impl Des<'_> {
 			}
 
 			Ty::Map(key, val) => {
-				let length_numty = key.variants_size().unwrap_or(NumTy::U16);
+				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
@@ -303,7 +303,7 @@ impl Des<'_> {
 			}
 
 			Ty::Set(key) => {
-				let length_numty = key.variants_size().unwrap_or(NumTy::U16);
+				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
