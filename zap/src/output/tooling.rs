@@ -169,11 +169,11 @@ impl<'src> ToolingOutput<'src> {
 
 		if self.config.tooling_show_internal_data {
 			self.push(&format!(
-				"{{ {} = id,{} }}, ",
+				"{{ {} = id{} }}, ",
 				self.config.casing.with("EventId", "eventId", "event_id"),
 				if let EvType::Unreliable(true) = ev.evty {
 					format!(
-						" {} = order_id",
+						", {} = order_id",
 						self.config.casing.with("OrderId", "orderId", "order_id")
 					)
 				} else {
