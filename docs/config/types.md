@@ -217,8 +217,7 @@ CFrames are orthonormalized when sent. If you need to send a CFrame that is not 
 :::
 
 ### Aligned CFrames
-
-When you know that a CFrame is going to be axis-aligned, it is preferrable to use the `AlignedCFrame` type.
+When you know that a CFrame is going to be axis-aligned, it is preferrable to use the `AlignedCFrame` type. 
 
 It uses much less bandwidth, as the rotation can just be represented as a single byte Enum of the possible axis aligned rotations.
 
@@ -231,7 +230,6 @@ If the CFrame is not axis aligned then Zap will throw an error, so make sure to 
 :::
 
 Here are some examples of axis-aligned CFrames.
-
 ```lua
 local CFrameSpecialCases = {
 	CFrame.Angles(0, 0, 0),
