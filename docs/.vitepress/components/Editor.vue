@@ -110,7 +110,7 @@ const beforeMount = (monaco: Monaco) => {
 
 	const Locations = ["Server", "Client"] as const;
 
-	const Brand = ["Reliable", "Unreliable"] as const;
+	const Brand = ["Reliable", "Unreliable", "OrderedUnreliable"] as const;
 
 	const Calls = ["SingleSync", "SingleAsync", "ManySync", "ManyAsync", "Polling"] as const;
 
