@@ -139,6 +139,11 @@ impl<'src> ToolingOutput<'src> {
 
 	fn push_event_callback(&mut self, ev: &EvDecl) {
 		let values = get_unnamed_values("value", ev.data.len());
+		let id = match ev.evty {
+			EvType::Reliable => "id".to_string(),
+			// unreliable events are infered from the RemoteEvent rather than the deserialised event value
+			EvType::Unreliable(_) => ev.id.to_string(),
+		};
 
 		if let EvType::Unreliable(true) = ev.evty {
 			self.push_line(&format!(
@@ -169,17 +174,18 @@ impl<'src> ToolingOutput<'src> {
 
 		if self.config.tooling_show_internal_data {
 			self.push(&format!(
-				"{{ {} = id{} }}, ",
+				"{{ {} = {id}",
 				self.config.casing.with("EventId", "eventId", "event_id"),
-				if let EvType::Unreliable(true) = ev.evty {
-					format!(
-						", {} = order_id",
-						self.config.casing.with("OrderId", "orderId", "order_id")
-					)
-				} else {
-					"".into()
-				}
 			));
+
+			if let EvType::Unreliable(true) = ev.evty {
+				self.push(&format!(
+					", {} = order_id",
+					self.config.casing.with("OrderId", "orderId", "order_id")
+				))
+			}
+
+			self.push(" }, ");
 		}
 
 		self.push(&format!("{} }}", values.join(", ")));
