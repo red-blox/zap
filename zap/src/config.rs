@@ -1,7 +1,4 @@
-use std::{
-	collections::{HashMap, HashSet},
-	fmt::Display,
-};
+use std::{collections::HashSet, fmt::Display};
 
 pub const UNRELIABLE_ORDER_NUMTY: NumTy = NumTy::U16;
 
@@ -183,10 +180,11 @@ pub enum Ty<'src> {
 	Map(Box<Ty<'src>>, Box<Ty<'src>>),
 	Set(Box<Ty<'src>>),
 	Opt(Box<Ty<'src>>),
-	Ref(&'src str, Option<NumTy>),
+	Ref(&'src str, Box<Ty<'src>>),
 
 	Enum(Enum<'src>),
 	Struct(Struct<'src>),
+	Or(Vec<Ty<'src>>, NumTy),
 	Instance(Option<&'src str>),
 
 	BrickColor,
@@ -201,17 +199,28 @@ pub enum Ty<'src> {
 	Unknown,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum NonPrimitiveTy {
+	Opt,
+	Or,
+}
+
+#[derive(Debug, Clone)]
+pub enum PrimitiveTy<'src> {
+	Name(&'static str),
+	Instance(Option<&'src str>),
+	Enum(Enum<'src>),
+	Unknown,
+	None(NonPrimitiveTy),
+}
+
 impl<'src> Ty<'src> {
 	/// Returns the amount of data used by this type in bytes.
 	///
 	/// Note that this is not the same as the size of the type in the buffer.
 	/// For example, an `Instance` will always send 4 bytes of data, but the
 	/// size of the type in the buffer will be 0 bytes.
-	pub fn size(
-		&self,
-		tydecls: &HashMap<&'src str, &Ty<'src>>,
-		recursed: &mut HashSet<&'src str>,
-	) -> (usize, Option<usize>) {
+	pub fn size(&self, recursed: &mut HashSet<&'src str>) -> (usize, Option<usize>) {
 		match self {
 			Self::Num(numty, ..) => (numty.size(), Some(numty.size())),
 
@@ -219,11 +228,11 @@ impl<'src> Ty<'src> {
 				if let Some(exact) = len.exact() {
 					(exact as usize, Some(exact as usize))
 				} else {
-					let len_size = len.numty().unwrap_or(NumTy::U16).size();
+					let (len_numty, ..) = len.numty();
 
 					(
-						len.min().map(|min| min as usize).unwrap_or(0) + len_size,
-						len.max().map(|max| (max as usize) + len_size),
+						len.min().map(|min| min as usize).unwrap_or(0) + len_numty.size(),
+						len.max().map(|max| max as usize + len_numty.size()),
 					)
 				}
 			}
@@ -232,29 +241,29 @@ impl<'src> Ty<'src> {
 				if let Some(exact) = len.exact() {
 					(exact as usize, Some(exact as usize))
 				} else {
-					let len_size = len.numty().unwrap_or(NumTy::U16).size();
+					let (len_numty, ..) = len.numty();
 
 					(
-						len.min().map(|min| min as usize).unwrap_or(0) + len_size,
-						len.max().map(|max| (max as usize) + len_size),
+						len.min().map(|min| min as usize).unwrap_or(0) + len_numty.size(),
+						len.max().map(|max| max as usize + len_numty.size()),
 					)
 				}
 			}
 
 			Self::Arr(ty, len) => {
-				let (ty_min, ty_max) = ty.size(tydecls, recursed);
+				let (ty_min, ty_max) = ty.size(recursed);
 				let len_min = len.min().map(|min| min as usize).unwrap_or(0);
-				let len_size = len.numty().unwrap_or(NumTy::U16).size();
+				let (len_numty, ..) = len.numty();
 
 				if let Some(exact) = len.exact() {
-					(ty_min * (exact as usize), ty_max.map(|max| ty_max.unwrap() * max))
-				} else if let Some(len_max) = len.max() {
-					(
-						ty_min * len_min + len_size,
-						ty_max.map(|ty_max| ty_max * (len_max as usize) + len_size),
-					)
+					(ty_min * (exact as usize), ty_max.map(|max| max * exact as usize))
 				} else {
-					(ty_min * len_min + len_size, None)
+					(
+						ty_min * len_min + len_numty.size(),
+						ty_max
+							.zip(len.max())
+							.map(|(ty_max, max)| ty_max * max as usize + len_numty.size()),
+					)
 				}
 			}
 
@@ -263,12 +272,12 @@ impl<'src> Ty<'src> {
 			Self::Set(..) => (self.variants_size().unwrap_or(NumTy::U16).size(), None),
 
 			Self::Opt(ty) => {
-				let (_, ty_max) = ty.size(tydecls, recursed);
+				let (_, ty_max) = ty.size(recursed);
 
 				(1, ty_max.map(|ty_max| ty_max + 1))
 			}
 
-			Self::Ref(name, ..) => {
+			Self::Ref(name, tydecl) => {
 				if recursed.contains(name) {
 					// 0 is returned here because all valid recursive types are
 					// bounded and all bounded types have their own min size
@@ -276,14 +285,39 @@ impl<'src> Ty<'src> {
 				} else {
 					recursed.insert(name);
 
-					let tydecl = tydecls.get(name).unwrap();
-
-					tydecl.size(tydecls, recursed)
+					tydecl.size(recursed)
 				}
 			}
 
-			Self::Enum(enum_ty) => enum_ty.size(tydecls, recursed),
-			Self::Struct(struct_ty) => struct_ty.size(tydecls, recursed),
+			Self::Enum(enum_ty) => enum_ty.size(recursed),
+			Self::Struct(struct_ty) => struct_ty.size(recursed),
+			Self::Or(or_tys, discriminant_numty) => {
+				let mut min = 0;
+				let mut max = Some(0usize);
+
+				for ty in or_tys {
+					let (ty_min, ty_max) = ty.size(recursed);
+
+					if ty_min < min {
+						min = ty_min;
+					}
+
+					if let Some(ty_max) = ty_max {
+						if let Some(current_max) = max {
+							if ty_max > current_max {
+								max = Some(ty_max);
+							}
+						}
+					} else {
+						max = None;
+					}
+				}
+
+				(
+					min + discriminant_numty.size(),
+					max.map(|max| max + discriminant_numty.size()),
+				)
+			}
 
 			Self::Instance(_) => (4, Some(4)),
 
@@ -326,8 +360,37 @@ impl<'src> Ty<'src> {
 			// note the lack of - 1 here, it's because we need to store 0 length as well.
 			Ty::Enum(Enum::Unit(variants)) => Some(NumTy::from_f64(0.0, variants.len() as f64)),
 			Ty::Enum(Enum::Tagged { variants, .. }) => Some(NumTy::from_f64(0.0, variants.len() as f64)),
-			Ty::Ref(.., variants_size) => *variants_size,
+			Ty::Ref(.., ty) => ty.variants_size(),
 			_ => None,
+		}
+	}
+
+	pub fn primitive_ty(&self) -> PrimitiveTy<'src> {
+		match self {
+			Ty::Arr(..) => PrimitiveTy::Name("table"),
+			Ty::Set(..) => PrimitiveTy::Name("table"),
+			Ty::Map(..) => PrimitiveTy::Name("table"),
+			Ty::Struct(..) => PrimitiveTy::Name("table"),
+			Ty::Num(..) => PrimitiveTy::Name("number"),
+			Ty::Str(..) => PrimitiveTy::Name("string"),
+			Ty::Buf(..) => PrimitiveTy::Name("buffer"),
+			Ty::BrickColor => PrimitiveTy::Name("BrickColor"),
+			Ty::DateTimeMillis => PrimitiveTy::Name("DateTime"),
+			Ty::DateTime => PrimitiveTy::Name("DateTime"),
+			Ty::Boolean => PrimitiveTy::Name("boolean"),
+			Ty::Color3 => PrimitiveTy::Name("Color3"),
+			Ty::Vector2 => PrimitiveTy::Name("Vector2"),
+			Ty::Vector3 => PrimitiveTy::Name("Vector3"),
+			Ty::Vector(..) => PrimitiveTy::Name("Vector3"),
+			Ty::AlignedCFrame => PrimitiveTy::Name("CFrame"),
+			Ty::CFrame => PrimitiveTy::Name("CFrame"),
+			Ty::Instance(class) => PrimitiveTy::Instance(*class),
+			Ty::Enum(r#enum) => PrimitiveTy::Enum(r#enum.clone()),
+			Ty::Ref(.., ty) => ty.primitive_ty(),
+			Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => PrimitiveTy::Unknown,
+			Ty::Unknown => PrimitiveTy::Unknown,
+			Ty::Opt(..) => PrimitiveTy::None(NonPrimitiveTy::Opt),
+			Ty::Or(..) => PrimitiveTy::None(NonPrimitiveTy::Or),
 		}
 	}
 }
@@ -343,11 +406,7 @@ pub enum Enum<'src> {
 }
 
 impl<'src> Enum<'src> {
-	pub fn size(
-		&self,
-		tydecls: &HashMap<&'src str, &Ty<'src>>,
-		recursed: &mut HashSet<&'src str>,
-	) -> (usize, Option<usize>) {
+	pub fn size(&self, recursed: &mut HashSet<&'src str>) -> (usize, Option<usize>) {
 		match self {
 			Self::Unit(enumerators) => {
 				let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
@@ -360,7 +419,7 @@ impl<'src> Enum<'src> {
 				let mut max = Some(0);
 
 				for (_, ty) in variants.iter() {
-					let (ty_min, ty_max) = ty.size(tydecls, recursed);
+					let (ty_min, ty_max) = ty.size(recursed);
 
 					if ty_min < min {
 						min = ty_min;
@@ -389,16 +448,12 @@ pub struct Struct<'src> {
 }
 
 impl<'src> Struct<'src> {
-	pub fn size(
-		&self,
-		tydecls: &HashMap<&'src str, &Ty<'src>>,
-		recursed: &mut HashSet<&'src str>,
-	) -> (usize, Option<usize>) {
+	pub fn size(&self, recursed: &mut HashSet<&'src str>) -> (usize, Option<usize>) {
 		let mut min = 0;
 		let mut max = Some(0);
 
 		for (_, ty) in self.fields.iter() {
-			let (ty_min, ty_max) = ty.size(tydecls, recursed);
+			let (ty_min, ty_max) = ty.size(recursed);
 
 			if ty_min < min {
 				min = ty_min;
@@ -444,8 +499,17 @@ impl Range {
 		}
 	}
 
-	pub fn numty(&self) -> Option<NumTy> {
-		Some(NumTy::from_f64(self.min.unwrap_or(0.0), self.max?))
+	pub fn numty(&self) -> (NumTy, f64) {
+		let min = self.min.unwrap_or(0.0);
+		let Some(max) = self.max else { return (NumTy::U16, 0.0) };
+
+		let (min, max, offset) = if min > 0.0 {
+			(0.0, max - min, min)
+		} else {
+			(min, max, 0.0)
+		};
+
+		(NumTy::from_f64(min, max), offset)
 	}
 }
 

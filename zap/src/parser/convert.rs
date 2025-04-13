@@ -1,8 +1,11 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+	cmp::Ordering,
+	collections::{HashMap, HashSet, VecDeque},
+};
 
 use crate::config::{
-	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NumTy, Parameter, Range, Struct, Ty, TyDecl,
-	YieldType, UNRELIABLE_ORDER_NUMTY,
+	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NonPrimitiveTy, NumTy, Parameter, PrimitiveTy,
+	Range, Struct, Ty, TyDecl, YieldType, UNRELIABLE_ORDER_NUMTY,
 };
 
 use super::{
@@ -59,11 +62,6 @@ impl<'src> Converter<'src> {
 			tydecls.push(self.tydecl(tydecl));
 		}
 
-		let tydecl_hashmap = tydecls
-			.iter()
-			.map(|tydecl| (tydecl.name, &tydecl.ty))
-			.collect::<HashMap<_, _>>();
-
 		for evdecl in config.decls.iter().filter_map(|decl| match decl {
 			SyntaxDecl::Ev(evdecl) => Some(evdecl),
 			_ => None,
@@ -95,7 +93,7 @@ impl<'src> Converter<'src> {
 				},
 			};
 
-			evdecls.push(self.evdecl(evdecl, id, &tydecl_hashmap));
+			evdecls.push(self.evdecl(evdecl, id));
 		}
 
 		for fndecl in config.decls.iter().filter_map(|decl| match decl {
@@ -403,12 +401,7 @@ impl<'src> Converter<'src> {
 		}
 	}
 
-	fn evdecl(
-		&mut self,
-		evdecl: &SyntaxEvDecl<'src>,
-		id: usize,
-		tydecls: &HashMap<&'src str, &Ty<'src>>,
-	) -> EvDecl<'src> {
+	fn evdecl(&mut self, evdecl: &SyntaxEvDecl<'src>, id: usize) -> EvDecl<'src> {
 		if let Some(syntax_parameters) = &evdecl.data {
 			self.check_duplicate_parameters(syntax_parameters);
 		}
@@ -447,7 +440,7 @@ impl<'src> Converter<'src> {
 			let mut max = Some(start_size);
 
 			for parameter in data.as_ref().unwrap() {
-				let (ty_min, ty_max) = parameter.ty.size(tydecls, &mut HashSet::new());
+				let (ty_min, ty_max) = parameter.ty.size(&mut HashSet::new());
 
 				min += ty_min;
 
@@ -653,6 +646,10 @@ impl<'src> Converter<'src> {
 			}
 
 			SyntaxTyKind::Opt(ty) => {
+				if let SyntaxTyKind::Or(tys) = &ty.kind {
+					return self.or_ty(tys, true);
+				}
+
 				let parsed_ty = self.ty(ty);
 
 				if let Ty::Opt(_) = parsed_ty {
@@ -686,12 +683,10 @@ impl<'src> Converter<'src> {
 								name,
 							});
 
-							return Ty::Unknown;
+							return Ty::Ref(name, Box::new(Ty::Opt(Box::new(Ty::Unknown))));
 						};
 
-						let tydecl = self.tydecl(&tydecl);
-
-						Ty::Ref(name, tydecl.ty.variants_size())
+						Ty::Ref(name, Box::new(self.tydecl(&tydecl).ty))
 					}
 				}
 			}
@@ -701,6 +696,8 @@ impl<'src> Converter<'src> {
 			SyntaxTyKind::Struct(struct_ty) => Ty::Struct(self.struct_ty(struct_ty)),
 
 			SyntaxTyKind::Instance(instance_ty) => Ty::Instance(instance_ty.as_ref().map(|ty| ty.name)),
+
+			SyntaxTyKind::Or(or_tys) => self.or_ty(or_tys, false),
 		}
 	}
 
@@ -754,6 +751,93 @@ impl<'src> Converter<'src> {
 		}
 
 		Struct { fields }
+	}
+
+	fn or_ty(&mut self, or_tys: &Vec<SyntaxTy<'src>>, optional: bool) -> Ty<'src> {
+		let mut tys = vec![];
+
+		let mut used_tys = HashMap::new();
+		let mut used_instances = HashMap::new();
+		let mut used_variants = HashMap::new();
+		let mut used_tags_values = HashMap::new();
+		let mut prev_unknown_span = None;
+
+		let mut or_tys = or_tys.iter().collect::<VecDeque<_>>();
+
+		while let Some(syntax_ty) = or_tys.pop_front() {
+			if let SyntaxTyKind::Or(tys) = &syntax_ty.kind {
+				or_tys.extend(tys);
+				continue;
+			}
+
+			let ty = self.ty(syntax_ty);
+
+			let prev_spans: Vec<_> = match ty.primitive_ty() {
+				PrimitiveTy::Name(primitive) => used_tys.insert(primitive, syntax_ty.span()).into_iter().collect(),
+				PrimitiveTy::Instance(class) => used_instances.insert(class, syntax_ty.span()).into_iter().collect(),
+				PrimitiveTy::Enum(Enum::Unit(variants)) => variants
+					.into_iter()
+					.filter_map(|variant| used_variants.insert(variant, syntax_ty.span()))
+					.collect(),
+				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => variants
+					.into_iter()
+					.filter_map(|(variant, _)| used_tags_values.insert((tag, variant), syntax_ty.span()))
+					.collect(),
+				PrimitiveTy::Unknown => prev_unknown_span.replace(syntax_ty.span()).into_iter().collect(),
+				PrimitiveTy::None(NonPrimitiveTy::Opt) => {
+					self.report(Report::AnalyzeOrNestedOptional { span: syntax_ty.span() });
+					continue;
+				}
+				// handled by the nested OR resolution above
+				PrimitiveTy::None(NonPrimitiveTy::Or) => unreachable!(),
+			};
+
+			for prev_span in prev_spans {
+				self.report(Report::AnalyzeOrDuplicateType {
+					prev_span,
+					dup_span: syntax_ty.span(),
+				});
+			}
+
+			tys.push(ty);
+		}
+
+		// reorder the types into:
+		// unit enums
+		// tagged enums
+		// ..
+		// instance (no class)
+		// unknown
+		tys.sort_by(|ty_a, ty_b| match (ty_a.primitive_ty(), ty_b.primitive_ty()) {
+			(PrimitiveTy::Unknown, _) => Ordering::Greater,
+			(_, PrimitiveTy::Unknown) => Ordering::Less,
+			(PrimitiveTy::Instance(None), _) => Ordering::Greater,
+			(_, PrimitiveTy::Instance(None)) => Ordering::Less,
+			(PrimitiveTy::Enum(Enum::Unit(..)), _) => Ordering::Less,
+			(_, PrimitiveTy::Enum(Enum::Unit(..))) => Ordering::Greater,
+			(PrimitiveTy::Enum(Enum::Tagged { .. }), _) => Ordering::Less,
+			(_, PrimitiveTy::Enum(Enum::Tagged { .. })) => Ordering::Greater,
+			_ => Ordering::Equal,
+		});
+
+		let ty = Ty::Or(
+			tys,
+			NumTy::from_f64(
+				0.0,
+				(used_tys.len()
+					+ used_instances.len()
+					+ used_variants.len()
+					+ prev_unknown_span.is_some() as usize
+					+ optional as usize
+					- 1) as f64,
+			),
+		);
+
+		if prev_unknown_span.is_some() || optional {
+			Ty::Opt(Box::new(ty))
+		} else {
+			ty
+		}
 	}
 
 	fn ty_has_unbounded_ref(

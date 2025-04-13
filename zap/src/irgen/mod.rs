@@ -21,7 +21,7 @@ pub trait Gen {
 		self.push_stmt(Stmt::Assign(var, expr))
 	}
 
-	fn push_assert(&mut self, expr: Expr, msg: Option<String>) {
+	fn push_assert(&mut self, expr: Expr, msg: String) {
 		self.push_stmt(Stmt::Assert(expr, msg))
 	}
 
@@ -248,11 +248,11 @@ pub trait Gen {
 
 	fn push_range_check(&mut self, expr: Expr, range: Range) {
 		if let Some(min) = range.min() {
-			self.push_assert(expr.clone().gte(min.into()), None)
+			self.push_assert(expr.clone().gte(min.into()), format!("value is less than {min}!"))
 		}
 
 		if let Some(max) = range.max() {
-			self.push_assert(expr.clone().lte(max.into()), None)
+			self.push_assert(expr.clone().lte(max.into()), format!("value is more than {max}!"))
 		}
 	}
 
@@ -280,7 +280,7 @@ pub enum Stmt {
 	LocalTuple(Vec<String>, Option<Expr>),
 	Assign(Var, Expr),
 	Error(String),
-	Assert(Expr, Option<String>),
+	Assert(Expr, String),
 
 	Call(Var, Option<String>, Vec<Expr>),
 
@@ -373,6 +373,7 @@ pub enum Expr {
 
 	// Arithmetic Binary Operators
 	Add(Box<Expr>, Box<Expr>),
+	Sub(Box<Expr>, Box<Expr>),
 	Mul(Box<Expr>, Box<Expr>),
 }
 
@@ -419,6 +420,10 @@ impl Expr {
 
 	pub fn add(self, other: Self) -> Self {
 		Self::Add(Box::new(self), Box::new(other))
+	}
+
+	pub fn sub(self, other: Self) -> Self {
+		Self::Sub(Box::new(self), Box::new(other))
 	}
 }
 
@@ -508,6 +513,7 @@ impl Display for Expr {
 			Self::Eq(lhs, rhs) => write!(f, "{} == {}", lhs, rhs),
 
 			Self::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
+			Self::Sub(lhs, rhs) => write!(f, "{} - {}", lhs, rhs),
 			Self::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
 		}
 	}

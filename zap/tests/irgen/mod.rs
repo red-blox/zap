@@ -132,7 +132,9 @@ impl<'src> TestOutput<'src> {
 		self.push_stmts(&des_statements);
 
 		for (ser_name, des_name) in ser_names.iter().zip(des_names.iter()) {
-			self.push_line(&format!("assert(deepEquals({ser_name}, {des_name}))"));
+			self.push_line(&format!(
+				r#"assert(deepEquals({ser_name}, {des_name}), "deserialised value differs from original!")"#
+			));
 		}
 
 		self.dedent();
@@ -349,6 +351,54 @@ async fn test_tagged_enum_quoted() {
 	}"#;
 
 	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("MyEvent", vec![default_value])]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_or_simple() {
+	let (config, reports) = parse(include_str!("../files/or_simple.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_value = r#""hello world""#;
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("MyEvent", vec![default_value])]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_or_unknown() {
+	let (config, reports) = parse(include_str!("../files/or_unknown.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_value = r#"buffer.create(64)"#;
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("MyEvent", vec![default_value])]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_or_complex() {
+	let (config, reports) = parse(include_str!("../files/or_complex.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_value = r#"{ test = "a", b = 127 }"#;
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("Test", vec![default_value])]);
 	let output = TestOutput::new(&config.unwrap(), default_values).output();
 	let mut runtime = Runtime::new();
 

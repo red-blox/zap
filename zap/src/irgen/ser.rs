@@ -1,4 +1,4 @@
-use crate::config::{Enum, NumTy, Struct, Ty};
+use crate::config::{Enum, NumTy, PrimitiveTy, Struct, Ty};
 use std::collections::HashMap;
 
 use super::{Expr, Gen, Stmt, Var};
@@ -84,6 +84,121 @@ impl Ser<'_> {
 		}
 	}
 
+	fn push_or(&mut self, from: Var, tys: &Vec<Ty<'_>>, discriminant_numty: NumTy, optional: bool) {
+		let (from_ty_name, from_ty_expr) = self.add_occurrence("ty_name");
+
+		self.push_local(
+			from_ty_name,
+			Some(Expr::Call(
+				Box::new(Var::from("typeof")),
+				None,
+				vec![Expr::from(from.clone())],
+			)),
+		);
+
+		let mut unknown_i = None;
+		let mut initial_if = true;
+		let mut i_offset = 0usize;
+
+		for ty in tys {
+			let i = i_offset;
+
+			match ty.primitive_ty() {
+				PrimitiveTy::Name(name) => {
+					i_offset += 1;
+
+					let condition = from_ty_expr.clone().eq(Expr::Str(name.to_string()));
+
+					if initial_if {
+						self.push_stmt(Stmt::If(condition));
+						initial_if = false;
+					} else {
+						self.push_stmt(Stmt::ElseIf(condition));
+					}
+
+					self.push_writenumty(Expr::from(i as f64), discriminant_numty);
+					self.push_ty(ty, from.clone());
+				}
+				PrimitiveTy::Instance(class) => {
+					i_offset += 1;
+
+					let mut condition = from_ty_expr.clone().eq(Expr::Str("Instance".to_string()));
+					if let Some(class) = class {
+						condition = condition.and(Expr::Call(
+							Box::new(from.clone()),
+							Some("IsA".to_string()),
+							vec![Expr::Str(class.to_string())],
+						))
+					}
+
+					if initial_if {
+						self.push_stmt(Stmt::If(condition));
+						initial_if = false;
+					} else {
+						self.push_stmt(Stmt::ElseIf(condition));
+					}
+
+					self.push_writenumty(Expr::from(i as f64), discriminant_numty);
+					self.push_ty(ty, from.clone());
+				}
+				PrimitiveTy::Enum(Enum::Unit(variants)) => {
+					i_offset += variants.len();
+
+					for (offset, variant) in variants.into_iter().enumerate() {
+						let condition = Expr::from(from.clone()).eq(Expr::Str(variant.to_string()));
+						if initial_if {
+							self.push_stmt(Stmt::If(condition));
+							initial_if = false;
+						} else {
+							self.push_stmt(Stmt::ElseIf(condition));
+						}
+
+						self.push_writenumty(Expr::from((i + offset) as f64), discriminant_numty);
+					}
+				}
+				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
+					i_offset += variants.len();
+
+					for (offset, (variant, data)) in variants.into_iter().enumerate() {
+						let condition = from_ty_expr.clone().eq(Expr::Str("table".to_string())).and(
+							Expr::Var(Box::new(from.clone().eindex(Expr::Str(tag.to_string()))))
+								.eq(Expr::Str(variant.to_string())),
+						);
+
+						if initial_if {
+							self.push_stmt(Stmt::If(condition));
+							initial_if = false;
+						} else {
+							self.push_stmt(Stmt::ElseIf(condition));
+						}
+
+						self.push_writenumty(Expr::from((i + offset) as f64), discriminant_numty);
+						self.push_struct(&data, from.clone());
+					}
+				}
+				PrimitiveTy::Unknown => {
+					unknown_i = Some(i);
+					i_offset += 1;
+				}
+				PrimitiveTy::None(..) => unreachable!(),
+			};
+		}
+
+		if optional {
+			self.push_stmt(Stmt::ElseIf(Expr::from(from.clone()).eq(Expr::Nil)));
+			self.push_writenumty((i_offset as f64).into(), discriminant_numty);
+		}
+
+		self.push_stmt(Stmt::Else);
+		if let Some(unknown_i) = unknown_i {
+			self.push_writenumty(Expr::from(unknown_i as f64), discriminant_numty);
+			self.push_ty(&Ty::Unknown, from.clone());
+		} else {
+			self.push_stmt(Stmt::Error("Invalid type".into()));
+		}
+		self.push_stmt(Stmt::End);
+	}
+
 	fn push_ty(&mut self, ty: &Ty, from: Var) {
 		let from_expr = Expr::from(from.clone());
 
@@ -99,19 +214,29 @@ impl Ser<'_> {
 			Ty::Str(range) => {
 				if let Some(len) = range.exact() {
 					if self.checks {
-						self.push_assert(from_expr.clone().len().eq(len.into()), None);
+						self.push_assert(
+							from_expr.clone().len().eq(len.into()),
+							format!("length is not equal to {len}!"),
+						);
 					}
 
 					self.push_writestring(from_expr, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
+					let (len_numty, len_offset) = range.numty();
+
 					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writenumty(len_expr.clone(), range.numty().unwrap_or(NumTy::U16));
+					let mut offset_len_expr = len_expr.clone();
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.sub(Expr::Num(len_offset))
+					}
+
+					self.push_writenumty(offset_len_expr, len_numty);
 					self.push_writestring(from_expr, len_expr.clone());
 				}
 			}
@@ -124,13 +249,15 @@ impl Ser<'_> {
 								.nindex("len")
 								.call(vec![from_expr.clone()])
 								.eq(len.into()),
-							None,
+							format!("length is not equal to {len}!"),
 						);
 					}
 
 					self.push_write_copy(from_expr, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
+					let (len_numty, len_offset) = range.numty();
+
 					self.push_local(
 						len_name.clone(),
 						Some(Var::from("buffer").nindex("len").call(vec![from_expr.clone()])),
@@ -140,7 +267,12 @@ impl Ser<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writenumty(len_expr.clone(), range.numty().unwrap_or(NumTy::U16));
+					let mut offset_len_expr = len_expr.clone();
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.sub(Expr::Num(len_offset))
+					}
+
+					self.push_writenumty(offset_len_expr, len_numty);
 					self.push_write_copy(from_expr, len_name.as_str().into())
 				}
 			}
@@ -150,7 +282,10 @@ impl Ser<'_> {
 
 				if let Some(len) = range.exact() {
 					if self.checks {
-						self.push_assert(from_expr.clone().len().eq(len.into()), None);
+						self.push_assert(
+							from_expr.clone().len().eq(len.into()),
+							format!("length is not equal to {len}!"),
+						);
 					}
 
 					self.push_stmt(Stmt::NumFor {
@@ -163,13 +298,20 @@ impl Ser<'_> {
 					self.push_stmt(Stmt::End);
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
+					let (len_numty, len_offset) = range.numty();
+
 					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_writenumty(len_expr.clone(), range.numty().unwrap_or(NumTy::U16));
+					let mut offset_len_expr = len_expr.clone();
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.sub(Expr::Num(len_offset))
+					}
+
+					self.push_writenumty(offset_len_expr, len_numty);
 
 					self.push_stmt(Stmt::NumFor {
 						var: var_name.clone(),
@@ -257,6 +399,10 @@ impl Ser<'_> {
 			}
 
 			Ty::Opt(ty) => {
+				if let Ty::Or(tys, discriminant_numty) = &**ty {
+					return self.push_or(from, tys, *discriminant_numty, true);
+				}
+
 				self.push_stmt(Stmt::If(from_expr.clone().eq(Expr::Nil)));
 
 				self.push_writeu8(0.0.into());
@@ -278,6 +424,8 @@ impl Ser<'_> {
 			Ty::Enum(enum_ty) => self.push_enum(enum_ty, from),
 			Ty::Struct(struct_ty) => self.push_struct(struct_ty, from),
 
+			Ty::Or(tys, discriminant_numty) => self.push_or(from, tys, *discriminant_numty, false),
+
 			Ty::Instance(class) => {
 				if self.checks && class.is_some() {
 					self.push_assert(
@@ -286,7 +434,7 @@ impl Ser<'_> {
 							Some("IsA".into()),
 							vec![Expr::Str(class.unwrap().into())],
 						),
-						None,
+						format!("received instance is not of the {} class!", class.unwrap()),
 					);
 				}
 
@@ -381,10 +529,7 @@ impl Ser<'_> {
 					)),
 				);
 
-				self.push_assert(
-					axis_alignment_expr.clone(),
-					Some("CFrame not aligned to an axis!".to_string()),
-				);
+				self.push_assert(axis_alignment_expr.clone(), "CFrame not aligned to an axis!".into());
 
 				self.push_writeu8(axis_alignment_expr.clone());
 

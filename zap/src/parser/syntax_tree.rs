@@ -168,6 +168,7 @@ pub enum SyntaxTyKind<'src> {
 	Enum(SyntaxEnum<'src>),
 	Struct(SyntaxStruct<'src>),
 	Instance(Option<SyntaxIdentifier<'src>>),
+	Or(Vec<SyntaxTy<'src>>),
 }
 
 #[derive(Debug, Clone, PartialEq)]

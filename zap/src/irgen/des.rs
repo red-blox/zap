@@ -1,4 +1,4 @@
-use crate::config::{Enum, NumTy, Struct, Ty};
+use crate::config::{Enum, NumTy, PrimitiveTy, Struct, Ty};
 use std::collections::HashMap;
 
 use super::{Expr, Gen, Stmt, Var};
@@ -86,6 +86,92 @@ impl Des<'_> {
 		}
 	}
 
+	fn push_or(&mut self, into: Var, tys: &Vec<Ty<'_>>, discriminant_numty: NumTy, optional: bool) {
+		let (into_ty_i_name, into_ty_i_expr) = self.add_occurrence("ty_i");
+
+		self.push_local(into_ty_i_name, Some(self.readnumty(discriminant_numty)));
+		let mut initial_if = true;
+		let mut i_offset = 0usize;
+
+		for ty in tys {
+			let i = i_offset;
+
+			match ty.primitive_ty() {
+				PrimitiveTy::Enum(Enum::Unit(variants)) => {
+					i_offset += variants.len();
+
+					for (offset, variant) in variants.into_iter().enumerate() {
+						let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
+						if initial_if {
+							self.push_stmt(Stmt::If(condition));
+							initial_if = false;
+						} else {
+							self.push_stmt(Stmt::ElseIf(condition));
+						}
+
+						self.push_assign(into.clone(), Expr::Str(variant.to_string()));
+					}
+				}
+				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
+					i_offset += variants.len();
+
+					for (offset, (variant, data)) in variants.into_iter().enumerate() {
+						let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
+						if initial_if {
+							self.push_stmt(Stmt::If(condition));
+							initial_if = false;
+						} else {
+							self.push_stmt(Stmt::ElseIf(condition));
+						}
+
+						self.push_assign(into.clone(), Expr::EmptyTable);
+						self.push_assign(
+							into.clone().eindex(Expr::Str(tag.to_string())),
+							Expr::Str(variant.to_string()),
+						);
+						self.push_struct(&data, into.clone());
+					}
+				}
+				PrimitiveTy::Unknown => {
+					i_offset += 1;
+
+					let condition = into_ty_i_expr.clone().eq((i as f64).into());
+					if initial_if {
+						self.push_stmt(Stmt::If(condition));
+						initial_if = false;
+					} else {
+						self.push_stmt(Stmt::ElseIf(condition));
+					}
+
+					self.push_ty(&Ty::Unknown, into.clone());
+				}
+				PrimitiveTy::None(..) => unreachable!(),
+				_ => {
+					i_offset += 1;
+
+					let condition = into_ty_i_expr.clone().eq((i as f64).into());
+					if initial_if {
+						self.push_stmt(Stmt::If(condition));
+						initial_if = false;
+					} else {
+						self.push_stmt(Stmt::ElseIf(condition));
+					}
+
+					self.push_ty(ty, into.clone());
+				}
+			};
+		}
+
+		if optional {
+			self.push_stmt(Stmt::ElseIf(into_ty_i_expr.clone().eq((i_offset as f64).into())));
+			self.push_assign(into, Expr::Nil);
+		}
+
+		self.push_stmt(Stmt::Else);
+		self.push_stmt(Stmt::Error("Invalid enumerator".into()));
+		self.push_stmt(Stmt::End);
+	}
+
 	fn push_ty(&mut self, ty: &Ty, into: Var) {
 		let into_expr = Expr::from(into.clone());
 
@@ -103,11 +189,14 @@ impl Des<'_> {
 					self.push_assign(into, self.readstring(len.into()));
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
+					let (len_numty, len_offset) = range.numty();
 
-					self.push_local(
-						len_name.clone(),
-						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
-					);
+					let mut offset_len_expr = self.readnumty(len_numty);
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
+					}
+
+					self.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
@@ -122,10 +211,14 @@ impl Des<'_> {
 					self.push_read_copy(into, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
-					self.push_local(
-						len_name.clone(),
-						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
-					);
+					let (len_numty, len_offset) = range.numty();
+
+					let mut offset_len_expr = self.readnumty(len_numty);
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
+					}
+
+					self.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
@@ -151,11 +244,14 @@ impl Des<'_> {
 					self.push_stmt(Stmt::End);
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
+					let (len_numty, len_offset) = range.numty();
 
-					self.push_local(
-						len_name.clone(),
-						Some(self.readnumty(range.numty().unwrap_or(NumTy::U16))),
-					);
+					let mut offset_len_expr = self.readnumty(len_numty);
+					if len_offset != 0.0 {
+						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
+					}
+
+					self.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
@@ -228,41 +324,33 @@ impl Des<'_> {
 			}
 
 			Ty::Opt(ty) => {
+				if let Ty::Or(tys, discriminant_numty) = &**ty {
+					return self.push_or(into, tys, *discriminant_numty, true);
+				}
+
 				self.push_stmt(Stmt::If(self.readu8().eq(1.0.into())));
 
-				match **ty {
-					Ty::Instance(class) => {
-						self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
-						self.push_assign(
-							into.clone(),
-							Var::from("incoming_inst")
-								.eindex(Var::from("incoming_ipos").into())
-								.into(),
-						);
+				if let Ty::Instance(class) = **ty {
+					self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
+					self.push_assign(
+						into.clone(),
+						Var::from("incoming_inst")
+							.eindex(Var::from("incoming_ipos").into())
+							.into(),
+					);
 
-						if self.checks && class.is_some() {
-							self.push_assert(
-								into_expr.clone().eq(Expr::Nil).or(Expr::Call(
-									Box::new(into.clone()),
-									Some("IsA".into()),
-									vec![Expr::Str(class.unwrap().into())],
-								)),
-								None,
-							)
-						}
+					if self.checks && class.is_some() {
+						self.push_assert(
+							into_expr.clone().eq(Expr::Nil).or(Expr::Call(
+								Box::new(into.clone()),
+								Some("IsA".into()),
+								vec![Expr::Str(class.unwrap().into())],
+							)),
+							format!("received instance is not of the {} class!", class.unwrap()),
+						)
 					}
-
-					Ty::Unknown => {
-						self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
-						self.push_assign(
-							into.clone(),
-							Var::from("incoming_inst")
-								.eindex(Var::from("incoming_ipos").into())
-								.into(),
-						);
-					}
-
-					_ => self.push_ty(ty, into.clone()),
+				} else {
+					self.push_ty(ty, into.clone())
 				}
 
 				self.push_stmt(Stmt::Else);
@@ -291,6 +379,8 @@ impl Des<'_> {
 				self.push_struct(struct_ty, into)
 			}
 
+			Ty::Or(tys, discriminant_numty) => self.push_or(into, tys, *discriminant_numty, false),
+
 			Ty::Instance(class) => {
 				self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
 				self.push_assign(
@@ -302,7 +392,7 @@ impl Des<'_> {
 
 				// always assert non-optional instances as roblox
 				// will sometimes vaporize them
-				self.push_assert(into_expr.clone().neq(Expr::Nil), None);
+				self.push_assert(into_expr.clone().neq(Expr::Nil), "received instance is nil!".into());
 
 				if self.checks && class.is_some() {
 					self.push_assert(
@@ -311,13 +401,20 @@ impl Des<'_> {
 							Some("IsA".into()),
 							vec![Expr::Str(class.unwrap().into())],
 						),
-						None,
+						format!("received instance is not of the {} class!", class.unwrap()),
 					)
 				}
 			}
 
-			// unknown is always an opt
-			Ty::Unknown => unreachable!(),
+			Ty::Unknown => {
+				self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
+				self.push_assign(
+					into.clone(),
+					Var::from("incoming_inst")
+						.eindex(Var::from("incoming_ipos").into())
+						.into(),
+				);
+			}
 
 			Ty::BrickColor => self.push_assign(
 				into,

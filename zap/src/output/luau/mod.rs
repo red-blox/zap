@@ -46,10 +46,7 @@ pub trait Output {
 
 			Stmt::Assign(var, expr) => self.push_line(&format!("{var} = {expr}")),
 			Stmt::Error(msg) => self.push_line(&format!("error(\"{msg}\")")),
-			Stmt::Assert(cond, msg) => match msg {
-				Some(msg) => self.push_line(&format!("assert({cond}, \"{msg}\")")),
-				None => self.push_line(&format!("assert({cond})")),
-			},
+			Stmt::Assert(cond, msg) => self.push_line(&format!("assert({cond}, \"{msg}\")")),
 
 			Stmt::Call(var, method, args) => match method {
 				Some(method) => self.push_line(&format!(
@@ -181,6 +178,15 @@ pub trait Output {
 				self.dedent();
 				self.push_indent();
 				self.push("}");
+			}
+
+			Ty::Or(or_tys, ..) => {
+				for (i, ty) in or_tys.iter().enumerate() {
+					if i != 0 {
+						self.push(" | ");
+					}
+					self.push_ty(ty);
+				}
 			}
 
 			Ty::Instance(name) => self.push(name.unwrap_or("Instance")),

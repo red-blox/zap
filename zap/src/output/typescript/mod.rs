@@ -198,6 +198,15 @@ pub trait Output: ConfigProvider {
 				self.push("}");
 			}
 
+			Ty::Or(or_tys, ..) => {
+				for (i, ty) in or_tys.iter().enumerate() {
+					if i != 0 {
+						self.push(" | ");
+					}
+					self.push_ty(ty);
+				}
+			}
+
 			Ty::Instance(name) => self.push(name.unwrap_or("Instance")),
 
 			Ty::BrickColor => self.push("BrickColor"),

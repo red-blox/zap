@@ -122,6 +122,15 @@ pub enum Report<'src> {
 	AnalyzeNamedReturn {
 		name_span: Span,
 	},
+
+	AnalyzeOrDuplicateType {
+		prev_span: Span,
+		dup_span: Span,
+	},
+
+	AnalyzeOrNestedOptional {
+		span: Span,
+	},
 }
 
 impl Report<'_> {
@@ -153,6 +162,8 @@ impl Report<'_> {
 			Self::AnalyzeDuplicateDecl { .. } => Severity::Error,
 			Self::AnalyzeDuplicateParameter { .. } => Severity::Error,
 			Self::AnalyzeNamedReturn { .. } => Severity::Error,
+			Self::AnalyzeOrDuplicateType { .. } => Severity::Error,
+			Self::AnalyzeOrNestedOptional { .. } => Severity::Error,
 		}
 	}
 
@@ -187,6 +198,8 @@ impl Report<'_> {
 			Self::AnalyzeDuplicateDecl { name, .. } => format!("duplicate declaration '{}'", name),
 			Self::AnalyzeDuplicateParameter { name, .. } => format!("duplicate parameter '{}'", name),
 			Self::AnalyzeNamedReturn { .. } => "rets cannot be named".to_string(),
+			Self::AnalyzeOrDuplicateType { .. } => "duplicate types used in OR".to_string(),
+			Self::AnalyzeOrNestedOptional { .. } => "optional type used in OR".to_string(),
 		}
 	}
 
@@ -218,6 +231,8 @@ impl Report<'_> {
 			Self::AnalyzeInvalidVectorType { .. } => "3017",
 			Self::AnalyzeOversizeVectorComponent { .. } => "3018",
 			Self::AnalyzeMissingEvDeclCall { .. } => "3019",
+			Self::AnalyzeOrDuplicateType { .. } => "3020",
+			Self::AnalyzeOrNestedOptional { .. } => "3021",
 		}
 	}
 
@@ -338,6 +353,17 @@ impl Report<'_> {
 			Self::AnalyzeNamedReturn { name_span } => {
 				vec![Label::primary((), name_span.clone()).with_message("must be removed")]
 			}
+
+			Self::AnalyzeOrDuplicateType { prev_span, dup_span } => {
+				vec![
+					Label::secondary((), prev_span.clone()).with_message("previous type usage"),
+					Label::primary((), dup_span.clone()).with_message("duplicate type usage"),
+				]
+			}
+
+			Self::AnalyzeOrNestedOptional { span } => {
+				vec![Label::primary((), span.clone()).with_message("optional type")]
+			}
 		}
 	}
 
@@ -412,6 +438,13 @@ impl Report<'_> {
 			Self::AnalyzeDuplicateDecl { .. } => None,
 			Self::AnalyzeDuplicateParameter { .. } => None,
 			Self::AnalyzeNamedReturn { .. } => None,
+			Self::AnalyzeOrDuplicateType { .. } => Some(vec![
+				"consider using a tagged enum to differenciate between ambiguous types".to_string(),
+			]),
+			Self::AnalyzeOrNestedOptional { .. } => Some(vec![
+				"optional types cannot be used in ORs".to_string(),
+				"consider making the whole OR optional".to_string(),
+			]),
 		}
 	}
 

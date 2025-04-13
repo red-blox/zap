@@ -21,6 +21,16 @@ const structExample = `type Item = struct {
 	name: string,
 	price: u16,
 }`
+
+const orExample = `type Union = (
+	string
+	| u32
+	| enum { "hello", "world" }
+	| enum "tag" { one { b: i8 }, two { c: buffer } }
+	| unknown
+	| Instance (Player)
+	| Instance
+)`
 </script>
 
 # Types
@@ -259,3 +269,31 @@ The following Roblox Classes are also available as types in Zap:
 
 A type can be made optional by appending a `?` after the **whole type**, such as:
 <CodeBlock code="type Character = Instance (Player)?" />
+
+## OR/Unions [0.6.20+]
+
+Zap supports union types, or "OR" types. They work by checking the type of the
+data at runtime, and serializing it correspondingly. Since the type is checked
+at runtime, you're limited to using only one of the runtime type, that is you
+cannot have both `u8` and `u16`.
+
+For example, the following type:
+<CodeBlock :code="orExample" />
+
+Will check (& serialize the values separately) in the following way:
+
+1. If it's `"hello"`
+2. If it's `"world"`
+3. If it's a table and it has `tag = "one"`
+4. If it's a table and it has `tag = "two"`
+5. If it's a string
+6. If it's a number
+7. If it's an instance, and of a Player
+8. If it's an instance
+9. If it's nil\*
+10. If all else fails, serialize it as `unknown`
+
+<sup>\*Unions being optional is implied by containing `unknown`.</sup>
+
+Additionally, you may not use optional types inside the union itself, rather
+you need to make the whole union optional.
