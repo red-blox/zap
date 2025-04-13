@@ -84,6 +84,113 @@ impl Ser<'_> {
 		}
 	}
 
+	fn push_or(&mut self, from: Var, tys: &Vec<Ty<'_>>, discriminant_numty: NumTy, optional: bool) {
+		let (from_ty_name, from_ty_expr) = self.add_occurrence("ty_name");
+
+		self.push_local(
+			from_ty_name,
+			Some(Expr::Call(
+				Box::new(Var::from("typeof")),
+				None,
+				vec![Expr::from(from.clone())],
+			)),
+		);
+
+		let mut unknown_i = None;
+		let mut initial_if = true;
+		let mut i_offset = 0usize;
+
+		for ty in tys {
+			let i = i_offset;
+
+			let condition = match ty.primitive_ty() {
+				PrimitiveTy::Name(name) => from_ty_expr.clone().eq(Expr::Str(name.to_string())),
+				PrimitiveTy::Instance(class) => {
+					let mut cond = from_ty_expr.clone().eq(Expr::Str("Instance".to_string()));
+					if let Some(class) = class {
+						cond = cond.and(Expr::Call(
+							Box::new(from.clone()),
+							Some("IsA".to_string()),
+							vec![Expr::Str(class.to_string())],
+						))
+					}
+					cond
+				}
+				PrimitiveTy::Enum(Enum::Unit(variants)) => {
+					i_offset += variants.len();
+
+					for (offset, variant) in variants.into_iter().enumerate() {
+						let condition = Expr::from(from.clone()).eq(Expr::Str(variant.to_string()));
+						if initial_if {
+							self.push_stmt(Stmt::If(condition));
+							initial_if = false;
+						} else {
+							self.push_stmt(Stmt::ElseIf(condition));
+						}
+
+						self.push_writenumty(Expr::from((i + offset) as f64), discriminant_numty);
+					}
+
+					continue;
+				}
+				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
+					i_offset += variants.len();
+
+					for (offset, (variant, data)) in variants.into_iter().enumerate() {
+						let condition = from_ty_expr.clone().eq(Expr::Str("table".to_string())).and(
+							Expr::Var(Box::new(from.clone().eindex(Expr::Str(tag.to_string()))))
+								.eq(Expr::Str(variant.to_string())),
+						);
+
+						if initial_if {
+							self.push_stmt(Stmt::If(condition));
+							initial_if = false;
+						} else {
+							self.push_stmt(Stmt::ElseIf(condition));
+						}
+
+						self.push_writenumty(Expr::from((i + offset) as f64), discriminant_numty);
+						self.push_struct(&data, from.clone());
+					}
+
+					continue;
+				}
+				PrimitiveTy::Unknown => {
+					unknown_i = Some(i);
+					i_offset += 1;
+					continue;
+				}
+				PrimitiveTy::None(..) => unreachable!(),
+			};
+
+			i_offset += 1;
+
+			if initial_if {
+				self.push_stmt(Stmt::If(condition));
+				initial_if = false;
+			} else {
+				self.push_stmt(Stmt::ElseIf(condition));
+			}
+
+			self.push_writenumty(Expr::from(i as f64), discriminant_numty);
+			self.push_ty(ty, from.clone());
+		}
+
+		if optional {
+			self.push_stmt(Stmt::ElseIf(Expr::from(from.clone()).eq(Expr::Nil)));
+			self.push_writenumty((i_offset as f64).into(), discriminant_numty);
+		}
+
+		self.push_stmt(Stmt::Else);
+		if let Some(unknown_i) = unknown_i {
+			self.push_writenumty(Expr::from(unknown_i as f64), discriminant_numty);
+			self.push_ty(&Ty::Unknown, from.clone());
+		} else {
+			self.push_stmt(Stmt::Error("Invalid type".into()));
+		}
+		self.push_stmt(Stmt::End);
+	}
+
 	fn push_ty(&mut self, ty: &Ty, from: Var) {
 		let from_expr = Expr::from(from.clone());
 
@@ -284,6 +391,10 @@ impl Ser<'_> {
 			}
 
 			Ty::Opt(ty) => {
+				if let Ty::Or(tys, discriminant_numty) = &**ty {
+					return self.push_or(from, tys, *discriminant_numty, true);
+				}
+
 				self.push_stmt(Stmt::If(from_expr.clone().eq(Expr::Nil)));
 
 				self.push_writeu8(0.0.into());
@@ -305,107 +416,7 @@ impl Ser<'_> {
 			Ty::Enum(enum_ty) => self.push_enum(enum_ty, from),
 			Ty::Struct(struct_ty) => self.push_struct(struct_ty, from),
 
-			Ty::Or(or_tys, discriminant_numty) => {
-				let (from_ty_name, from_ty_expr) = self.add_occurrence("ty_name");
-
-				self.push_local(
-					from_ty_name,
-					Some(Expr::Call(
-						Box::new(Var::from("typeof")),
-						None,
-						vec![Expr::from(from.clone())],
-					)),
-				);
-
-				let mut unknown_i = None;
-				let mut initial_if = true;
-				let mut i_offset = 0usize;
-
-				for ty in or_tys {
-					let i = i_offset;
-
-					let condition = match ty.primitive_ty() {
-						PrimitiveTy::Name(name) => from_ty_expr.clone().eq(Expr::Str(name.to_string())),
-						PrimitiveTy::Instance(class) => {
-							let mut cond = from_ty_expr.clone().eq(Expr::Str("Instance".to_string()));
-							if let Some(class) = class {
-								cond = cond.and(Expr::Call(
-									Box::new(from.clone()),
-									Some("IsA".to_string()),
-									vec![Expr::Str(class.to_string())],
-								))
-							}
-							cond
-						}
-						PrimitiveTy::Enum(Enum::Unit(variants)) => {
-							i_offset += variants.len();
-
-							for (offset, variant) in variants.into_iter().enumerate() {
-								let condition = from_expr.clone().eq(Expr::Str(variant.to_string()));
-								if initial_if {
-									self.push_stmt(Stmt::If(condition));
-									initial_if = false;
-								} else {
-									self.push_stmt(Stmt::ElseIf(condition));
-								}
-
-								self.push_writenumty(Expr::from((i + offset) as f64), *discriminant_numty);
-							}
-
-							continue;
-						}
-						PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
-							i_offset += variants.len();
-
-							for (offset, (variant, data)) in variants.into_iter().enumerate() {
-								let condition = from_ty_expr.clone().eq(Expr::Str("table".to_string())).and(
-									Expr::Var(Box::new(from.clone().eindex(Expr::Str(tag.to_string()))))
-										.eq(Expr::Str(variant.to_string())),
-								);
-
-								if initial_if {
-									self.push_stmt(Stmt::If(condition));
-									initial_if = false;
-								} else {
-									self.push_stmt(Stmt::ElseIf(condition));
-								}
-
-								self.push_writenumty(Expr::from((i + offset) as f64), *discriminant_numty);
-								self.push_struct(&data, from.clone());
-							}
-
-							continue;
-						}
-						PrimitiveTy::Unknown => {
-							unknown_i = Some(i);
-							i_offset += 1;
-							continue;
-						}
-						PrimitiveTy::None(..) => unreachable!(),
-					};
-
-					i_offset += 1;
-
-					if initial_if {
-						self.push_stmt(Stmt::If(condition));
-						initial_if = false;
-					} else {
-						self.push_stmt(Stmt::ElseIf(condition));
-					}
-
-					self.push_writenumty(Expr::from(i as f64), *discriminant_numty);
-					self.push_ty(ty, from.clone());
-				}
-
-				self.push_stmt(Stmt::Else);
-				if let Some(unknown_i) = unknown_i {
-					self.push_writenumty(Expr::from(unknown_i as f64), *discriminant_numty);
-					self.push_ty(&Ty::Unknown, from.clone());
-				} else {
-					self.push_stmt(Stmt::Error("Invalid type".into()));
-				}
-				self.push_stmt(Stmt::End);
-			}
+			Ty::Or(tys, discriminant_numty) => self.push_or(from, tys, *discriminant_numty, false),
 
 			Ty::Instance(class) => {
 				if self.checks && class.is_some() {

@@ -86,6 +86,86 @@ impl Des<'_> {
 		}
 	}
 
+	fn push_or(&mut self, into: Var, tys: &Vec<Ty<'_>>, discriminant_numty: NumTy, optional: bool) {
+		let (into_ty_i_name, into_ty_i_expr) = self.add_occurrence("ty_i");
+
+		self.push_local(into_ty_i_name, Some(self.readnumty(discriminant_numty)));
+		let mut initial_if = true;
+		let mut i_offset = 0usize;
+
+		for ty in tys {
+			let i = i_offset;
+			let mut is_unknown = false;
+
+			match ty.primitive_ty() {
+				PrimitiveTy::Enum(Enum::Unit(variants)) => {
+					i_offset += variants.len();
+
+					for (offset, variant) in variants.into_iter().enumerate() {
+						let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
+						if initial_if {
+							self.push_stmt(Stmt::If(condition));
+							initial_if = false;
+						} else {
+							self.push_stmt(Stmt::ElseIf(condition));
+						}
+
+						self.push_assign(into.clone(), Expr::Str(variant.to_string()));
+					}
+
+					continue;
+				}
+				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
+					i_offset += variants.len();
+
+					for (offset, (variant, data)) in variants.into_iter().enumerate() {
+						let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
+						if initial_if {
+							self.push_stmt(Stmt::If(condition));
+							initial_if = false;
+						} else {
+							self.push_stmt(Stmt::ElseIf(condition));
+						}
+
+						self.push_assign(into.clone(), Expr::EmptyTable);
+						self.push_assign(
+							into.clone().eindex(Expr::Str(tag.to_string())),
+							Expr::Str(variant.to_string()),
+						);
+						self.push_struct(&data, into.clone());
+					}
+
+					continue;
+				}
+				PrimitiveTy::Unknown => {
+					is_unknown = true;
+				}
+				_ => {}
+			}
+
+			i_offset += 1;
+
+			let condition = into_ty_i_expr.clone().eq((i as f64).into());
+			if initial_if {
+				self.push_stmt(Stmt::If(condition));
+				initial_if = false;
+			} else {
+				self.push_stmt(Stmt::ElseIf(condition));
+			}
+
+			self.push_ty(if is_unknown { &Ty::Unknown } else { ty }, into.clone());
+		}
+
+		if optional {
+			self.push_stmt(Stmt::ElseIf(into_ty_i_expr.clone().eq((i_offset as f64).into())));
+			self.push_assign(into, Expr::Nil);
+		}
+
+		self.push_stmt(Stmt::Else);
+		self.push_stmt(Stmt::Error("Invalid enumerator".into()));
+		self.push_stmt(Stmt::End);
+	}
+
 	fn push_ty(&mut self, ty: &Ty, into: Var) {
 		let into_expr = Expr::from(into.clone());
 
@@ -238,6 +318,10 @@ impl Des<'_> {
 			}
 
 			Ty::Opt(ty) => {
+				if let Ty::Or(tys, discriminant_numty) = &**ty {
+					return self.push_or(into, tys, *discriminant_numty, true);
+				}
+
 				self.push_stmt(Stmt::If(self.readu8().eq(1.0.into())));
 
 				if let Ty::Instance(class) = **ty {
@@ -289,80 +373,7 @@ impl Des<'_> {
 				self.push_struct(struct_ty, into)
 			}
 
-			Ty::Or(or_tys, discriminant_numty) => {
-				let (into_ty_i_name, into_ty_i_expr) = self.add_occurrence("ty_i");
-
-				self.push_local(into_ty_i_name, Some(self.readnumty(*discriminant_numty)));
-				let mut initial_if = true;
-				let mut i_offset = 0usize;
-
-				for ty in or_tys {
-					let i = i_offset;
-					let mut is_unknown = false;
-
-					match ty.primitive_ty() {
-						PrimitiveTy::Enum(Enum::Unit(variants)) => {
-							i_offset += variants.len();
-
-							for (offset, variant) in variants.into_iter().enumerate() {
-								let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
-								if initial_if {
-									self.push_stmt(Stmt::If(condition));
-									initial_if = false;
-								} else {
-									self.push_stmt(Stmt::ElseIf(condition));
-								}
-
-								self.push_assign(into.clone(), Expr::Str(variant.to_string()));
-							}
-
-							continue;
-						}
-						PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
-							i_offset += variants.len();
-
-							for (offset, (variant, data)) in variants.into_iter().enumerate() {
-								let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
-								if initial_if {
-									self.push_stmt(Stmt::If(condition));
-									initial_if = false;
-								} else {
-									self.push_stmt(Stmt::ElseIf(condition));
-								}
-
-								self.push_assign(into.clone(), Expr::EmptyTable);
-								self.push_assign(
-									into.clone().eindex(Expr::Str(tag.to_string())),
-									Expr::Str(variant.to_string()),
-								);
-								self.push_struct(&data, into.clone());
-							}
-
-							continue;
-						}
-						PrimitiveTy::Unknown => {
-							is_unknown = true;
-						}
-						_ => {}
-					}
-
-					i_offset += 1;
-
-					let condition = into_ty_i_expr.clone().eq((i as f64).into());
-					if initial_if {
-						self.push_stmt(Stmt::If(condition));
-						initial_if = false;
-					} else {
-						self.push_stmt(Stmt::ElseIf(condition));
-					}
-
-					self.push_ty(if is_unknown { &Ty::Unknown } else { ty }, into.clone());
-				}
-
-				self.push_stmt(Stmt::Else);
-				self.push_stmt(Stmt::Error("Invalid enumerator".into()));
-				self.push_stmt(Stmt::End);
-			}
+			Ty::Or(tys, discriminant_numty) => self.push_or(into, tys, *discriminant_numty, false),
 
 			Ty::Instance(class) => {
 				self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
