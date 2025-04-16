@@ -375,18 +375,18 @@ impl<'src> Ty<'src> {
 
 	pub fn variants(&self) -> Option<(NumTy, usize)> {
 		match self {
-			// note the lack of - 1 here, it's because we need to store 0 length as well.
-			Ty::Enum(Enum::Unit(variants)) => Some(variants.len()),
-			Ty::Enum(Enum::Tagged { variants, .. }) => Some(variants.len()),
+			Ty::Enum(Enum::Unit(variants)) => Some(variants.len() - 1),
+			Ty::Enum(Enum::Tagged { variants, .. }) => Some(variants.len() - 1),
 			Ty::Num(num, ..) if matches!(num, NumTy::U8 | NumTy::U16 | NumTy::I8 | NumTy::I16) => {
-				Some((num.min().abs() + num.max()) as usize + 1)
+				Some((num.min().abs() + num.max()) as usize)
 			}
 			// prevent an increase from u16 on previous versions to u32
-			Ty::Num(num, ..) => return Some((NumTy::U16, (num.min().abs() + num.max()) as usize + 1)),
+			Ty::Num(num, ..) => return Some((NumTy::U16, (num.min().abs() + num.max()) as usize)),
 			Ty::Ref(.., ty) => return ty.variants(),
 			_ => None,
 		}
-		.map(|variants| (NumTy::from_f64(0.0, variants as f64), variants))
+		// add one to account for things like empty maps, where the 0 must be stored regardless.
+		.map(|variants| (NumTy::from_f64(0.0, (variants + 1) as f64), variants))
 	}
 
 	pub fn primitive_ty(&self) -> PrimitiveTy<'src> {
