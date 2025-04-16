@@ -942,7 +942,7 @@ impl<'src> Converter<'src> {
 
 	fn range_within(&mut self, range: &SyntaxRange<'src>, min: f64, max: f64) -> Range {
 		match range.kind {
-			SyntaxRangeKind::None => Range::new(0.0, max),
+			SyntaxRangeKind::None => Range::new(min, max),
 
 			SyntaxRangeKind::Exact(num) => {
 				let value = self.num_within(&num, min, max);
@@ -956,7 +956,7 @@ impl<'src> Converter<'src> {
 
 			SyntaxRangeKind::WithMax(max_num) => {
 				let value = self.num_within(&max_num, min, max);
-				Range::new(0.0, value)
+				Range::new(min, value)
 			}
 
 			SyntaxRangeKind::WithMinMax(min_num, max_num) => {
