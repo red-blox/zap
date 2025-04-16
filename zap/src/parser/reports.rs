@@ -131,6 +131,10 @@ pub enum Report<'src> {
 	AnalyzeOrNestedOptional {
 		span: Span,
 	},
+
+	AnalyzeUpperBoundSetOnAConstrictedRange {
+		span: Span,
+	},
 }
 
 impl Report<'_> {
@@ -164,6 +168,7 @@ impl Report<'_> {
 			Self::AnalyzeNamedReturn { .. } => Severity::Error,
 			Self::AnalyzeOrDuplicateType { .. } => Severity::Error,
 			Self::AnalyzeOrNestedOptional { .. } => Severity::Error,
+			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => Severity::Error,
 		}
 	}
 
@@ -200,6 +205,9 @@ impl Report<'_> {
 			Self::AnalyzeNamedReturn { .. } => "rets cannot be named".to_string(),
 			Self::AnalyzeOrDuplicateType { .. } => "duplicate types used in OR".to_string(),
 			Self::AnalyzeOrNestedOptional { .. } => "optional type used in OR".to_string(),
+			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => {
+				"upper bound set on a constricted range".to_string()
+			}
 		}
 	}
 
@@ -233,6 +241,7 @@ impl Report<'_> {
 			Self::AnalyzeMissingEvDeclCall { .. } => "3019",
 			Self::AnalyzeOrDuplicateType { .. } => "3020",
 			Self::AnalyzeOrNestedOptional { .. } => "3021",
+			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => "3022",
 		}
 	}
 
@@ -364,6 +373,10 @@ impl Report<'_> {
 			Self::AnalyzeOrNestedOptional { span } => {
 				vec![Label::primary((), span.clone()).with_message("optional type")]
 			}
+
+			Self::AnalyzeUpperBoundSetOnAConstrictedRange { span } => {
+				vec![Label::primary((), span.clone()).with_message("upper bound used here")]
+			}
 		}
 	}
 
@@ -417,8 +430,8 @@ impl Report<'_> {
 			Self::AnalyzeUnknownOptName { .. } => None,
 			Self::AnalyzeUnknownTypeRef { .. } => None,
 			Self::AnalyzeNumOutsideRange { min, max, .. } => Some(vec![
-				format!("(inclusive) min: {}", min),
-				format!("(inclusive) max: {}", max),
+				format!("The minimum must be greater than or equal to: {}", min),
+				format!("The maximum must be less than or equal to: {}", max),
 			]),
 			Self::AnalyzeInvalidOptionalType { .. } => Some(vec![
 				"you cannot have 'double optional' types, where a type is optional twice".to_string(),
@@ -445,6 +458,10 @@ impl Report<'_> {
 				"optional types cannot be used in ORs".to_string(),
 				"consider making the whole OR optional".to_string(),
 			]),
+			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => Some(vec![
+				"you cannot change the length of this type using an upper bound".to_string(),
+				"consider removing the upper bound of this range, changing the max value to be a number, or changing the type itself".to_string(),
+			])
 		}
 	}
 

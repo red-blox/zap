@@ -928,6 +928,10 @@ impl<'src> Converter<'src> {
 	}
 
 	fn range_within(&mut self, range: &SyntaxRange<'src>, min: f64, max: f64) -> Range {
+		if range.upper_bound.is_some() {
+			self.report(Report::AnalyzeUpperBoundSetOnAConstrictedRange { span: range.span() });
+		}
+
 		match range.kind {
 			SyntaxRangeKind::None => Range::new(min, max),
 
