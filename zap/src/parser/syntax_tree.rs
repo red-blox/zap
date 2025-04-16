@@ -206,7 +206,7 @@ pub struct SyntaxRange<'src> {
 	pub start: usize,
 	pub kind: SyntaxRangeKind<'src>,
 	pub end: usize,
-	pub u32: bool,
+	pub upper_bound: Option<NumTy>,
 }
 
 impl Spanned for SyntaxRange<'_> {

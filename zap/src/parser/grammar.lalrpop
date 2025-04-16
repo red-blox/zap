@@ -160,22 +160,28 @@ Struct: SyntaxStruct<'input> = {
     <start:@L> "{" <fields:Comma<(<KeyIdentifier> ":" <Ty>)>> "}" <end:@R> => SyntaxStruct { start, fields, end },
 }
 
+UnsignedNumTy: NumTy = {
+    "u8" => NumTy::U8,
+    "u16" => NumTy::U16,
+    "u32" => NumTy::U32,
+}
+
 IntRange: SyntaxRange<'input> = {
-    <start:@L> "u32" <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::None, u32: true },
-    <start:@L> ".." <u32:"u32"?> <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::None, u32: u32.is_some() },
-    <start:@L> <num:IntLit> <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::Exact(num), u32: false },
-    <start:@L> <min:IntLit> ".." <u32:"u32"?> <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::WithMin(min), u32: u32.is_some() },
-    <start:@L> ".." <max:IntLit> <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::WithMax(max), u32: false },
-    <start:@L> <min:IntLit> ".." <max:IntLit> <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::WithMinMax(min, max), u32: false },
+    <start:@L> <upper_bound:UnsignedNumTy> <end:@R> => SyntaxRange { start, end, upper_bound: Some(upper_bound), kind: SyntaxRangeKind::None },
+    <start:@L> ".." <upper_bound:UnsignedNumTy?> <end:@R> => SyntaxRange { start, end, upper_bound, kind: SyntaxRangeKind::None },
+    <start:@L> <num:IntLit> <end:@R> => SyntaxRange { start, end, upper_bound: None, kind: SyntaxRangeKind::Exact(num) },
+    <start:@L> <min:IntLit> ".." <upper_bound:UnsignedNumTy?> <end:@R> => SyntaxRange { start, end, upper_bound, kind: SyntaxRangeKind::WithMin(min) },
+    <start:@L> ".." <max:IntLit> <end:@R> => SyntaxRange { start, end, upper_bound: None, kind: SyntaxRangeKind::WithMax(max) },
+    <start:@L> <min:IntLit> ".." <max:IntLit> <end:@R> => SyntaxRange { start, end, upper_bound: None, kind: SyntaxRangeKind::WithMinMax(min, max) },
 }
 
 NumRange: SyntaxRange<'input> = {
-    <start:@L> "u32" <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::None, u32: true },
-    <start:@L> ".." <u32:"u32"?> <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::None, u32: u32.is_some() },
-    <start:@L> <num:NumLit> <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::Exact(num), u32: false },
-    <start:@L> <min:NumLit> ".." <u32:"u32"?> <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::WithMin(min), u32: u32.is_some() },
-    <start:@L> ".." <max:NumLit> <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::WithMax(max), u32: false },
-    <start:@L> <min:NumLit> ".." <max:NumLit> <end:@R> => SyntaxRange { start, end, kind: SyntaxRangeKind::WithMinMax(min, max), u32: false },
+    <start:@L> <upper_bound:UnsignedNumTy> <end:@R> => SyntaxRange { start, end, upper_bound: Some(upper_bound), kind: SyntaxRangeKind::None },
+    <start:@L> ".." <upper_bound:UnsignedNumTy?> <end:@R> => SyntaxRange { start, end, upper_bound, kind: SyntaxRangeKind::None },
+    <start:@L> <num:NumLit> <end:@R> => SyntaxRange { start, end, upper_bound: None, kind: SyntaxRangeKind::Exact(num) },
+    <start:@L> <min:NumLit> ".." <upper_bound:UnsignedNumTy?> <end:@R> => SyntaxRange { start, end, upper_bound, kind: SyntaxRangeKind::WithMin(min) },
+    <start:@L> ".." <max:NumLit> <end:@R> => SyntaxRange { start, end, upper_bound: None, kind: SyntaxRangeKind::WithMax(max) },
+    <start:@L> <min:NumLit> ".." <max:NumLit> <end:@R> => SyntaxRange { start, end, upper_bound: None, kind: SyntaxRangeKind::WithMinMax(min, max) },
 }
 
 StrLit: SyntaxStrLit<'input> = {

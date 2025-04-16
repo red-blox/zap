@@ -543,19 +543,9 @@ impl<'src> Converter<'src> {
 				range.map(|range| self.checked_range_within(&range, numty.min(), numty.max())),
 			),
 
-			SyntaxTyKind::Str(len) => Ty::Str(
-				len.map(|range| {
-					self.checked_range_within(&range, 0.0, if range.u32 { u32::MAX as f64 } else { u16::MAX as f64 })
-				})
-				.unwrap_or_default(),
-			),
-
-			SyntaxTyKind::Buf(len) => Ty::Buf(
-				len.map(|range| {
-					self.checked_range_within(&range, 0.0, if range.u32 { u32::MAX as f64 } else { u16::MAX as f64 })
-				})
-				.unwrap_or_default(),
-			),
+			SyntaxTyKind::Str(len) => Ty::Str(len.map(|range| self.checked_range(&range)).unwrap_or_default()),
+			
+			SyntaxTyKind::Buf(len) => Ty::Buf(len.map(|range| self.checked_range(&range)).unwrap_or_default()),
 
 			SyntaxTyKind::Vector(x_ty, y_ty, z_ty) => {
 				match self.ty(x_ty) {
@@ -624,10 +614,7 @@ impl<'src> Converter<'src> {
 
 			SyntaxTyKind::Arr(ty, len) => Ty::Arr(
 				Box::new(self.ty(ty)),
-				len.map(|len| {
-					self.checked_range_within(&len, 0.0, if len.u32 { u32::MAX as f64 } else { u16::MAX as f64 })
-				})
-				.unwrap_or_default(),
+				len.map(|len| self.checked_range(&len)).unwrap_or_default(),
 			),
 
 			SyntaxTyKind::Map(key, val) => {
@@ -967,8 +954,18 @@ impl<'src> Converter<'src> {
 		}
 	}
 
+	fn checked_range(&mut self, range: &SyntaxRange<'src>) -> Range {
+		let value = self.range(range);
+
+		if value.min > value.max {
+			self.report(Report::AnalyzeInvalidRange { span: range.span() });
+		}
+
+		value
+	}
+
 	fn range(&self, range: &SyntaxRange<'src>) -> Range {
-		let max_num = if range.u32 { u32::MAX as f64 } else { u16::MAX as f64 };
+		let max_num = range.upper_bound.unwrap_or(NumTy::U16).max();
 
 		match range.kind {
 			SyntaxRangeKind::None => Range::new(0.0, max_num),
