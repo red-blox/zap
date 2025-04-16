@@ -544,7 +544,7 @@ impl<'src> Converter<'src> {
 			),
 
 			SyntaxTyKind::Str(len) => Ty::Str(len.map(|range| self.checked_range(&range)).unwrap_or_default()),
-			
+
 			SyntaxTyKind::Buf(len) => Ty::Buf(len.map(|range| self.checked_range(&range)).unwrap_or_default()),
 
 			SyntaxTyKind::Vector(x_ty, y_ty, z_ty) => {
