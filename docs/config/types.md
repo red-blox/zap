@@ -37,7 +37,9 @@ const orExample = `type Union = (
 
 ## Range Syntax
 
-In some cases using the entire range of numbers isn't desirable and you'd rather limit the range. This can be done by using Zap's range syntax. This syntax will be very similar for users of Rust.
+In some cases using the entire range of a numbers isn't desirable and you'd rather limit the range. You also might want to limit the number of elements in an array, or the length of a string/buffer. This can be done by using Zap's range syntax. This syntax will be familiar to users of Rust.
+
+### General Overview
 
 A full range is written by giving a minimum and maximum, separated by two dots. This looks like `0..100`.
 
@@ -45,22 +47,43 @@ One sided ranges are ranges where only the minimum or maximum is given. These lo
 
 Exact ranges can be written by only giving the exact number, such as `0` or `100`.
 
-Ranges can be written with no constraints by giving no minimum or maximum. This looks like `..`.
-
-#### As a recap:
-
-| Range    | Min | Max |
-| -------- | --- | --- |
-| `0..100` | 0   | 100 |
-| `0..`    | 0   | ∞   |
-| `..100`  | -∞  | 100 |
-| `0`      | 0   | 0   |
-| `100`    | 100 | 100 |
-| `..`     | -∞  | ∞   |
+Ranges can be written with no constraints by giving no minimum or maximum. This looks like `..` or by omitting the range syntax entirely from the type.
 
 ::: tip
 Remember that ranges are always inclusive on the min and max.
 :::
+
+### Numbers
+
+The following table can be used as a reference for numbers, with `l` being the largest value and `s` being the smallest value [the number type can store](#numbers):
+
+| Range    | Min | Max |
+| -------- | --- | --- |
+| `0..100` | 0   | 100 |
+| `0..`    | 0   | l   |
+| `..100`  | s   | 100 |
+| `0`      | 0   | 0   |
+| `100`    | 100 | 100 |
+| `..`     | s   | l   |
+
+### Other Types
+
+Types such as a `string`, `buffer` or an array can also be restricted to a range. Except unlike numbers, the range syntax is also extended to allow you to use an [unsigned integer type](#unsigned-integers) as the max value of the range.
+
+While it is preferable to use a number for the max range, this can allow the length of a type to be extended from the default of `u16` to cover a `u32` if you're sending large amounts of data over the wire (more than 65,535 array elements or a buffer/string greater than 65.535 KB) without having to commit to an upper limit. This can be done through a shorthand of just the length type can also be used as range syntax.
+
+These types also have the minimum at `0` as you cannot have a negative length of a `string`, `buffer` or an array.
+
+| Range    | Min | Max   |
+| -------- | --- | ----- |
+| `0..100` | 0   | 100   |
+| `0..`    | 0   | `u16` |
+| `..100`  | 0   | 100   |
+| `0`      | 0   | 0     |
+| `100`    | 100 | 100   |
+| `..`     | 0   | `u16` |
+| `u32`    | 0   | `u32` |
+| `8..u32` | 8   | `u32` |
 
 ## Numbers
 
