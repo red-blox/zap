@@ -8,7 +8,7 @@ struct TypesOutput<'src> {
 	buf: String,
 }
 
-impl Output for TypesOutput<'_> {
+impl<'src> Output<'src> for TypesOutput<'src> {
 	fn push(&mut self, s: &str) {
 		self.buf.push_str(s);
 	}
@@ -28,14 +28,14 @@ impl Output for TypesOutput<'_> {
 	}
 }
 
-impl ConfigProvider for TypesOutput<'_> {
-	fn get_config(&self) -> &Config {
+impl<'src> ConfigProvider<'src> for TypesOutput<'src> {
+	fn get_config(&self) -> &'src Config<'src> {
 		self.config
 	}
 }
 
-impl<'a> TypesOutput<'a> {
-	pub fn new(config: &'a Config) -> Self {
+impl<'src> TypesOutput<'src> {
+	pub fn new(config: &'src Config<'src>) -> Self {
 		Self {
 			config,
 			tabs: 0,
@@ -45,7 +45,8 @@ impl<'a> TypesOutput<'a> {
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
 		let name = &tydecl.name;
-		let ty = &tydecl.ty;
+		let ty = tydecl.ty.borrow();
+		let ty = &*ty;
 
 		self.push_indent();
 		self.push(&format!("export type {name} = "));
@@ -71,7 +72,7 @@ impl<'a> TypesOutput<'a> {
 	}
 }
 
-pub fn code(config: &Config) -> Option<String> {
+pub fn code<'src>(config: &'src Config<'src>) -> Option<String> {
 	if !config.typescript {
 		return None;
 	}

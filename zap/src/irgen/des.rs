@@ -14,9 +14,9 @@ impl Gen for Des<'_> {
 		self.buf.push(stmt);
 	}
 
-	fn gen<'a, I>(mut self, names: &[String], types: I) -> Vec<Stmt>
+	fn gen<'a, 'src: 'a, I>(mut self, names: &[String], types: I) -> Vec<Stmt>
 	where
-		I: Iterator<Item = &'a Ty<'a>>,
+		I: Iterator<Item = &'a Ty<'src>>,
 	{
 		for (ty, name) in types.zip(names) {
 			self.push_ty(ty, Var::Name(name.to_string()));
@@ -576,9 +576,14 @@ impl Des<'_> {
 	}
 }
 
-pub fn gen<'a, I>(types: I, names: &[String], checks: bool, var_occurrences: &mut HashMap<String, usize>) -> Vec<Stmt>
+pub fn gen<'a, 'src: 'a, I>(
+	types: I,
+	names: &[String],
+	checks: bool,
+	var_occurrences: &mut HashMap<String, usize>,
+) -> Vec<Stmt>
 where
-	I: IntoIterator<Item = &'a Ty<'a>>,
+	I: IntoIterator<Item = &'a Ty<'src>>,
 {
 	Des {
 		checks,

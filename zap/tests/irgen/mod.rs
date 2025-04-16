@@ -49,7 +49,8 @@ impl<'src> TestOutput<'src> {
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
 		let name = &tydecl.name;
-		let ty = &tydecl.ty;
+		let ty = tydecl.ty.borrow();
+		let ty = &*ty;
 
 		self.push_indent();
 		self.push(&format!("export type {name} = "));
