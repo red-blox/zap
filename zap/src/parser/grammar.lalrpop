@@ -83,6 +83,23 @@ EvSource: EvSource = {
     "Client" => EvSource::Client,
 }
 
+FloatNumTy: NumTy = {
+    "f32" => NumTy::F32,
+    "f64" => NumTy::F64,
+}
+
+IntNumTy: NumTy = {
+    "i8" => NumTy::I8,
+    "i16" => NumTy::I16,
+    "i32" => NumTy::I32,
+}
+
+UnsignedNumTy: NumTy = {
+    "u8" => NumTy::U8,
+    "u16" => NumTy::U16,
+    "u32" => NumTy::U32,
+}
+
 TyDecl: SyntaxTyDecl<'input> = {
     <start:@L> "type" <name:Identifier> "=" <ty:Ty> ";"? <end:@R> => SyntaxTyDecl { start, name, ty, end },
 }
@@ -92,16 +109,9 @@ Ty: SyntaxTy<'input> = {
 }
 
 TyKind: SyntaxTyKind<'input> = {
-    "f32" <r:("(" <NumRange> ")")?> => SyntaxTyKind::Num(NumTy::F32, r),
-    "f64" <r:("(" <NumRange> ")")?> => SyntaxTyKind::Num(NumTy::F64, r),
-
-    "i8" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::I8, r),
-    "i16" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::I16, r),
-    "i32" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::I32, r),
-
-    "u8" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U8, r),
-    "u16" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U16, r),
-    "u32" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U32, r),
+    <numty:FloatNumTy> <r:("(" <NumRange> ")")?> => SyntaxTyKind::Num(numty, r),
+    <numty:IntNumTy> <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(numty, r),
+    <numty:UnsignedNumTy> <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(numty, r),
 
     "string" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Str(r),
     "buffer" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Buf(r),
@@ -158,12 +168,6 @@ EnumKind: SyntaxEnumKind<'input> = {
 
 Struct: SyntaxStruct<'input> = {
     <start:@L> "{" <fields:Comma<(<KeyIdentifier> ":" <Ty>)>> "}" <end:@R> => SyntaxStruct { start, fields, end },
-}
-
-UnsignedNumTy: NumTy = {
-    "u8" => NumTy::U8,
-    "u16" => NumTy::U16,
-    "u32" => NumTy::U32,
 }
 
 IntRange: SyntaxRange<'input> = {
