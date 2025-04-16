@@ -29,8 +29,9 @@ pub trait Output: ConfigProvider {
 			Ty::Arr(ty, range) => {
 				if let Some(exact) = range.exact() {
 					if exact > self.get_config().typescript_max_tuple_length {
+						self.push("(");
 						self.push_ty(ty);
-						self.push("[]");
+						self.push(")[]");
 					} else {
 						self.push("[");
 
@@ -44,24 +45,10 @@ pub trait Output: ConfigProvider {
 
 						self.push("]");
 					}
-				} else if range.max <= self.get_config().typescript_max_tuple_length {
-					if range.min as usize != 0 {
-						self.push("[");
+				} else if range.max > self.get_config().typescript_max_tuple_length && range.min as usize != 0 {
+					self.push("[");
 
-						for i in 0..range.min as usize {
-							if i != 0 {
-								self.push(", ");
-							}
-
-							self.push_ty(ty);
-						}
-
-						self.push("] & ");
-					}
-
-					self.push("Partial<[");
-
-					for i in 0..range.max as usize {
+					for i in 0..range.min as usize {
 						if i != 0 {
 							self.push(", ");
 						}
@@ -69,7 +56,29 @@ pub trait Output: ConfigProvider {
 						self.push_ty(ty);
 					}
 
-					self.push("]>");
+					self.push(", ");
+
+					self.push("...Array<");
+					self.push_ty(ty);
+					self.push(">]");
+				} else if range.max <= self.get_config().typescript_max_tuple_length {
+					for i in range.min as usize..range.max as usize + 1 {
+						if i != range.min as usize {
+							self.push(" | ");
+						}
+
+						self.push("[");
+
+						for j in 0..i {
+							if j != 0 {
+								self.push(", ");
+							}
+
+							self.push_ty(ty);
+						}
+
+						self.push("]");
+					}
 				} else {
 					self.push("(");
 					self.push_ty(ty);
