@@ -247,13 +247,14 @@ pub trait Gen {
 	}
 
 	fn push_range_check(&mut self, expr: Expr, range: Range) {
-		if let Some(min) = range.min() {
-			self.push_assert(expr.clone().gte(min.into()), format!("value is less than {min}!"))
-		}
-
-		if let Some(max) = range.max() {
-			self.push_assert(expr.clone().lte(max.into()), format!("value is more than {max}!"))
-		}
+		self.push_assert(
+			expr.clone().gte(range.min.into()),
+			format!("{expr} is less than {}!", range.min),
+		);
+		self.push_assert(
+			expr.clone().lte(range.max.into()),
+			format!("{expr} is more than {}!", range.max),
+		);
 	}
 
 	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize>;

@@ -26,43 +26,15 @@ pub trait Output: ConfigProvider {
 			Ty::Str { .. } => self.push("string"),
 			Ty::Buf { .. } => self.push("buffer"),
 
-			Ty::Arr(ty, range) => match (range.min(), range.max()) {
-				(Some(min), Some(max)) => {
-					if let Some(exact) = range.exact() {
-						if exact > self.get_config().typescript_max_tuple_length {
-							self.push_ty(ty);
-							self.push("[]");
-						} else {
-							self.push("[");
-
-							for i in 0..exact as usize {
-								if i != 0 {
-									self.push(", ");
-								}
-
-								self.push_ty(ty);
-							}
-
-							self.push("]");
-						}
+			Ty::Arr(ty, range) => {
+				if let Some(exact) = range.exact() {
+					if exact > self.get_config().typescript_max_tuple_length {
+						self.push_ty(ty);
+						self.push("[]");
 					} else {
-						if min as usize != 0 {
-							self.push("[");
+						self.push("[");
 
-							for i in 0..min as usize {
-								if i != 0 {
-									self.push(", ");
-								}
-
-								self.push_ty(ty);
-							}
-
-							self.push("] & ");
-						}
-
-						self.push("Partial<[");
-
-						for i in 0..max as usize {
+						for i in 0..exact as usize {
 							if i != 0 {
 								self.push(", ");
 							}
@@ -70,14 +42,13 @@ pub trait Output: ConfigProvider {
 							self.push_ty(ty);
 						}
 
-						self.push("]>");
+						self.push("]");
 					}
-				}
-				(Some(min), None) => {
-					self.push("[");
+				} else if range.max <= self.get_config().typescript_max_tuple_length {
+					if range.min as usize != 0 {
+						self.push("[");
 
-					if min as usize != 0 {
-						for i in 0..min as usize {
+						for i in 0..range.min as usize {
 							if i != 0 {
 								self.push(", ");
 							}
@@ -85,17 +56,12 @@ pub trait Output: ConfigProvider {
 							self.push_ty(ty);
 						}
 
-						self.push(", ");
+						self.push("] & ");
 					}
 
-					self.push("...Array<");
-					self.push_ty(ty);
-					self.push(" | undefined>]");
-				}
-				(None, Some(max)) => {
 					self.push("Partial<[");
 
-					for i in 0..max as usize {
+					for i in 0..range.max as usize {
 						if i != 0 {
 							self.push(", ");
 						}
@@ -104,13 +70,12 @@ pub trait Output: ConfigProvider {
 					}
 
 					self.push("]>");
-				}
-				_ => {
+				} else {
 					self.push("(");
 					self.push_ty(ty);
 					self.push(")[]");
 				}
-			},
+			}
 
 			Ty::Map(key, val) => {
 				self.push("Map<");

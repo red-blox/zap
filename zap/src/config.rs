@@ -172,7 +172,7 @@ pub struct TyDecl<'src> {
 
 #[derive(Debug, Clone)]
 pub enum Ty<'src> {
-	Num(NumTy, Range),
+	Num(NumTy, Option<Range>),
 	Str(Range),
 	Buf(Range),
 	Vector(Box<Ty<'src>>, Box<Ty<'src>>, Option<Box<Ty<'src>>>),
@@ -231,8 +231,8 @@ impl<'src> Ty<'src> {
 					let (len_numty, ..) = len.numty();
 
 					(
-						len.min().map(|min| min as usize).unwrap_or(0) + len_numty.size(),
-						len.max().map(|max| max as usize + len_numty.size()),
+						len.min as usize + len_numty.size(),
+						Some(len.max as usize + len_numty.size()),
 					)
 				}
 			}
@@ -244,15 +244,15 @@ impl<'src> Ty<'src> {
 					let (len_numty, ..) = len.numty();
 
 					(
-						len.min().map(|min| min as usize).unwrap_or(0) + len_numty.size(),
-						len.max().map(|max| max as usize + len_numty.size()),
+						len.min as usize + len_numty.size(),
+						Some(len.max as usize + len_numty.size()),
 					)
 				}
 			}
 
 			Self::Arr(ty, len) => {
 				let (ty_min, ty_max) = ty.size(recursed);
-				let len_min = len.min().map(|min| min as usize).unwrap_or(0);
+				let len_min = len.min as usize;
 				let (len_numty, ..) = len.numty();
 
 				if let Some(exact) = len.exact() {
@@ -260,9 +260,7 @@ impl<'src> Ty<'src> {
 				} else {
 					(
 						ty_min * len_min + len_numty.size(),
-						ty_max
-							.zip(len.max())
-							.map(|(ty_max, max)| ty_max * max as usize + len_numty.size()),
+						ty_max.map(|ty_max| ty_max * len.max as usize + len_numty.size()),
 					)
 				}
 			}
@@ -378,11 +376,7 @@ impl<'src> Ty<'src> {
 			// note the lack of - 1 here, it's because we need to store 0 length as well.
 			Ty::Enum(Enum::Unit(variants)) => Some(variants.len()),
 			Ty::Enum(Enum::Tagged { variants, .. }) => Some(variants.len()),
-			Ty::Num(num, ..) if matches!(num, NumTy::U8 | NumTy::U16 | NumTy::I8 | NumTy::I16) => {
-				Some((num.min().abs() + num.max()) as usize + 1)
-			}
-			// prevent an increase from u16 on previous versions to u32
-			Ty::Num(num, ..) => return Some((NumTy::U16, (num.min().abs() + num.max()) as usize + 1)),
+			Ty::Num(num, ..) => Some((num.min().abs() + num.max()) as usize + 1),
 			Ty::Ref(.., ty) => return ty.variants(),
 			_ => None,
 		}
@@ -496,36 +490,28 @@ impl<'src> Struct<'src> {
 	}
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct Range {
-	min: Option<f64>,
-	max: Option<f64>,
+	pub min: f64,
+	pub max: f64,
 }
 
 impl Range {
-	pub fn new(min: Option<f64>, max: Option<f64>) -> Self {
+	pub fn new(min: f64, max: f64) -> Self {
 		Self { min, max }
 	}
 
-	pub fn min(&self) -> Option<f64> {
-		self.min
-	}
-
-	pub fn max(&self) -> Option<f64> {
-		self.max
-	}
-
 	pub fn exact(&self) -> Option<f64> {
-		if self.min.is_some() && self.min == self.max {
-			Some(self.min.unwrap())
+		if self.min == self.max {
+			Some(self.min)
 		} else {
 			None
 		}
 	}
 
 	pub fn numty(&self) -> (NumTy, f64) {
-		let min = self.min.unwrap_or(0.0);
-		let Some(max) = self.max else { return (NumTy::U16, 0.0) };
+		let min = self.min;
+		let max = self.max;
 
 		let (min, max, offset) = if min > 0.0 {
 			(0.0, max - min, min)
@@ -539,11 +525,19 @@ impl Range {
 
 impl Display for Range {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match (self.min, self.max) {
-			(Some(min), Some(max)) => write!(f, "{}..{}", min, max),
-			(Some(min), None) => write!(f, "{}..", min),
-			(None, Some(max)) => write!(f, "..{}", max),
-			(None, None) => write!(f, ".."),
+		if self.min == self.max {
+			write!(f, "{}", self.min)
+		} else {
+			write!(f, "{}..{}", self.min, self.max)
+		}
+	}
+}
+
+impl Default for Range {
+	fn default() -> Self {
+		Self {
+			min: 0.0,
+			max: u16::MAX as f64,
 		}
 	}
 }

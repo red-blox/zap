@@ -179,8 +179,10 @@ impl Des<'_> {
 			Ty::Num(numty, range) => {
 				self.push_assign(into, self.readnumty(*numty));
 
-				if self.checks {
-					self.push_range_check(into_expr, *range);
+				if let Some(range) = range {
+					if self.checks {
+						self.push_range_check(into_expr, *range);
+					}
 				}
 			}
 
@@ -466,8 +468,10 @@ impl Des<'_> {
 			Ty::Vector(x_ty, y_ty, z_ty) => {
 				let x_numty = match **x_ty {
 					Ty::Num(numty, range) => {
-						if self.checks {
-							self.push_range_check(into_expr.clone(), range);
+						if let Some(range) = range {
+							if self.checks {
+								self.push_range_check(into_expr.clone(), range);
+							}
 						}
 
 						numty
@@ -476,8 +480,10 @@ impl Des<'_> {
 				};
 				let y_numty = match **y_ty {
 					Ty::Num(numty, range) => {
-						if self.checks {
-							self.push_range_check(into_expr.clone(), range);
+						if let Some(range) = range {
+							if self.checks {
+								self.push_range_check(into_expr.clone(), range);
+							}
 						}
 
 						numty
@@ -487,8 +493,10 @@ impl Des<'_> {
 				let z_numty = if let Some(z_ty) = z_ty {
 					match **z_ty {
 						Ty::Num(numty, range) => {
-							if self.checks {
-								self.push_range_check(into_expr.clone(), range);
+							if let Some(range) = range {
+								if self.checks {
+									self.push_range_check(into_expr.clone(), range);
+								}
 							}
 
 							Some(numty)

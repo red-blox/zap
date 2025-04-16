@@ -540,19 +540,21 @@ impl<'src> Converter<'src> {
 		match &ty.kind {
 			SyntaxTyKind::Num(numty, range) => Ty::Num(
 				*numty,
-				range
-					.map(|range| self.checked_range_within(&range, numty.min(), numty.max()))
-					.unwrap_or_default(),
+				range.map(|range| self.checked_range_within(&range, numty.min(), numty.max())),
 			),
 
 			SyntaxTyKind::Str(len) => Ty::Str(
-				len.map(|range| self.checked_range_within(&range, 0.0, u16::MAX as f64))
-					.unwrap_or_default(),
+				len.map(|range| {
+					self.checked_range_within(&range, 0.0, if range.u32 { u32::MAX as f64 } else { u16::MAX as f64 })
+				})
+				.unwrap_or_default(),
 			),
 
 			SyntaxTyKind::Buf(len) => Ty::Buf(
-				len.map(|range| self.checked_range_within(&range, 0.0, u16::MAX as f64))
-					.unwrap_or_default(),
+				len.map(|range| {
+					self.checked_range_within(&range, 0.0, if range.u32 { u32::MAX as f64 } else { u16::MAX as f64 })
+				})
+				.unwrap_or_default(),
 			),
 
 			SyntaxTyKind::Vector(x_ty, y_ty, z_ty) => {
@@ -622,8 +624,10 @@ impl<'src> Converter<'src> {
 
 			SyntaxTyKind::Arr(ty, len) => Ty::Arr(
 				Box::new(self.ty(ty)),
-				len.map(|len| self.checked_range_within(&len, 0.0, u16::MAX as f64))
-					.unwrap_or_default(),
+				len.map(|len| {
+					self.checked_range_within(&len, 0.0, if len.u32 { u32::MAX as f64 } else { u16::MAX as f64 })
+				})
+				.unwrap_or_default(),
 			),
 
 			SyntaxTyKind::Map(key, val) => {
@@ -851,7 +855,7 @@ impl<'src> Converter<'src> {
 				let len = len.map(|len| self.range(&len)).unwrap_or_default();
 
 				// if array does not have a min size of 0, it is unbounded
-				if len.min().is_some_and(|min| min != 0.0) {
+				if len.min != 0.0 {
 					self.ty_has_unbounded_ref(name, ty, searched)
 				} else {
 					None
@@ -929,7 +933,7 @@ impl<'src> Converter<'src> {
 	fn checked_range_within(&mut self, range: &SyntaxRange<'src>, min: f64, max: f64) -> Range {
 		let value = self.range_within(range, min, max);
 
-		if value.min().is_some() && value.max().is_some() && value.min().unwrap() > value.max().unwrap() {
+		if value.min > value.max {
 			self.report(Report::AnalyzeInvalidRange { span: range.span() });
 		}
 
@@ -938,49 +942,40 @@ impl<'src> Converter<'src> {
 
 	fn range_within(&mut self, range: &SyntaxRange<'src>, min: f64, max: f64) -> Range {
 		match range.kind {
-			SyntaxRangeKind::None => Range::new(None, None),
+			SyntaxRangeKind::None => Range::new(0.0, max),
 
 			SyntaxRangeKind::Exact(num) => {
 				let value = self.num_within(&num, min, max);
-				Range::new(Some(value), Some(value))
+				Range::new(value, value)
 			}
 
 			SyntaxRangeKind::WithMin(min_num) => {
 				let value = self.num_within(&min_num, min, max);
-				Range::new(Some(value), None)
+				Range::new(value, max)
 			}
 
 			SyntaxRangeKind::WithMax(max_num) => {
 				let value = self.num_within(&max_num, min, max);
-				Range::new(None, Some(value))
+				Range::new(0.0, value)
 			}
 
 			SyntaxRangeKind::WithMinMax(min_num, max_num) => {
 				let min_value = self.num_within(&min_num, min, max);
 				let max_value = self.num_within(&max_num, min, max);
-				Range::new(Some(min_value), Some(max_value))
+				Range::new(min_value, max_value)
 			}
 		}
 	}
 
-	#[allow(dead_code)]
-	fn checked_range(&mut self, range: &SyntaxRange<'src>) -> Range {
-		let value = self.range(range);
-
-		if value.min().is_some() && value.max().is_some() && value.min().unwrap() > value.max().unwrap() {
-			self.report(Report::AnalyzeInvalidRange { span: range.span() });
-		}
-
-		value
-	}
-
 	fn range(&self, range: &SyntaxRange<'src>) -> Range {
+		let max_num = if range.u32 { u32::MAX as f64 } else { u16::MAX as f64 };
+
 		match range.kind {
-			SyntaxRangeKind::None => Range::new(None, None),
-			SyntaxRangeKind::Exact(num) => Range::new(Some(self.num(&num)), Some(self.num(&num))),
-			SyntaxRangeKind::WithMin(min) => Range::new(Some(self.num(&min)), None),
-			SyntaxRangeKind::WithMax(max) => Range::new(None, Some(self.num(&max))),
-			SyntaxRangeKind::WithMinMax(min, max) => Range::new(Some(self.num(&min)), Some(self.num(&max))),
+			SyntaxRangeKind::None => Range::new(0.0, max_num),
+			SyntaxRangeKind::Exact(num) => Range::new(self.num(&num), self.num(&num)),
+			SyntaxRangeKind::WithMin(min) => Range::new(self.num(&min), max_num),
+			SyntaxRangeKind::WithMax(max) => Range::new(0.0, self.num(&max)),
+			SyntaxRangeKind::WithMinMax(min, max) => Range::new(self.num(&min), self.num(&max)),
 		}
 	}
 

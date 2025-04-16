@@ -204,8 +204,10 @@ impl Ser<'_> {
 
 		match ty {
 			Ty::Num(numty, range) => {
-				if self.checks {
-					self.push_range_check(from_expr.clone(), *range);
+				if let Some(range) = range {
+					if self.checks {
+						self.push_range_check(from_expr.clone(), *range);
+					}
 				}
 
 				self.push_writenumty(from_expr, *numty)
@@ -483,8 +485,10 @@ impl Ser<'_> {
 			Ty::Vector(x_ty, y_ty, z_ty) => {
 				match **x_ty {
 					Ty::Num(numty, range) => {
-						if self.checks {
-							self.push_range_check(from_expr.clone(), range);
+						if let Some(range) = range {
+							if self.checks {
+								self.push_range_check(from_expr.clone(), range);
+							}
 						}
 
 						self.push_writenumty(from.clone().nindex("x").into(), numty)
@@ -494,8 +498,10 @@ impl Ser<'_> {
 
 				match **y_ty {
 					Ty::Num(numty, range) => {
-						if self.checks {
-							self.push_range_check(from_expr.clone(), range);
+						if let Some(range) = range {
+							if self.checks {
+								self.push_range_check(from_expr.clone(), range);
+							}
 						}
 
 						self.push_writenumty(from.clone().nindex("y").into(), numty)
@@ -506,8 +512,10 @@ impl Ser<'_> {
 				if let Some(z_ty) = z_ty {
 					match **z_ty {
 						Ty::Num(numty, range) => {
-							if self.checks {
-								self.push_range_check(from_expr.clone(), range);
+							if let Some(range) = range {
+								if self.checks {
+									self.push_range_check(from_expr.clone(), range);
+								}
 							}
 
 							self.push_writenumty(from.clone().nindex("z").into(), numty)
