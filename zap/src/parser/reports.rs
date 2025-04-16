@@ -430,8 +430,8 @@ impl Report<'_> {
 			Self::AnalyzeUnknownOptName { .. } => None,
 			Self::AnalyzeUnknownTypeRef { .. } => None,
 			Self::AnalyzeNumOutsideRange { min, max, .. } => Some(vec![
-				format!("The minimum must be greater than or equal to: {}", min),
-				format!("The maximum must be less than or equal to: {}", max),
+				format!("the minimum must be greater than or equal to: {}", min),
+				format!("the maximum must be less than or equal to: {}", max),
 			]),
 			Self::AnalyzeInvalidOptionalType { .. } => Some(vec![
 				"you cannot have 'double optional' types, where a type is optional twice".to_string(),
