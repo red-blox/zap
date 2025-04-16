@@ -373,8 +373,8 @@ impl<'src> Ty<'src> {
 
 	pub fn variants(&self) -> Option<(NumTy, usize)> {
 		match self {
-			Ty::Enum(Enum::Unit(variants)) => Some(variants.len() - 1),
-			Ty::Enum(Enum::Tagged { variants, .. }) => Some(variants.len() - 1),
+			Ty::Enum(Enum::Unit(variants)) => Some(variants.len()),
+			Ty::Enum(Enum::Tagged { variants, .. }) => Some(variants.len()),
 			Ty::Num(num, ..) => Some((num.min().abs() + num.max()) as usize),
 			Ty::Ref(.., ty) => return ty.variants(),
 			_ => None,
