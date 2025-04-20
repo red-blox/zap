@@ -902,7 +902,7 @@ impl<'a> ServerOutput<'a> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_list} = function({list}: {{ Player }}"));
+		self.push(&format!("{fire_list} = function({list}: {{ [unknown]: Player }}"));
 
 		if !parameters.is_empty() {
 			self.push(", ");
@@ -972,7 +972,7 @@ impl<'a> ServerOutput<'a> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_set} = function({set}: {{ [Player]: true }}"));
+		self.push(&format!("{fire_set} = function({set}: {{ [Player]: unknown }}"));
 
 		if !parameters.is_empty() {
 			self.push(", ");

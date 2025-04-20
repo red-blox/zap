@@ -112,7 +112,9 @@ impl<'a> ServerOutput<'a> {
 		let list = self.config.casing.with("List", "list", "list");
 
 		self.push_indent();
-		self.push(&format!("{fire_list}: ({list}: Player[]"));
+		self.push(&format!(
+			"{fire_list}: ({list}: Player[] | Record<string | number | symbol, Player> | Map<unknown, Player>"
+		));
 
 		if !ev.data.is_empty() {
 			self.push(", ");
@@ -127,7 +129,7 @@ impl<'a> ServerOutput<'a> {
 		let set = self.config.casing.with("Set", "set", "set");
 
 		self.push_indent();
-		self.push(&format!("{fire_set}: ({set}: Set<Player>"));
+		self.push(&format!("{fire_set}: ({set}: Set<Player> | Map<Player, unknown>"));
 
 		if !ev.data.is_empty() {
 			self.push(", ");
