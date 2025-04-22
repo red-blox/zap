@@ -69,9 +69,24 @@ pub enum SyntaxOptValueKind<'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SyntaxDecl<'src> {
+	Ns(SyntaxNsDecl<'src>),
 	Ty(SyntaxTyDecl<'src>),
 	Ev(SyntaxEvDecl<'src>),
 	Fn(SyntaxFnDecl<'src>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyntaxNsDecl<'src> {
+	pub start: usize,
+	pub name: SyntaxIdentifier<'src>,
+	pub decls: Vec<SyntaxDecl<'src>>,
+	pub end: usize,
+}
+
+impl Spanned for SyntaxNsDecl<'_> {
+	fn span(&self) -> Span {
+		self.start..self.end
+	}
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -164,6 +179,7 @@ pub enum SyntaxTyKind<'src> {
 	Set(Box<SyntaxTy<'src>>),
 	Opt(Box<SyntaxTy<'src>>),
 	Ref(SyntaxIdentifier<'src>),
+	Path(Vec<SyntaxIdentifier<'src>>),
 
 	Enum(SyntaxEnum<'src>),
 	Struct(SyntaxStruct<'src>),

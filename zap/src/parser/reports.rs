@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::parser::convert::MAX_UNRELIABLE_SIZE;
 
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
@@ -84,7 +86,7 @@ pub enum Report<'src> {
 
 	AnalyzeUnknownTypeRef {
 		span: Span,
-		name: &'src str,
+		name: Cow<'src, str>,
 	},
 
 	AnalyzeNumOutsideRange {

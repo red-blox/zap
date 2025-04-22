@@ -1,4 +1,5 @@
 use std::{
+	borrow::Cow,
 	cmp::Ordering,
 	collections::{HashMap, HashSet, VecDeque},
 };
@@ -19,23 +20,19 @@ pub const MAX_UNRELIABLE_SIZE: usize = 998;
 struct Converter<'src> {
 	config: SyntaxConfig<'src>,
 	tydecls: HashMap<&'src str, SyntaxTyDecl<'src>>,
+	all_tydecls: HashMap<String, TyDecl<'src>>,
+	path: Vec<&'src str>,
 
 	reports: Vec<Report<'src>>,
 }
 
 impl<'src> Converter<'src> {
 	fn new(config: SyntaxConfig<'src>) -> Self {
-		let mut tydecls = HashMap::new();
-
-		for decl in config.decls.iter() {
-			if let SyntaxDecl::Ty(tydecl) = decl {
-				tydecls.insert(tydecl.name.name, tydecl.clone());
-			}
-		}
-
 		Self {
 			config,
-			tydecls,
+			tydecls: HashMap::new(),
+			all_tydecls: HashMap::new(),
+			path: Vec::new(),
 
 			reports: Vec::new(),
 		}
@@ -55,54 +52,103 @@ impl<'src> Converter<'src> {
 		let mut client_reliable_id = 0;
 		let mut client_unreliable_id = 0;
 
-		for tydecl in config.decls.iter().filter_map(|decl| match decl {
-			SyntaxDecl::Ty(tydecl) => Some(tydecl),
-			_ => None,
-		}) {
-			tydecls.push(self.tydecl(tydecl));
+		let mut nsdecls = Vec::new();
+		let mut queue = config
+			.decls
+			.iter()
+			.filter_map(|decl| match decl {
+				SyntaxDecl::Ns(nsdecl) => Some((nsdecl, vec![nsdecl.name.name])),
+				_ => None,
+			})
+			.collect::<VecDeque<_>>();
+
+		while let Some((nsdecl, path)) = queue.pop_front() {
+			nsdecls.push((&nsdecl.decls, path.clone()));
+
+			for decl in &nsdecl.decls {
+				if let SyntaxDecl::Ns(nsdecl) = decl {
+					queue.push_back((
+						nsdecl,
+						path.iter().copied().chain(std::iter::once(nsdecl.name.name)).collect(),
+					));
+				}
+			}
 		}
 
-		for evdecl in config.decls.iter().filter_map(|decl| match decl {
-			SyntaxDecl::Ev(evdecl) => Some(evdecl),
-			_ => None,
-		}) {
-			let id = match evdecl.from {
-				EvSource::Server => match evdecl.evty {
-					EvType::Reliable => {
-						let current_id = client_reliable_id;
-						client_reliable_id += 1;
-						current_id
-					}
-					EvType::Unreliable(_) => {
-						let current_id = client_unreliable_id;
-						client_unreliable_id += 1;
-						current_id
-					}
-				},
-				EvSource::Client => match evdecl.evty {
-					EvType::Reliable => {
-						let current_id = server_reliable_id;
-						server_reliable_id += 1;
-						current_id
-					}
-					EvType::Unreliable(_) => {
-						let current_id = server_unreliable_id;
-						server_unreliable_id += 1;
-						current_id
-					}
-				},
-			};
+		for (decls, path) in nsdecls
+			.into_iter()
+			// reverse so namespaces higher can use types from namespaces lower
+			.rev()
+			.chain(std::iter::once((&config.decls, vec![])))
+		{
+			self.path = path;
 
-			evdecls.push(self.evdecl(evdecl, id));
-		}
+			let current_tydecls = decls.iter().filter_map(|decl| match decl {
+				SyntaxDecl::Ty(tydecl) => Some(tydecl),
+				_ => None,
+			});
 
-		for fndecl in config.decls.iter().filter_map(|decl| match decl {
-			SyntaxDecl::Fn(fndecl) => Some(fndecl),
-			_ => None,
-		}) {
-			fndecls.push(self.fndecl(fndecl, client_reliable_id, server_reliable_id));
-			client_reliable_id += 1;
-			server_reliable_id += 1;
+			self.tydecls.clear();
+			for tydecl in current_tydecls.clone() {
+				self.tydecls.insert(tydecl.name.name, tydecl.clone());
+			}
+
+			for tydecl in current_tydecls {
+				let tydecl = self.tydecl(tydecl);
+				tydecls.push(tydecl.clone());
+				self.all_tydecls.insert(
+					self.path
+						.iter()
+						.copied()
+						.chain(std::iter::once(tydecl.name))
+						.collect::<Vec<_>>()
+						.join("."),
+					tydecl,
+				);
+			}
+
+			for evdecl in decls.iter().filter_map(|decl| match decl {
+				SyntaxDecl::Ev(evdecl) => Some(evdecl),
+				_ => None,
+			}) {
+				let id = match evdecl.from {
+					EvSource::Server => match evdecl.evty {
+						EvType::Reliable => {
+							let current_id = client_reliable_id;
+							client_reliable_id += 1;
+							current_id
+						}
+						EvType::Unreliable(_) => {
+							let current_id = client_unreliable_id;
+							client_unreliable_id += 1;
+							current_id
+						}
+					},
+					EvSource::Client => match evdecl.evty {
+						EvType::Reliable => {
+							let current_id = server_reliable_id;
+							server_reliable_id += 1;
+							current_id
+						}
+						EvType::Unreliable(_) => {
+							let current_id = server_unreliable_id;
+							server_unreliable_id += 1;
+							current_id
+						}
+					},
+				};
+
+				evdecls.push(self.evdecl(evdecl, id));
+			}
+
+			for fndecl in decls.iter().filter_map(|decl| match decl {
+				SyntaxDecl::Fn(fndecl) => Some(fndecl),
+				_ => None,
+			}) {
+				fndecls.push(self.fndecl(fndecl, client_reliable_id, server_reliable_id));
+				client_reliable_id += 1;
+				server_reliable_id += 1;
+			}
 		}
 
 		if evdecls.is_empty() && fndecls.is_empty() {
@@ -350,27 +396,14 @@ impl<'src> Converter<'src> {
 		let mut ntdecls = HashMap::new();
 
 		for decl in decls.iter() {
-			match decl {
-				SyntaxDecl::Ev(ev) => {
-					if let Some(prev_span) = ntdecls.insert(ev.name.name, ev.span()) {
-						self.report(Report::AnalyzeDuplicateDecl {
-							prev_span,
-							dup_span: ev.span(),
-							name: ev.name.name,
-						});
-					}
-				}
+			let (name, span) = match decl {
+				SyntaxDecl::Ns(ns) => {
+					self.check_duplicate_decls(&ns.decls);
 
-				SyntaxDecl::Fn(fn_) => {
-					if let Some(prev_span) = ntdecls.insert(fn_.name.name, fn_.span()) {
-						self.report(Report::AnalyzeDuplicateDecl {
-							prev_span,
-							dup_span: fn_.span(),
-							name: fn_.name.name,
-						});
-					}
+					(&ns.name.name, ns.span())
 				}
-
+				SyntaxDecl::Ev(ev) => (&ev.name.name, ev.span()),
+				SyntaxDecl::Fn(fn_) => (&fn_.name.name, fn_.span()),
 				SyntaxDecl::Ty(ty) => {
 					if let Some(prev_span) = tydecls.insert(ty.name.name, ty.span()) {
 						self.report(Report::AnalyzeDuplicateDecl {
@@ -379,7 +412,17 @@ impl<'src> Converter<'src> {
 							name: ty.name.name,
 						});
 					}
+
+					continue;
 				}
+			};
+
+			if let Some(prev_span) = ntdecls.insert(name, span.clone()) {
+				self.report(Report::AnalyzeDuplicateDecl {
+					prev_span,
+					dup_span: span,
+					name,
+				});
 			}
 		}
 	}
@@ -533,7 +576,11 @@ impl<'src> Converter<'src> {
 			});
 		}
 
-		TyDecl { name, ty }
+		TyDecl {
+			name,
+			ty,
+			path: self.path.clone(),
+		}
 	}
 
 	fn ty(&mut self, ty: &SyntaxTy<'src>) -> Ty<'src> {
@@ -680,15 +727,31 @@ impl<'src> Converter<'src> {
 						let Some(tydecl) = self.tydecls.get(name).cloned() else {
 							self.report(Report::AnalyzeUnknownTypeRef {
 								span: ref_ty.span(),
-								name,
+								name: Cow::Borrowed(name),
 							});
 
-							return Ty::Ref(name, Box::new(Ty::Opt(Box::new(Ty::Unknown))));
+							return Ty::Ref(name.to_string(), Box::new(Ty::Opt(Box::new(Ty::Unknown))));
 						};
 
-						Ty::Ref(name, Box::new(self.tydecl(&tydecl).ty))
+						let tydecl = self.tydecl(&tydecl);
+						Ty::Ref(tydecl.to_string(), Box::new(tydecl.ty))
 					}
 				}
+			}
+
+			SyntaxTyKind::Path(path) => {
+				let path = path.iter().map(|iden| iden.name).collect::<Vec<_>>().join(".");
+
+				let Some(tydecl) = self.all_tydecls.get(&path) else {
+					self.report(Report::AnalyzeUnknownTypeRef {
+						span: ty.span(),
+						name: Cow::Owned(path.clone()),
+					});
+
+					return Ty::Ref(path.clone(), Box::new(Ty::Opt(Box::new(Ty::Unknown))));
+				};
+
+				Ty::Ref(tydecl.to_string(), Box::new(tydecl.ty.clone()))
 			}
 
 			SyntaxTyKind::Enum(enum_ty) => Ty::Enum(self.enum_ty(enum_ty)),

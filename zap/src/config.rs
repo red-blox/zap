@@ -168,6 +168,17 @@ pub enum EvCall {
 pub struct TyDecl<'src> {
 	pub name: &'src str,
 	pub ty: Ty<'src>,
+	pub path: Vec<&'src str>,
+}
+
+impl Display for TyDecl<'_> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		if self.path.is_empty() {
+			return write!(f, "{}", self.name);
+		}
+
+		write!(f, "__ZAP_NAMESPACE__{}_{}", self.path.join("_"), self.name)
+	}
 }
 
 #[derive(Debug, Clone)]
@@ -180,7 +191,7 @@ pub enum Ty<'src> {
 	Map(Box<Ty<'src>>, Box<Ty<'src>>),
 	Set(Box<Ty<'src>>),
 	Opt(Box<Ty<'src>>),
-	Ref(&'src str, Box<Ty<'src>>),
+	Ref(String, Box<Ty<'src>>),
 
 	Enum(Enum<'src>),
 	Struct(Struct<'src>),
@@ -220,7 +231,7 @@ impl<'src> Ty<'src> {
 	/// Note that this is not the same as the size of the type in the buffer.
 	/// For example, an `Instance` will always send 4 bytes of data, but the
 	/// size of the type in the buffer will be 0 bytes.
-	pub fn size(&self, recursed: &mut HashSet<&'src str>) -> (usize, Option<usize>) {
+	pub fn size(&self, recursed: &mut HashSet<String>) -> (usize, Option<usize>) {
 		match self {
 			Self::Num(numty, ..) => (numty.size(), Some(numty.size())),
 
@@ -301,7 +312,7 @@ impl<'src> Ty<'src> {
 					// bounded and all bounded types have their own min size
 					(0, None)
 				} else {
-					recursed.insert(name);
+					recursed.insert(name.clone());
 
 					tydecl.size(recursed)
 				}
@@ -429,8 +440,8 @@ pub enum Enum<'src> {
 	},
 }
 
-impl<'src> Enum<'src> {
-	pub fn size(&self, recursed: &mut HashSet<&'src str>) -> (usize, Option<usize>) {
+impl Enum<'_> {
+	pub fn size(&self, recursed: &mut HashSet<String>) -> (usize, Option<usize>) {
 		match self {
 			Self::Unit(enumerators) => {
 				let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
@@ -471,8 +482,8 @@ pub struct Struct<'src> {
 	pub fields: Vec<(&'src str, Ty<'src>)>,
 }
 
-impl<'src> Struct<'src> {
-	pub fn size(&self, recursed: &mut HashSet<&'src str>) -> (usize, Option<usize>) {
+impl Struct<'_> {
+	pub fn size(&self, recursed: &mut HashSet<String>) -> (usize, Option<usize>) {
 		let mut min = 0;
 		let mut max = Some(0);
 

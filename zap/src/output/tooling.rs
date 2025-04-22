@@ -111,10 +111,9 @@ impl<'src> ToolingOutput<'src> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let name = &tydecl.name;
 		let ty = &tydecl.ty;
 
-		self.push_line(&format!("function types.read_{name}()"));
+		self.push_line(&format!("function types.read_{tydecl}()"));
 		self.indent();
 		self.push_line("local value;");
 		let statements = &des::gen(

@@ -35,9 +35,14 @@ OptValueKind: SyntaxOptValueKind<'input> = {
 }
 
 Decl: SyntaxDecl<'input> = {
+    <decl:NsDecl> => SyntaxDecl::Ns(decl),
     <decl:TyDecl> => SyntaxDecl::Ty(decl),
     <decl:EvDecl> => SyntaxDecl::Ev(decl),
     <decl:FnDecl> => SyntaxDecl::Fn(decl),
+}
+
+NsDecl: SyntaxNsDecl<'input> = {
+    <start:@L> "namespace" <name:Identifier> "=" "{" <decls:Decl*> "}" <end:@R> => SyntaxNsDecl { start, name, decls, end },
 }
 
 FnDecl: SyntaxFnDecl<'input> = {
@@ -119,6 +124,10 @@ TyKind: SyntaxTyKind<'input> = {
 
     <ty:Ty> "?" => SyntaxTyKind::Opt(Box::new(ty)),
     <name:Identifier> => SyntaxTyKind::Ref(name),
+    <name:Identifier> <mut names:("." <Identifier>)+> => {
+        names.insert(0, name);
+        SyntaxTyKind::Path(names)
+    },
 
     "enum" <e:Enum> => SyntaxTyKind::Enum(e),
     "struct" <s:Struct> => SyntaxTyKind::Struct(s),
@@ -213,6 +222,7 @@ BoolLit: SyntaxBoolLit = {
 Identifier: SyntaxIdentifier<'input> = {
     <start:@L> <name:r"[a-zA-Z_][a-zA-Z0-9_]*"> <end:@R> => SyntaxIdentifier { start, name, end },
     <start:@L> "data" <end:@R> => SyntaxIdentifier { start, name: "data", end },
+    <start:@L> "namespace" <end:@R> => SyntaxIdentifier { start, name: "namespace", end },
     <start:@L> "event" <end:@R> => SyntaxIdentifier { start, name: "event", end },
     <start:@L> "type" <end:@R> => SyntaxIdentifier { start, name: "type", end },
     <start:@L> "opt" <end:@R> => SyntaxIdentifier { start, name: "opt", end },

@@ -135,15 +135,17 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let name = &tydecl.name;
 		let ty = &tydecl.ty;
 
 		self.push_indent();
-		self.push(&format!("export type {name} = "));
+		self.push(&format!(
+			"{}type {tydecl} = ",
+			if tydecl.path.is_empty() { "export " } else { "" }
+		));
 		self.push_ty(ty);
 		self.push("\n");
 
-		self.push_line(&format!("function types.write_{name}(value: {name})"));
+		self.push_line(&format!("function types.write_{tydecl}(value: {tydecl})"));
 		self.indent();
 		let statements = &ser::gen(
 			&[ty.clone()],
@@ -155,7 +157,7 @@ impl<'src> ClientOutput<'src> {
 		self.dedent();
 		self.push_line("end");
 
-		self.push_line(&format!("function types.read_{name}()"));
+		self.push_line(&format!("function types.read_{tydecl}()"));
 		self.indent();
 		self.push_line("local value;");
 		let statements = &des::gen(&[ty.clone()], &["value".to_string()], false, &mut HashMap::new());

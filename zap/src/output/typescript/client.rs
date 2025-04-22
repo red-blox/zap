@@ -45,11 +45,10 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let name = &tydecl.name;
 		let ty = &tydecl.ty;
 
 		self.push_indent();
-		self.push(&format!("type {name} = "));
+		self.push(&format!("type {tydecl} = "));
 		self.push_ty(ty);
 		self.push(";\n");
 	}

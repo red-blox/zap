@@ -38,11 +38,13 @@ impl<'a> TypesOutput<'a> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let name = &tydecl.name;
 		let ty = &tydecl.ty;
 
 		self.push_indent();
-		self.push(&format!("export type {name} = "));
+		self.push(&format!(
+			"{}type {tydecl} = ",
+			if tydecl.path.is_empty() { "export " } else { "" }
+		));
 		self.push_ty(ty);
 		self.push("\n");
 	}
