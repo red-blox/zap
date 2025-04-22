@@ -82,7 +82,7 @@ impl<'a> ServerOutput<'a> {
 					this.push_line("}),");
 				}
 			},
-			|this, name, entry| {
+			|this, name, entry, _| {
 				this.push_line(&format!("{name} = table.freeze({{"));
 				this.indent();
 

@@ -55,7 +55,7 @@ impl<'src> Config<'src> {
 	pub fn traverse_namespaces<T, R, C>(&self, this: &mut T, mut reset: R, mut cb: C)
 	where
 		R: FnMut(&mut T, usize),
-		C: FnMut(&mut T, &'src str, &NamespaceEntry<'src>),
+		C: FnMut(&mut T, &'src str, &NamespaceEntry<'src>, usize),
 	{
 		let mut stack = self.namespaces.iter().map(|(k, v)| (k, v, 0)).collect::<Vec<_>>();
 
@@ -67,7 +67,7 @@ impl<'src> Config<'src> {
 			}
 			max_depth = depth;
 
-			cb(this, key, entry);
+			cb(this, key, entry, depth);
 
 			if let NamespaceEntry::Ns(entries) = entry {
 				for (sub_key, sub_entry) in entries.iter() {
@@ -87,7 +87,7 @@ impl<'src> Config<'src> {
 		self.traverse_namespaces(
 			&mut (),
 			|_, _| {},
-			|_, _, entry| {
+			|_, _, entry, _| {
 				if let NamespaceEntry::EvDecl(evdecl) = entry {
 					evdecls.push(evdecl.clone())
 				}
@@ -103,7 +103,7 @@ impl<'src> Config<'src> {
 		self.traverse_namespaces(
 			&mut (),
 			|_, _| {},
-			|_, _, entry| {
+			|_, _, entry, _| {
 				if let NamespaceEntry::FnDecl(fndecl) = entry {
 					fndecls.push(fndecl.clone())
 				}

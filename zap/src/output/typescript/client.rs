@@ -1,3 +1,4 @@
+use crate::config::NamespaceEntry;
 use crate::config::{Config, EvCall, EvSource, TyDecl, YieldType};
 
 use super::ConfigProvider;
@@ -63,147 +64,143 @@ impl<'src> ClientOutput<'src> {
 		}
 	}
 
-	fn push_return_outgoing(&mut self) {
-		for (_i, ev) in self
-			.config
-			.evdecls()
-			.iter()
-			.enumerate()
-			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client)
-		{
-			let fire = self.config.casing.with("Fire", "fire", "fire");
-
-			self.push_line(&format!("export declare const {name}: {{", name = ev.name));
-			self.indent();
-
-			self.push_indent();
-			self.push(&format!("{fire}: ("));
-
-			if !ev.data.is_empty() {
-				self.push_parameters(&ev.data);
-			}
-
-			self.push(") => void;\n");
-
-			self.dedent();
-			self.push_line("};");
-		}
-	}
-
-	pub fn push_return_listen(&mut self) {
-		for (_i, ev) in self
-			.config
-			.evdecls()
-			.iter()
-			.enumerate()
-			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server)
-		{
-			self.push_line(&format!("export declare const {name}: {{", name = ev.name));
-			self.indent();
-
-			if ev.call == EvCall::Polling {
-				let iter = self.config.casing.with("Iter", "iter", "iter");
-				let index = self.config.casing.with("Index", "index", "index");
-				let value = self.config.casing.with("Value", "value", "value");
-
-				self.push_indent();
-				self.push(&format!("{iter}: Iter<LuaTuple<[{index}: number"));
-
-				for (index, parameter) in ev.data.iter().enumerate() {
-					let name = match parameter.name {
-						Some(name) => name.to_string(),
-						None => {
-							if index > 0 {
-								format!("{value}{}", index + 1)
-							} else {
-								value.to_string()
-							}
-						}
-					};
-
-					self.push(&format!(", {}: ", name));
-					self.push_ty(&parameter.ty);
-				}
-
-				self.push("]>>;\n");
-			} else {
-				let callback = self.config.casing.with("Callback", "callback", "callback");
-				let set_callback = match ev.call {
-					EvCall::SingleSync | EvCall::SingleAsync => {
-						self.config.casing.with("SetCallback", "setCallback", "set_callback")
-					}
-					EvCall::ManySync | EvCall::ManyAsync => self.config.casing.with("On", "on", "on"),
-					_ => unreachable!(),
-				};
-
-				self.push_indent();
-				self.push(&format!("{set_callback}: ({callback}: ("));
-
-				if !ev.data.is_empty() {
-					self.push_parameters(&ev.data);
-				}
-				self.push(") => void) => () => void;\n");
-			}
-
-			self.dedent();
-			self.push_line("};");
-		}
-	}
-
-	fn push_return_functions(&mut self) {
+	pub fn push_return(&mut self) {
+		let iter = self.config.casing.with("Iter", "iter", "iter");
+		let index = self.config.casing.with("Index", "index", "index");
+		let fire = self.config.casing.with("Fire", "fire", "fire");
+		let value = self.config.casing.with("Value", "value", "value");
+		let callback = self.config.casing.with("Callback", "callback", "callback");
+		let set_callback = self.config.casing.with("SetCallback", "setCallback", "set_callback");
+		let on = self.config.casing.with("On", "on", "on");
 		let call = self.config.casing.with("Call", "call", "call");
 
-		for fndecl in self.config.fndecls() {
-			self.push_line(&format!("export declare const {}: {{", fndecl.name));
-			self.indent();
-
-			self.push_indent();
-			self.push(&format!("{call}: ("));
-
-			if !fndecl.args.is_empty() {
-				self.push_parameters(&fndecl.args);
-			}
-
-			self.push(") => ");
-
-			if self.config.yield_type == YieldType::Promise {
-				self.push("Promise<")
-			}
-
-			if let Some(types) = &fndecl.rets {
-				if types.len() > 1 {
-					self.push("LuaTuple<[");
+		self.config.traverse_namespaces(
+			self,
+			|this, diff| {
+				for _ in 0..diff {
+					this.dedent();
+					this.push_line("}");
 				}
-
-				for (i, ty) in types.iter().enumerate() {
-					if i > 0 {
-						self.push(", ");
+			},
+			|this, name, entry, depth| {
+				this.push_line(&format!(
+					"export {}{} {name}{} {{",
+					if depth == 0 { "declare " } else { "" },
+					if matches!(entry, NamespaceEntry::Ns(..)) {
+						"namespace"
+					} else {
+						"const"
+					},
+					if matches!(entry, NamespaceEntry::Ns(..)) {
+						""
+					} else {
+						":"
 					}
+				));
+				this.indent();
 
-					self.push_ty(ty);
+				match entry {
+					NamespaceEntry::EvDecl(evdecl) if evdecl.from == EvSource::Client => {
+						this.push_indent();
+						this.push(&format!("{fire}: ("));
+
+						if !evdecl.data.is_empty() {
+							this.push_parameters(&evdecl.data);
+						}
+
+						this.push(") => void;\n");
+
+						this.dedent();
+						this.push_line("};");
+					}
+					NamespaceEntry::EvDecl(evdecl) => {
+						if evdecl.call == EvCall::Polling {
+							this.push_indent();
+							this.push(&format!("{iter}: Iter<LuaTuple<[{index}: number"));
+
+							for (index, parameter) in evdecl.data.iter().enumerate() {
+								let name = match parameter.name {
+									Some(name) => name.to_string(),
+									None => {
+										if index > 0 {
+											format!("{value}{}", index + 1)
+										} else {
+											value.to_string()
+										}
+									}
+								};
+
+								this.push(&format!(", {}: ", name));
+								this.push_ty(&parameter.ty);
+							}
+
+							this.push("]>>;\n");
+						} else {
+							let set_callback = match evdecl.call {
+								EvCall::SingleSync | EvCall::SingleAsync => set_callback,
+								EvCall::ManySync | EvCall::ManyAsync => on,
+								EvCall::Polling => unreachable!(),
+							};
+
+							this.push_indent();
+							this.push(&format!("{set_callback}: ({callback}: ("));
+
+							if !evdecl.data.is_empty() {
+								this.push_parameters(&evdecl.data);
+							}
+							this.push(") => void) => () => void;\n");
+						}
+
+						this.dedent();
+						this.push_line("};");
+					}
+					NamespaceEntry::FnDecl(fndecl) => {
+						this.push_indent();
+						this.push(&format!("{call}: ("));
+
+						if !fndecl.args.is_empty() {
+							this.push_parameters(&fndecl.args);
+						}
+
+						this.push(") => ");
+
+						if this.config.yield_type == YieldType::Promise {
+							this.push("Promise<")
+						}
+
+						if let Some(types) = &fndecl.rets {
+							if types.len() > 1 {
+								this.push("LuaTuple<[");
+							}
+
+							for (i, ty) in types.iter().enumerate() {
+								if i > 0 {
+									this.push(", ");
+								}
+
+								this.push_ty(ty);
+							}
+
+							if types.len() > 1 {
+								this.push("]>");
+							}
+						} else {
+							this.push("void");
+						}
+
+						if this.config.yield_type == YieldType::Promise {
+							this.push(">")
+						}
+
+						this.push(";\n");
+
+						this.dedent();
+						this.push_line("};");
+					}
+					NamespaceEntry::Ns(..) => {}
 				}
-
-				if types.len() > 1 {
-					self.push("]>");
-				}
-			} else {
-				self.push("void");
-			}
-
-			if self.config.yield_type == YieldType::Promise {
-				self.push(">")
-			}
-
-			self.push(";\n");
-			self.dedent();
-			self.push_line("};");
-		}
-	}
-
-	pub fn push_return(&mut self) {
-		self.push_return_outgoing();
-		self.push_return_listen();
-		self.push_return_functions();
+			},
+		);
 	}
 
 	pub fn output(mut self) -> String {
