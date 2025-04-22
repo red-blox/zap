@@ -517,8 +517,6 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_reliable(&mut self) {
-		self.push_reliable_header();
-
 		let mut first = true;
 
 		for ev in self
@@ -527,16 +525,24 @@ impl<'a> ServerOutput<'a> {
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Client && ev_decl.evty == EvType::Reliable)
 		{
+			if first {
+				self.push_reliable_header();
+			}
 			self.push_reliable_callback(first, ev);
 			first = false;
 		}
 
 		for fndecl in self.config.fndecls().iter() {
+			if first {
+				self.push_reliable_header();
+			}
 			self.push_fn_callback(first, fndecl);
 			first = false;
 		}
 
-		self.push_reliable_footer();
+		if !first {
+			self.push_reliable_footer();
+		}
 	}
 
 	fn push_unreliable_callback(&mut self, ev: &EvDecl) {
@@ -1185,7 +1191,7 @@ impl<'a> ServerOutput<'a> {
 			.evdecls()
 			.into_iter()
 			.filter(|evdecl| evdecl.from == EvSource::Client && evdecl.call == EvCall::Polling)
-			.collect::<Vec<EvDecl>>();
+			.collect::<Vec<&EvDecl>>();
 
 		if !filtered_evdecls.is_empty() {
 			self.push("\n");
@@ -1207,7 +1213,7 @@ impl<'a> ServerOutput<'a> {
 			}
 			let arguments_size = return_names.len();
 
-			self.push_line(&format!("{}[{id}] = {{", polling_queues_name(&evdecl)));
+			self.push_line(&format!("{}[{id}] = {{", polling_queues_name(evdecl)));
 			self.indent();
 
 			self.push_line(&format!(
@@ -1223,7 +1229,7 @@ impl<'a> ServerOutput<'a> {
 			self.push_line("iterator = function()");
 			self.indent();
 
-			self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(&evdecl)));
+			self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(evdecl)));
 			self.push_line("local index = 0");
 			self.push_line("return function()");
 			self.indent();

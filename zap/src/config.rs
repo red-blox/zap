@@ -1,5 +1,5 @@
 use std::{
-	collections::{HashMap, HashSet},
+	collections::{BTreeMap, HashSet},
 	fmt::Display,
 };
 
@@ -9,7 +9,7 @@ pub const UNRELIABLE_ORDER_NUMTY: NumTy = NumTy::U16;
 pub enum NamespaceEntry<'src> {
 	EvDecl(EvDecl<'src>),
 	FnDecl(FnDecl<'src>),
-	Ns(HashMap<&'src str, NamespaceEntry<'src>>),
+	Ns(BTreeMap<&'src str, NamespaceEntry<'src>>),
 }
 
 impl<'src> NamespaceEntry<'src> {
@@ -25,7 +25,7 @@ impl<'src> NamespaceEntry<'src> {
 #[derive(Debug, Clone)]
 pub struct Config<'src> {
 	pub tydecls: Vec<TyDecl<'src>>,
-	pub namespaces: HashMap<&'src str, NamespaceEntry<'src>>,
+	pub namespaces: BTreeMap<&'src str, NamespaceEntry<'src>>,
 
 	pub typescript: bool,
 	pub typescript_max_tuple_length: f64,
@@ -52,10 +52,10 @@ pub struct Config<'src> {
 }
 
 impl<'src> Config<'src> {
-	pub fn traverse_namespaces<T, R, C>(&self, this: &mut T, mut reset: R, mut cb: C)
+	pub fn traverse_namespaces<'a, T, R, C>(&'a self, this: &mut T, mut reset: R, mut cb: C)
 	where
 		R: FnMut(&mut T, usize),
-		C: FnMut(&mut T, &'src str, &NamespaceEntry<'src>, usize),
+		C: FnMut(&mut T, &'src str, &'a NamespaceEntry<'src>, usize),
 	{
 		let mut stack = self.namespaces.iter().map(|(k, v)| (k, v, 0)).collect::<Vec<_>>();
 
@@ -81,7 +81,7 @@ impl<'src> Config<'src> {
 		}
 	}
 
-	pub fn evdecls(&self) -> Vec<EvDecl<'src>> {
+	pub fn evdecls<'a>(&'a self) -> Vec<&'a EvDecl<'src>> {
 		let mut evdecls = vec![];
 
 		self.traverse_namespaces(
@@ -89,7 +89,7 @@ impl<'src> Config<'src> {
 			|_, _| {},
 			|_, _, entry, _| {
 				if let NamespaceEntry::EvDecl(evdecl) = entry {
-					evdecls.push(evdecl.clone())
+					evdecls.push(evdecl)
 				}
 			},
 		);
@@ -97,7 +97,7 @@ impl<'src> Config<'src> {
 		evdecls
 	}
 
-	pub fn fndecls(&self) -> Vec<FnDecl<'src>> {
+	pub fn fndecls<'a>(&'a self) -> Vec<&'a FnDecl<'src>> {
 		let mut fndecls = vec![];
 
 		self.traverse_namespaces(
@@ -105,7 +105,7 @@ impl<'src> Config<'src> {
 			|_, _| {},
 			|_, _, entry, _| {
 				if let NamespaceEntry::FnDecl(fndecl) = entry {
-					fndecls.push(fndecl.clone())
+					fndecls.push(fndecl)
 				}
 			},
 		);

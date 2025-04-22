@@ -151,11 +151,11 @@ impl<'src> TestOutput<'src> {
 			self.push_tydecl(tydecl);
 		}
 
-		for evdecl in self.config.evdecls.iter() {
+		for evdecl in self.config.evdecls().iter() {
 			self.push_event_callback(&evdecl.data, evdecl.name);
 		}
 
-		for fndecl in self.config.fndecls.iter() {
+		for fndecl in self.config.fndecls().iter() {
 			self.push_event_callback(&fndecl.args, &format!("{}__ARGS", fndecl.name));
 
 			if let Some(rets) = &fndecl.rets {

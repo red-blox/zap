@@ -1,7 +1,7 @@
 use std::{
 	borrow::Cow,
 	cmp::Ordering,
-	collections::{HashMap, HashSet, VecDeque},
+	collections::{BTreeMap, HashMap, HashSet, VecDeque},
 };
 
 use crate::config::{
@@ -44,7 +44,7 @@ impl<'src> Converter<'src> {
 		self.check_duplicate_decls(&config.decls);
 
 		let mut tydecls = Vec::new();
-		let mut namespaces = HashMap::new();
+		let mut namespaces = BTreeMap::new();
 
 		let mut server_reliable_id = 0;
 		let mut server_unreliable_id = 0;
@@ -116,17 +116,17 @@ impl<'src> Converter<'src> {
 
 				let entry = namespaces
 					.entry(path.next().unwrap())
-					.or_insert_with(|| NamespaceEntry::Ns(HashMap::new()));
+					.or_insert_with(|| NamespaceEntry::Ns(BTreeMap::new()));
 				let NamespaceEntry::Ns(entries) = entry else {
 					unreachable!()
 				};
 
-				let mut prev_entry: &mut HashMap<&str, NamespaceEntry<'src>> = entries;
+				let mut prev_entry: &mut BTreeMap<&str, NamespaceEntry<'src>> = entries;
 
 				for part in path {
 					let new_entry = prev_entry
 						.entry(part)
-						.or_insert_with(|| NamespaceEntry::Ns(HashMap::new()));
+						.or_insert_with(|| NamespaceEntry::Ns(BTreeMap::new()));
 					let NamespaceEntry::Ns(new_entry) = new_entry else {
 						unreachable!();
 					};
