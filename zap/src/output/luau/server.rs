@@ -1051,31 +1051,6 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("end,");
 	}
 
-	fn push_return_outgoing(&mut self) {
-		for ev in self
-			.config
-			.evdecls()
-			.iter()
-			.filter(|ev_decl| ev_decl.from == EvSource::Server)
-		{
-			self.push_line(&format!("{name} = {{", name = ev.name));
-			self.indent();
-
-			self.push_return_fire(ev);
-
-			if !self.config.disable_fire_all {
-				self.push_return_fire_all(ev);
-			}
-
-			self.push_return_fire_except(ev);
-			self.push_return_fire_list(ev);
-			self.push_return_fire_set(ev);
-
-			self.dedent();
-			self.push_line("},");
-		}
-	}
-
 	fn push_return_setcallback(&mut self, ev: &EvDecl) {
 		let id = ev.id;
 
@@ -1204,37 +1179,6 @@ impl<'a> ServerOutput<'a> {
 		self.push(")),\n");
 	}
 
-	pub fn push_return_listen(&mut self) {
-		for ev in self
-			.config
-			.evdecls()
-			.iter()
-			.filter(|ev_decl| ev_decl.from == EvSource::Client)
-		{
-			self.push_line(&format!("{} = {{", ev.name));
-			self.indent();
-
-			match ev.call {
-				EvCall::SingleSync | EvCall::SingleAsync => self.push_return_setcallback(ev),
-				EvCall::ManySync | EvCall::ManyAsync => self.push_return_on(ev),
-				EvCall::Polling => self.push_iter(ev),
-			}
-
-			self.dedent();
-			self.push_line("},");
-		}
-
-		for fndecl in self.config.fndecls().iter() {
-			self.push_line(&format!("{} = {{", fndecl.name));
-			self.indent();
-
-			self.push_fn_return(fndecl);
-
-			self.dedent();
-			self.push_line("},");
-		}
-	}
-
 	fn push_polling(&mut self) {
 		let filtered_evdecls = self
 			.config
@@ -1354,8 +1298,53 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line(&format!("{send_events} = {send_events},"));
 
-		self.push_return_outgoing();
-		self.push_return_listen();
+		self.config.traverse_namespaces(
+			self,
+			|this, diff| {
+				for _ in 0..diff {
+					this.dedent();
+					this.push_line("},");
+				}
+			},
+			|this, name, entry, _| {
+				this.push_line(&format!("{name} = {{"));
+				this.indent();
+
+				match entry {
+					NamespaceEntry::EvDecl(evdecl) if evdecl.from == EvSource::Server => {
+						this.push_return_fire(evdecl);
+
+						if !this.config.disable_fire_all {
+							this.push_return_fire_all(evdecl);
+						}
+
+						this.push_return_fire_except(evdecl);
+						this.push_return_fire_list(evdecl);
+						this.push_return_fire_set(evdecl);
+
+						this.dedent();
+						this.push_line("},");
+					}
+					NamespaceEntry::EvDecl(evdecl) => {
+						match evdecl.call {
+							EvCall::SingleSync | EvCall::SingleAsync => this.push_return_setcallback(evdecl),
+							EvCall::ManySync | EvCall::ManyAsync => this.push_return_on(evdecl),
+							EvCall::Polling => this.push_iter(evdecl),
+						}
+
+						this.dedent();
+						this.push_line("},");
+					}
+					NamespaceEntry::FnDecl(fndecl) => {
+						this.push_fn_return(fndecl);
+
+						this.dedent();
+						this.push_line("},");
+					}
+					NamespaceEntry::Ns(..) => {}
+				}
+			},
+		);
 
 		self.dedent();
 		self.push_line("}");
