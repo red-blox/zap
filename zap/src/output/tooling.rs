@@ -302,7 +302,7 @@ impl<'src> ToolingOutput<'src> {
 			env!("CARGO_PKG_VERSION")
 		));
 
-		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
+		if self.config.evdecls().is_empty() && self.config.fndecls().is_empty() {
 			self.push_line("return function() end");
 			return self.buf;
 		};
@@ -509,7 +509,7 @@ impl<'src> ToolingOutput<'src> {
 
 		let mut first = true;
 
-		for ev in self.config.evdecls.iter() {
+		for ev in self.config.evdecls().iter() {
 			if ev.from != expected_ev_source || ev.evty != expected_ev_type {
 				continue;
 			}
@@ -538,7 +538,7 @@ impl<'src> ToolingOutput<'src> {
 		}
 
 		if expected_ev_type == EvType::Reliable {
-			for fn_decl in self.config.fndecls.iter() {
+			for fn_decl in self.config.fndecls().iter() {
 				self.push_function_callback(first, is_server, fn_decl);
 				first = false;
 			}
@@ -560,7 +560,7 @@ impl<'src> ToolingOutput<'src> {
 	fn push_unreliable_events(&mut self) {
 		for ev_decl in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|ev_decl| matches!(ev_decl.evty, EvType::Unreliable(_)))
 		{

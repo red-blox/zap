@@ -1,12 +1,31 @@
-use std::{collections::HashSet, fmt::Display};
+use std::{
+	collections::{HashMap, HashSet},
+	fmt::Display,
+};
 
 pub const UNRELIABLE_ORDER_NUMTY: NumTy = NumTy::U16;
 
 #[derive(Debug, Clone)]
+pub enum NamespaceEntry<'src> {
+	EvDecl(EvDecl<'src>),
+	FnDecl(FnDecl<'src>),
+	Ns(HashMap<&'src str, NamespaceEntry<'src>>),
+}
+
+impl<'src> NamespaceEntry<'src> {
+	pub fn name(&self) -> &'src str {
+		match self {
+			NamespaceEntry::EvDecl(evdecl) => evdecl.name,
+			NamespaceEntry::FnDecl(fndecl) => fndecl.name,
+			NamespaceEntry::Ns(..) => unimplemented!(),
+		}
+	}
+}
+
+#[derive(Debug, Clone)]
 pub struct Config<'src> {
 	pub tydecls: Vec<TyDecl<'src>>,
-	pub evdecls: Vec<EvDecl<'src>>,
-	pub fndecls: Vec<FnDecl<'src>>,
+	pub namespaces: HashMap<&'src str, NamespaceEntry<'src>>,
 
 	pub typescript: bool,
 	pub typescript_max_tuple_length: f64,
@@ -32,19 +51,80 @@ pub struct Config<'src> {
 	pub disable_fire_all: bool,
 }
 
-impl Config<'_> {
+impl<'src> Config<'src> {
+	pub fn traverse_namespaces<T, R, C>(&self, this: &mut T, mut reset: R, mut cb: C)
+	where
+		R: FnMut(&mut T, usize),
+		C: FnMut(&mut T, &'src str, &NamespaceEntry<'src>),
+	{
+		let mut stack = self.namespaces.iter().map(|(k, v)| (k, v, 0)).collect::<Vec<_>>();
+
+		let mut max_depth = 0;
+
+		while let Some((key, entry, depth)) = stack.pop() {
+			if depth < max_depth {
+				reset(this, max_depth - depth)
+			}
+			max_depth = depth;
+
+			cb(this, key, entry);
+
+			if let NamespaceEntry::Ns(entries) = entry {
+				for (sub_key, sub_entry) in entries.iter() {
+					stack.push((sub_key, sub_entry, depth + 1));
+				}
+			}
+		}
+
+		if 0 < max_depth {
+			reset(this, max_depth);
+		}
+	}
+
+	pub fn evdecls(&self) -> Vec<EvDecl<'src>> {
+		let mut evdecls = vec![];
+
+		self.traverse_namespaces(
+			&mut (),
+			|_, _| {},
+			|_, _, entry| {
+				if let NamespaceEntry::EvDecl(evdecl) = entry {
+					evdecls.push(evdecl.clone())
+				}
+			},
+		);
+
+		evdecls
+	}
+
+	pub fn fndecls(&self) -> Vec<FnDecl<'src>> {
+		let mut fndecls = vec![];
+
+		self.traverse_namespaces(
+			&mut (),
+			|_, _| {},
+			|_, _, entry| {
+				if let NamespaceEntry::FnDecl(fndecl) = entry {
+					fndecls.push(fndecl.clone())
+				}
+			},
+		);
+
+		fndecls
+	}
+
 	pub fn server_reliable_count(&self) -> usize {
 		let reliable_count = self
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|evdecl| evdecl.from == EvSource::Client && evdecl.evty == EvType::Reliable)
 			.count();
 
-		reliable_count + self.fndecls.len()
+		reliable_count + self.fndecls().len()
 	}
 
 	pub fn server_unreliable_count(&self) -> usize {
-		self.evdecls
+		self.evdecls()
 			.iter()
 			.filter(|evdecl| evdecl.from == EvSource::Client && matches!(evdecl.evty, EvType::Unreliable(_)))
 			.count()
@@ -52,16 +132,16 @@ impl Config<'_> {
 
 	pub fn client_reliable_count(&self) -> usize {
 		let reliable_count = self
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|evdecl| evdecl.from == EvSource::Server && evdecl.evty == EvType::Reliable)
 			.count();
 
-		reliable_count + self.fndecls.len()
+		reliable_count + self.fndecls().len()
 	}
 
 	pub fn client_unreliable_count(&self) -> usize {
-		self.evdecls
+		self.evdecls()
 			.iter()
 			.filter(|evdecl| evdecl.from == EvSource::Server && matches!(evdecl.evty, EvType::Unreliable(_)))
 			.count()

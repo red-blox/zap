@@ -1,7 +1,10 @@
 use std::{cmp::max, collections::HashMap};
 
 use crate::{
-	config::{Config, EvCall, EvDecl, EvSource, EvType, FnDecl, Parameter, TyDecl, YieldType, UNRELIABLE_ORDER_NUMTY},
+	config::{
+		Config, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, Parameter, TyDecl, YieldType,
+		UNRELIABLE_ORDER_NUMTY,
+	},
 	irgen::{des, ser},
 	output::{
 		get_named_values, get_unnamed_values,
@@ -67,65 +70,77 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line(&format!("{send_events} = noop,"));
 
-		for ev in self.config.evdecls.iter() {
-			self.push_line(&format!("{name} = table.freeze({{", name = ev.name));
-			self.indent();
+		self.config.traverse_namespaces(
+			self,
+			|this, diff| {
+				for _ in 0..diff {
+					this.dedent();
+					this.push_line("}),");
+				}
+			},
+			|this, name, entry| {
+				this.push_line(&format!("{name} = table.freeze({{"));
+				this.indent();
 
-			if ev.from == EvSource::Client {
-				self.push_line(&format!("{fire} = noop"));
-			} else {
-				match ev.call {
-					EvCall::SingleSync | EvCall::SingleAsync => self.push_line(&format!("{set_callback} = noop")),
-					EvCall::ManySync | EvCall::ManyAsync => self.push_line(&format!("{on} = noop")),
-					EvCall::Polling => {
-						self.push_line(&format!("{iter} = function()"));
-						self.indent();
-						self.push_line("return noop");
-						self.dedent();
-						self.push_line("end");
+				match entry {
+					NamespaceEntry::EvDecl(ev) => {
+						if ev.from == EvSource::Client {
+							this.push_line(&format!("{fire} = noop"));
+						} else {
+							match ev.call {
+								EvCall::SingleSync | EvCall::SingleAsync => {
+									this.push_line(&format!("{set_callback} = noop"))
+								}
+								EvCall::ManySync | EvCall::ManyAsync => this.push_line(&format!("{on} = noop")),
+								EvCall::Polling => {
+									this.push_line(&format!("{iter} = function()"));
+									this.indent();
+									this.push_line("return noop");
+									this.dedent();
+									this.push_line("end");
+								}
+							}
+						}
+
+						this.dedent();
+						this.push_line("}),");
 					}
+					NamespaceEntry::FnDecl(fndecl) => {
+						this.push_indent();
+						this.push(&format!("{call} = "));
+
+						match self.config.yield_type {
+							YieldType::Yield => this.push("noop\n"),
+							YieldType::Future => {
+								this.push("function()\n");
+								this.indent();
+								this.push_line("return Future.new(function()");
+								this.indent();
+								this.push_line(&format!("error(\"{} called when game is not running\")", fndecl.name));
+								this.dedent();
+								this.push_line("end)");
+								this.dedent();
+								this.push_line("end");
+							}
+							YieldType::Promise => {
+								this.push("function()\n");
+								this.indent();
+								this.push_line(&format!(
+									"return Promise.reject(\"{} called when game is not running\")",
+									fndecl.name
+								));
+								this.dedent();
+								this.push_line("end");
+							}
+						}
+
+						this.dedent();
+						this.push_line("}),");
+					}
+					NamespaceEntry::Ns(..) => {}
 				}
-			}
-
-			self.dedent();
-			self.push_line("}),");
-		}
-
-		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("{name} = table.freeze({{", name = fndecl.name));
-			self.indent();
-
-			self.push_indent();
-			self.push(&format!("{call} = "));
-
-			match self.config.yield_type {
-				YieldType::Yield => self.push("noop\n"),
-				YieldType::Future => {
-					self.push("function()\n");
-					self.indent();
-					self.push_line("return Future.new(function()");
-					self.indent();
-					self.push_line(&format!("error(\"{} called when game is not running\")", fndecl.name));
-					self.dedent();
-					self.push_line("end)");
-					self.dedent();
-					self.push_line("end");
-				}
-				YieldType::Promise => {
-					self.push("function()\n");
-					self.indent();
-					self.push_line(&format!(
-						"return Promise.reject(\"{} called when game is not running\")",
-						fndecl.name
-					));
-					self.dedent();
-					self.push_line("end");
-				}
-			}
-
-			self.dedent();
-			self.push_line("}),");
-		}
+			},
+		);
 
 		self.dedent();
 		self.push_line("}) :: Events");
@@ -523,7 +538,7 @@ impl<'src> ClientOutput<'src> {
 
 		for evdecl in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|evdecl| evdecl.from == EvSource::Server && evdecl.evty == EvType::Reliable)
 		{
@@ -531,7 +546,7 @@ impl<'src> ClientOutput<'src> {
 			first = false;
 		}
 
-		for fndecl in self.config.fndecls.iter() {
+		for fndecl in self.config.fndecls().iter() {
 			self.push_fn_callback(first, fndecl);
 			first = false;
 		}
@@ -657,7 +672,7 @@ impl<'src> ClientOutput<'src> {
 	fn push_unreliable(&mut self) {
 		for ev in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Server && matches!(ev_decl.evty, EvType::Unreliable(_)))
 		{
@@ -691,7 +706,7 @@ impl<'src> ClientOutput<'src> {
 			));
 		}
 
-		if !self.config.fndecls.is_empty() {
+		if !self.config.fndecls().is_empty() {
 			self.push_line("local function_call_id = 0");
 
 			if self.config.typescript && self.config.yield_type == YieldType::Promise {
@@ -703,7 +718,7 @@ impl<'src> ClientOutput<'src> {
 
 		for evdecl in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Server)
 		{
@@ -720,7 +735,7 @@ impl<'src> ClientOutput<'src> {
 			}
 		}
 
-		for fndecl in self.config.fndecls.iter() {
+		for fndecl in self.config.fndecls().iter() {
 			self.push_line(&format!(
 				"reliable_event_queue[{}] = table.create(255)",
 				fndecl.client_id
@@ -822,7 +837,7 @@ impl<'src> ClientOutput<'src> {
 	fn push_return_outgoing(&mut self) {
 		for ev in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Client)
 		{
@@ -986,7 +1001,7 @@ impl<'src> ClientOutput<'src> {
 	pub fn push_return_listen(&mut self) {
 		for ev in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Server)
 		{
@@ -1007,10 +1022,10 @@ impl<'src> ClientOutput<'src> {
 	fn push_polling(&mut self) {
 		let filtered_evdecls = self
 			.config
-			.evdecls
-			.iter()
+			.evdecls()
+			.into_iter()
 			.filter(|evdecl| evdecl.from == EvSource::Server && evdecl.call == EvCall::Polling)
-			.collect::<Vec<&EvDecl>>();
+			.collect::<Vec<EvDecl>>();
 
 		if !filtered_evdecls.is_empty() {
 			self.push("\n");
@@ -1035,7 +1050,7 @@ impl<'src> ClientOutput<'src> {
 			}
 			let arguments_size = return_names.len().max(1);
 
-			self.push_line(&format!("{}[{id}] = {{", polling_queues_name(evdecl)));
+			self.push_line(&format!("{}[{id}] = {{", polling_queues_name(&evdecl)));
 			self.indent();
 
 			self.push_line(&format!(
@@ -1051,7 +1066,7 @@ impl<'src> ClientOutput<'src> {
 			self.push_line("iterator = function()");
 			self.indent();
 
-			self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(evdecl)));
+			self.push_line(&format!("local queue = {}[{id}]", polling_queues_name(&evdecl)));
 			self.push_line("local index = 0");
 			self.push_line("return function()");
 			self.indent();
@@ -1122,7 +1137,7 @@ impl<'src> ClientOutput<'src> {
 		let call = self.config.casing.with("Call", "call", "call");
 		let value = self.config.casing.with("Value", "value", "value");
 
-		for fndecl in self.config.fndecls.iter() {
+		for fndecl in self.config.fndecls().iter() {
 			let client_id = fndecl.client_id;
 
 			self.push_line(&format!("{name} = {{", name = fndecl.name));
@@ -1311,7 +1326,7 @@ impl<'src> ClientOutput<'src> {
 	pub fn output(mut self) -> String {
 		self.push_file_header("Client");
 
-		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
+		if self.config.namespaces.is_empty() {
 			self.push_line("return {}");
 			return self.buf;
 		};
@@ -1330,24 +1345,9 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_callback_lists();
 
-		if !self.config.fndecls.is_empty()
-			|| self
-				.config
-				.evdecls
-				.iter()
-				.any(|ev| ev.evty == EvType::Reliable && ev.from == EvSource::Server)
-		{
-			self.push_reliable();
-		}
+		self.push_reliable();
 
-		if self
-			.config
-			.evdecls
-			.iter()
-			.any(|ev| matches!(ev.evty, EvType::Unreliable(_)) && ev.from == EvSource::Server)
-		{
-			self.push_unreliable();
-		}
+		self.push_unreliable();
 
 		self.push_polling();
 

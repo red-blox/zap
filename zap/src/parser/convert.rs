@@ -5,8 +5,8 @@ use std::{
 };
 
 use crate::config::{
-	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NonPrimitiveTy, NumTy, Parameter, PrimitiveTy,
-	Range, Struct, Ty, TyDecl, YieldType, UNRELIABLE_ORDER_NUMTY,
+	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, NonPrimitiveTy, NumTy, Parameter,
+	PrimitiveTy, Range, Struct, Ty, TyDecl, YieldType, UNRELIABLE_ORDER_NUMTY,
 };
 
 use super::{
@@ -44,8 +44,7 @@ impl<'src> Converter<'src> {
 		self.check_duplicate_decls(&config.decls);
 
 		let mut tydecls = Vec::new();
-		let mut evdecls = Vec::new();
-		let mut fndecls = Vec::new();
+		let mut namespaces = HashMap::new();
 
 		let mut server_reliable_id = 0;
 		let mut server_unreliable_id = 0;
@@ -107,6 +106,36 @@ impl<'src> Converter<'src> {
 				);
 			}
 
+			let mut push_ns_entry = |this: &mut Self, data: NamespaceEntry<'src>| {
+				if this.path.is_empty() {
+					namespaces.insert(data.name(), data);
+					return;
+				}
+
+				let mut path = this.path.iter().copied();
+
+				let entry = namespaces
+					.entry(path.next().unwrap())
+					.or_insert_with(|| NamespaceEntry::Ns(HashMap::new()));
+				let NamespaceEntry::Ns(entries) = entry else {
+					unreachable!()
+				};
+
+				let mut prev_entry: &mut HashMap<&str, NamespaceEntry<'src>> = entries;
+
+				for part in path {
+					let new_entry = prev_entry
+						.entry(part)
+						.or_insert_with(|| NamespaceEntry::Ns(HashMap::new()));
+					let NamespaceEntry::Ns(new_entry) = new_entry else {
+						unreachable!();
+					};
+					prev_entry = new_entry;
+				}
+
+				prev_entry.insert(data.name(), data);
+			};
+
 			for evdecl in decls.iter().filter_map(|decl| match decl {
 				SyntaxDecl::Ev(evdecl) => Some(evdecl),
 				_ => None,
@@ -138,20 +167,22 @@ impl<'src> Converter<'src> {
 					},
 				};
 
-				evdecls.push(self.evdecl(evdecl, id));
+				let evdecl = self.evdecl(evdecl, id);
+				push_ns_entry(&mut self, NamespaceEntry::EvDecl(evdecl));
 			}
 
 			for fndecl in decls.iter().filter_map(|decl| match decl {
 				SyntaxDecl::Fn(fndecl) => Some(fndecl),
 				_ => None,
 			}) {
-				fndecls.push(self.fndecl(fndecl, client_reliable_id, server_reliable_id));
+				let fndecl = self.fndecl(fndecl, client_reliable_id, server_reliable_id);
+				push_ns_entry(&mut self, NamespaceEntry::FnDecl(fndecl));
 				client_reliable_id += 1;
 				server_reliable_id += 1;
 			}
 		}
 
-		if evdecls.is_empty() && fndecls.is_empty() {
+		if namespaces.is_empty() {
 			self.report(Report::AnalyzeEmptyEvDecls);
 		}
 
@@ -180,8 +211,7 @@ impl<'src> Converter<'src> {
 
 		let config = Config {
 			tydecls,
-			evdecls,
-			fndecls,
+			namespaces,
 
 			typescript,
 			typescript_max_tuple_length,

@@ -139,7 +139,7 @@ impl<'a> ServerOutput<'a> {
 	fn push_return_outgoing(&mut self) {
 		for (_i, ev) in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Server)
@@ -165,7 +165,7 @@ impl<'a> ServerOutput<'a> {
 	pub fn push_return_listen(&mut self) {
 		for (_i, ev) in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.enumerate()
 			.filter(|(_, ev_decl)| ev_decl.from == EvSource::Client)
@@ -228,7 +228,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	pub fn push_return_functions(&mut self) {
-		for fndecl in self.config.fndecls.iter() {
+		for fndecl in self.config.fndecls() {
 			self.push_line(&format!("export declare const {name}: {{", name = fndecl.name));
 			self.indent();
 
@@ -282,12 +282,12 @@ impl<'a> ServerOutput<'a> {
 	pub fn output(mut self) -> String {
 		self.push_file_header("Server");
 
-		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
+		if self.config.namespaces.is_empty() {
 			self.push_line("export {}");
 			return self.buf;
 		};
 
-		if self.config.evdecls.iter().any(|ev| ev.call == EvCall::Polling) {
+		if self.config.evdecls().iter().any(|ev| ev.call == EvCall::Polling) {
 			self.push_iter_type()
 		}
 
