@@ -531,19 +531,19 @@ impl<'src> Converter<'src> {
 		let ty = if let Some(ty) = self.resolved_tys.get(name) {
 			ty.clone()
 		} else {
+			if let Some(ref_ty) = self.ty_has_unbounded_ref(name, &tydecl.ty, &mut HashSet::new()) {
+				self.report(Report::AnalyzeUnboundedRecursiveType {
+					decl_span: tydecl.span(),
+					use_span: ref_ty.span(),
+				});
+			}
+
 			let cache_ty = Rc::new(RefCell::new(Ty::Opt(Box::new(Ty::Unknown))));
 			self.resolved_tys.insert(name, cache_ty.clone());
 			let ty = self.ty(&tydecl.ty);
 			cache_ty.replace(ty);
 			cache_ty
 		};
-
-		if let Some(ref_ty) = self.ty_has_unbounded_ref(name, &tydecl.ty, &mut HashSet::new()) {
-			self.report(Report::AnalyzeUnboundedRecursiveType {
-				decl_span: tydecl.span(),
-				use_span: ref_ty.span(),
-			});
-		}
 
 		TyDecl { name, ty }
 	}
