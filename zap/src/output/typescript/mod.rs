@@ -268,12 +268,7 @@ pub trait Output: ConfigProvider {
 	}
 
 	fn push_iter_type(&mut self) {
-		self.push_line("type Iter<T> = () => {");
-		self.indent();
-		self.push_line("[Symbol.iterator](): Iterator<T>,");
-		self.push_line("(): T | undefined");
-		self.dedent();
-		self.push_line("}");
+		self.push_line("type Iter<T> = () => IterableFunction<T>");
 	}
 
 	fn push_event_loop(&mut self) {
