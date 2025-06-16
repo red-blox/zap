@@ -184,7 +184,9 @@ impl<'src> ServerOutput<'src> {
 				let value = self.config.casing.with("Value", "value", "value");
 
 				self.push_indent();
-				self.push(&format!("{iter}: Iter<LuaTuple<[{index}: number, {player}: Player"));
+				self.push(&format!(
+					"{iter}: () => IterableFunction<LuaTuple<[{index}: number, {player}: Player"
+				));
 
 				for (index, parameter) in ev.data.iter().enumerate() {
 					let name = match parameter.name {
@@ -290,10 +292,6 @@ impl<'src> ServerOutput<'src> {
 			self.push_line("export {}");
 			return self.buf;
 		};
-
-		if self.config.evdecls.iter().any(|ev| ev.call == EvCall::Polling) {
-			self.push_iter_type()
-		}
 
 		self.push_event_loop();
 

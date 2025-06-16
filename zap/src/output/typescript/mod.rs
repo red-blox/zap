@@ -267,10 +267,6 @@ pub trait Output<'src>: ConfigProvider<'src> {
 		));
 	}
 
-	fn push_iter_type(&mut self) {
-		self.push_line("type Iter<T> = () => IterableFunction<T>");
-	}
-
 	fn push_event_loop(&mut self) {
 		let send_events = self.get_config().casing.with("SendEvents", "sendEvents", "send_events");
 
