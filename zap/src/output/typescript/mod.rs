@@ -4,11 +4,11 @@ pub mod client;
 pub mod server;
 pub mod types;
 
-pub trait ConfigProvider {
-	fn get_config(&self) -> &Config;
+pub trait ConfigProvider<'src> {
+	fn get_config(&self) -> &'src Config<'src>;
 }
 
-pub trait Output: ConfigProvider {
+pub trait Output<'src>: ConfigProvider<'src> {
 	fn push(&mut self, s: &str);
 	fn indent(&mut self);
 	fn dedent(&mut self);

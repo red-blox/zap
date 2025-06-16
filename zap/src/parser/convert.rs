@@ -1,6 +1,8 @@
 use std::{
+	cell::RefCell,
 	cmp::Ordering,
 	collections::{HashMap, HashSet, VecDeque},
+	rc::Rc,
 };
 
 use crate::config::{
@@ -19,6 +21,7 @@ pub const MAX_UNRELIABLE_SIZE: usize = 998;
 struct Converter<'src> {
 	config: SyntaxConfig<'src>,
 	tydecls: HashMap<&'src str, SyntaxTyDecl<'src>>,
+	resolved_tys: HashMap<&'src str, Rc<RefCell<Ty<'src>>>>,
 
 	reports: Vec<Report<'src>>,
 }
@@ -36,6 +39,7 @@ impl<'src> Converter<'src> {
 		Self {
 			config,
 			tydecls,
+			resolved_tys: Default::default(),
 
 			reports: Vec::new(),
 		}
@@ -524,14 +528,22 @@ impl<'src> Converter<'src> {
 
 	fn tydecl(&mut self, tydecl: &SyntaxTyDecl<'src>) -> TyDecl<'src> {
 		let name = tydecl.name.name;
-		let ty = self.ty(&tydecl.ty);
+		let ty = if let Some(ty) = self.resolved_tys.get(name) {
+			ty.clone()
+		} else {
+			if let Some(ref_ty) = self.ty_has_unbounded_ref(name, &tydecl.ty, &mut HashSet::new()) {
+				self.report(Report::AnalyzeUnboundedRecursiveType {
+					decl_span: tydecl.span(),
+					use_span: ref_ty.span(),
+				});
+			}
 
-		if let Some(ref_ty) = self.ty_has_unbounded_ref(name, &tydecl.ty, &mut HashSet::new()) {
-			self.report(Report::AnalyzeUnboundedRecursiveType {
-				decl_span: tydecl.span(),
-				use_span: ref_ty.span(),
-			});
-		}
+			let cache_ty = Rc::new(RefCell::new(Ty::Opt(Box::new(Ty::Unknown))));
+			self.resolved_tys.insert(name, cache_ty.clone());
+			let ty = self.ty(&tydecl.ty);
+			cache_ty.replace(ty);
+			cache_ty
+		};
 
 		TyDecl { name, ty }
 	}
@@ -683,10 +695,10 @@ impl<'src> Converter<'src> {
 								name,
 							});
 
-							return Ty::Ref(name, Box::new(Ty::Opt(Box::new(Ty::Unknown))));
+							return Ty::Ref(name, Rc::new(RefCell::new(Ty::Opt(Box::new(Ty::Unknown)))));
 						};
 
-						Ty::Ref(name, Box::new(self.tydecl(&tydecl).ty))
+						Ty::Ref(name, self.tydecl(&tydecl).ty)
 					}
 				}
 			}

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use insta::{assert_debug_snapshot, Settings};
 use lune::Runtime;
 use zap::{
 	config::{Config, Parameter, TyDecl},
@@ -49,7 +50,8 @@ impl<'src> TestOutput<'src> {
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
 		let name = &tydecl.name;
-		let ty = &tydecl.ty;
+		let ty = tydecl.ty.borrow();
+		let ty = &*ty;
 
 		self.push_indent();
 		self.push(&format!("export type {name} = "));
@@ -403,4 +405,27 @@ async fn test_or_complex() {
 	let mut runtime = Runtime::new();
 
 	runtime.run("Zap", output).await.unwrap();
+}
+
+#[test]
+fn test_unbounded_recursive_type() {
+	let input = r#"type foo = foo
+event Simple = {
+    from: Client,
+    type: Reliable,
+    call: SingleSync,
+    data: foo
+}"#;
+
+	let (config, reports) = parse(input);
+
+	assert!(config.is_some());
+	assert!(!reports.is_empty());
+
+	let mut insta_settings = Settings::new();
+	insta_settings.set_prepend_module_to_snapshot(false);
+	insta_settings.set_sort_maps(true);
+	insta_settings.set_input_file("unbounded_recursive_type.zap");
+
+	insta_settings.bind(|| assert_debug_snapshot!(reports))
 }

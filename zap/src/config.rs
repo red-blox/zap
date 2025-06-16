@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::Display};
+use std::{cell::RefCell, collections::HashSet, fmt::Display, rc::Rc};
 
 pub const UNRELIABLE_ORDER_NUMTY: NumTy = NumTy::U16;
 
@@ -167,7 +167,7 @@ pub enum EvCall {
 #[derive(Debug, Clone)]
 pub struct TyDecl<'src> {
 	pub name: &'src str,
-	pub ty: Ty<'src>,
+	pub ty: Rc<RefCell<Ty<'src>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -180,7 +180,7 @@ pub enum Ty<'src> {
 	Map(Box<Ty<'src>>, Box<Ty<'src>>),
 	Set(Box<Ty<'src>>),
 	Opt(Box<Ty<'src>>),
-	Ref(&'src str, Box<Ty<'src>>),
+	Ref(&'src str, Rc<RefCell<Ty<'src>>>),
 
 	Enum(Enum<'src>),
 	Struct(Struct<'src>),
@@ -303,7 +303,7 @@ impl<'src> Ty<'src> {
 				} else {
 					recursed.insert(name);
 
-					tydecl.size(recursed)
+					tydecl.borrow().size(recursed)
 				}
 			}
 
@@ -382,7 +382,7 @@ impl<'src> Ty<'src> {
 			}
 			// prevent an increase from u16 on previous versions to u32
 			Ty::Num(num, ..) => return Some((NumTy::U16, (num.min().abs() + num.max()) as usize)),
-			Ty::Ref(.., ty) => return ty.variants(),
+			Ty::Ref(.., ty) => return ty.borrow().variants(),
 			_ => None,
 		}
 		// add one to account for things like empty maps, where the 0 must be stored regardless.
@@ -410,7 +410,7 @@ impl<'src> Ty<'src> {
 			Ty::CFrame => PrimitiveTy::Name("CFrame"),
 			Ty::Instance(class) => PrimitiveTy::Instance(*class),
 			Ty::Enum(r#enum) => PrimitiveTy::Enum(r#enum.clone()),
-			Ty::Ref(.., ty) => ty.primitive_ty(),
+			Ty::Ref(.., ty) => ty.borrow().primitive_ty(),
 			Ty::Opt(ty) if matches!(**ty, Ty::Unknown) => PrimitiveTy::Unknown,
 			Ty::Unknown => PrimitiveTy::Unknown,
 			Ty::Opt(..) => PrimitiveTy::None(NonPrimitiveTy::Opt),

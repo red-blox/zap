@@ -1,0 +1,10 @@
+---
+source: zap/tests/irgen/mod.rs
+expression: reports
+---
+[
+    AnalyzeUnboundedRecursiveType {
+        decl_span: 0..14,
+        use_span: 11..14,
+    },
+]

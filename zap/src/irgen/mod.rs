@@ -9,9 +9,9 @@ pub mod ser;
 
 pub trait Gen {
 	fn push_stmt(&mut self, stmt: Stmt);
-	fn gen<'a, I>(self, names: &[String], types: I) -> Vec<Stmt>
+	fn gen<'a, 'src: 'a, I>(self, names: &[String], types: I) -> Vec<Stmt>
 	where
-		I: Iterator<Item = &'a Ty<'a>>;
+		I: Iterator<Item = &'a Ty<'src>>;
 
 	fn push_local(&mut self, name: String, expr: Option<Expr>) {
 		self.push_stmt(Stmt::Local(name, expr))

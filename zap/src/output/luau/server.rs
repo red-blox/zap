@@ -38,8 +38,8 @@ impl Output for ServerOutput<'_> {
 	}
 }
 
-impl<'a> ServerOutput<'a> {
-	pub fn new(config: &'a Config) -> Self {
+impl<'src> ServerOutput<'src> {
+	pub fn new(config: &'src Config<'src>) -> Self {
 		Self {
 			config,
 			tabs: 0,
@@ -122,7 +122,8 @@ impl<'a> ServerOutput<'a> {
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
 		let name = &tydecl.name;
-		let ty = &tydecl.ty;
+		let ty = tydecl.ty.borrow();
+		let ty = &*ty;
 
 		self.push_indent();
 		self.push(&format!("export type {name} = "));
@@ -902,7 +903,7 @@ impl<'a> ServerOutput<'a> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_list} = function({list}: {{ Player }}"));
+		self.push(&format!("{fire_list} = function({list}: {{ [unknown]: Player }}"));
 
 		if !parameters.is_empty() {
 			self.push(", ");
@@ -972,7 +973,7 @@ impl<'a> ServerOutput<'a> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_set} = function({set}: {{ [Player]: true }}"));
+		self.push(&format!("{fire_set} = function({set}: {{ [Player]: unknown }}"));
 
 		if !parameters.is_empty() {
 			self.push(", ");
@@ -1505,6 +1506,6 @@ impl<'a> ServerOutput<'a> {
 	}
 }
 
-pub fn code(config: &Config) -> String {
+pub fn code<'src>(config: &'src Config<'src>) -> String {
 	ServerOutput::new(config).output()
 }
