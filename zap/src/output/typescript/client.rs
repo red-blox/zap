@@ -10,7 +10,7 @@ struct ClientOutput<'src> {
 	buf: String,
 }
 
-impl Output for ClientOutput<'_> {
+impl<'src> Output<'src> for ClientOutput<'src> {
 	fn push(&mut self, s: &str) {
 		self.buf.push_str(s);
 	}
@@ -30,8 +30,8 @@ impl Output for ClientOutput<'_> {
 	}
 }
 
-impl ConfigProvider for ClientOutput<'_> {
-	fn get_config(&self) -> &Config {
+impl<'src> ConfigProvider<'src> for ClientOutput<'src> {
+	fn get_config(&self) -> &'src Config<'src> {
 		self.config
 	}
 }
@@ -46,7 +46,7 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let ty = &tydecl.ty;
+		let ty = &*tydecl.ty.borrow();
 
 		self.push_indent();
 		self.push(&format!("type {tydecl} = "));
@@ -211,10 +211,6 @@ impl<'src> ClientOutput<'src> {
 			return self.buf;
 		};
 
-		if self.config.evdecls().iter().any(|ev| ev.call == EvCall::Polling) {
-			self.push_iter_type()
-		}
-
 		self.push_event_loop();
 
 		self.push_tydecls();
@@ -225,7 +221,7 @@ impl<'src> ClientOutput<'src> {
 	}
 }
 
-pub fn code(config: &Config) -> Option<String> {
+pub fn code<'src>(config: &'src Config<'src>) -> Option<String> {
 	if !config.typescript {
 		return None;
 	}

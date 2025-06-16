@@ -28,8 +28,8 @@ impl Output for TypesOutput<'_> {
 	}
 }
 
-impl<'a> TypesOutput<'a> {
-	pub fn new(config: &'a Config) -> Self {
+impl<'src> TypesOutput<'src> {
+	pub fn new(config: &'src Config<'src>) -> Self {
 		Self {
 			config,
 			tabs: 0,
@@ -38,7 +38,7 @@ impl<'a> TypesOutput<'a> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let ty = &tydecl.ty;
+		let ty = &*tydecl.ty.borrow();
 
 		self.push_indent();
 		self.push(&format!(
@@ -68,6 +68,6 @@ impl<'a> TypesOutput<'a> {
 	}
 }
 
-pub fn code(config: &Config) -> String {
+pub fn code<'src>(config: &'src Config<'src>) -> String {
 	TypesOutput::new(config).output()
 }

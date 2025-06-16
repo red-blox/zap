@@ -150,7 +150,7 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let ty = &tydecl.ty;
+		let ty = &*tydecl.ty.borrow();
 
 		self.push_indent();
 		self.push(&format!(
@@ -1349,6 +1349,6 @@ impl<'src> ClientOutput<'src> {
 	}
 }
 
-pub fn code(config: &Config) -> String {
+pub fn code<'src>(config: &'src Config<'src>) -> String {
 	ClientOutput::new(config).output()
 }

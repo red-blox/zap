@@ -1,7 +1,9 @@
 use std::{
 	borrow::Cow,
+	cell::RefCell,
 	cmp::Ordering,
 	collections::{BTreeMap, HashMap, HashSet, VecDeque},
+	rc::Rc,
 };
 
 use crate::config::{
@@ -20,6 +22,7 @@ pub const MAX_UNRELIABLE_SIZE: usize = 998;
 struct Converter<'src> {
 	config: SyntaxConfig<'src>,
 	tydecls: HashMap<&'src str, SyntaxTyDecl<'src>>,
+	resolved_tys: HashMap<&'src str, Rc<RefCell<Ty<'src>>>>,
 	all_tydecls: HashMap<String, TyDecl<'src>>,
 	path: Vec<&'src str>,
 
@@ -33,6 +36,7 @@ impl<'src> Converter<'src> {
 			tydecls: HashMap::new(),
 			all_tydecls: HashMap::new(),
 			path: Vec::new(),
+			resolved_tys: Default::default(),
 
 			reports: Vec::new(),
 		}
@@ -597,14 +601,22 @@ impl<'src> Converter<'src> {
 
 	fn tydecl(&mut self, tydecl: &SyntaxTyDecl<'src>) -> TyDecl<'src> {
 		let name = tydecl.name.name;
-		let ty = self.ty(&tydecl.ty);
+		let ty = if let Some(ty) = self.resolved_tys.get(name) {
+			ty.clone()
+		} else {
+			if let Some(ref_ty) = self.ty_has_unbounded_ref(name, &tydecl.ty, &mut HashSet::new()) {
+				self.report(Report::AnalyzeUnboundedRecursiveType {
+					decl_span: tydecl.span(),
+					use_span: ref_ty.span(),
+				});
+			}
 
-		if let Some(ref_ty) = self.ty_has_unbounded_ref(name, &tydecl.ty, &mut HashSet::new()) {
-			self.report(Report::AnalyzeUnboundedRecursiveType {
-				decl_span: tydecl.span(),
-				use_span: ref_ty.span(),
-			});
-		}
+			let cache_ty = Rc::new(RefCell::new(Ty::Opt(Box::new(Ty::Unknown))));
+			self.resolved_tys.insert(name, cache_ty.clone());
+			let ty = self.ty(&tydecl.ty);
+			cache_ty.replace(ty);
+			cache_ty
+		};
 
 		TyDecl {
 			name,
@@ -760,11 +772,11 @@ impl<'src> Converter<'src> {
 								name: Cow::Borrowed(name),
 							});
 
-							return Ty::Ref(name.to_string(), Box::new(Ty::Opt(Box::new(Ty::Unknown))));
+							return Ty::Ref(name.to_string(), Rc::new(RefCell::new(Ty::Opt(Box::new(Ty::Unknown)))));
 						};
 
 						let tydecl = self.tydecl(&tydecl);
-						Ty::Ref(tydecl.to_string(), Box::new(tydecl.ty))
+						Ty::Ref(tydecl.to_string(), tydecl.ty)
 					}
 				}
 			}
@@ -778,10 +790,10 @@ impl<'src> Converter<'src> {
 						name: Cow::Owned(path.clone()),
 					});
 
-					return Ty::Ref(path.clone(), Box::new(Ty::Opt(Box::new(Ty::Unknown))));
+					return Ty::Ref(path.clone(), Rc::new(RefCell::new(Ty::Opt(Box::new(Ty::Unknown)))));
 				};
 
-				Ty::Ref(tydecl.to_string(), Box::new(tydecl.ty.clone()))
+				Ty::Ref(tydecl.to_string(), tydecl.ty.clone())
 			}
 
 			SyntaxTyKind::Enum(enum_ty) => Ty::Enum(self.enum_ty(enum_ty)),

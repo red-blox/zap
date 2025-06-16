@@ -10,7 +10,7 @@ struct ServerOutput<'src> {
 	buf: String,
 }
 
-impl Output for ServerOutput<'_> {
+impl<'src> Output<'src> for ServerOutput<'src> {
 	fn push(&mut self, s: &str) {
 		self.buf.push_str(s);
 	}
@@ -30,14 +30,14 @@ impl Output for ServerOutput<'_> {
 	}
 }
 
-impl ConfigProvider for ServerOutput<'_> {
-	fn get_config(&self) -> &Config {
+impl<'src> ConfigProvider<'src> for ServerOutput<'src> {
+	fn get_config(&self) -> &'src Config<'src> {
 		self.config
 	}
 }
 
-impl<'a> ServerOutput<'a> {
-	pub fn new(config: &'a Config) -> Self {
+impl<'src> ServerOutput<'src> {
+	pub fn new(config: &'src Config<'src>) -> Self {
 		Self {
 			config,
 			tabs: 0,
@@ -46,7 +46,7 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let ty = &tydecl.ty;
+		let ty = &*tydecl.ty.borrow();
 
 		self.push_indent();
 		self.push(&format!("type {tydecl} = "));
@@ -112,7 +112,9 @@ impl<'a> ServerOutput<'a> {
 		let list = self.config.casing.with("List", "list", "list");
 
 		self.push_indent();
-		self.push(&format!("{fire_list}: ({list}: Player[]"));
+		self.push(&format!(
+			"{fire_list}: ({list}: Player[] | Record<string | number | symbol, Player> | Map<unknown, Player>"
+		));
 
 		if !ev.data.is_empty() {
 			self.push(", ");
@@ -127,7 +129,7 @@ impl<'a> ServerOutput<'a> {
 		let set = self.config.casing.with("Set", "set", "set");
 
 		self.push_indent();
-		self.push(&format!("{fire_set}: ({set}: Set<Player>"));
+		self.push(&format!("{fire_set}: ({set}: Set<Player> | Map<Player, unknown>"));
 
 		if !ev.data.is_empty() {
 			self.push(", ");
@@ -279,10 +281,6 @@ impl<'a> ServerOutput<'a> {
 			return self.buf;
 		};
 
-		if self.config.evdecls().iter().any(|ev| ev.call == EvCall::Polling) {
-			self.push_iter_type()
-		}
-
 		self.push_event_loop();
 
 		self.push_tydecls();
@@ -293,7 +291,7 @@ impl<'a> ServerOutput<'a> {
 	}
 }
 
-pub fn code(config: &Config) -> Option<String> {
+pub fn code<'src>(config: &'src Config<'src>) -> Option<String> {
 	if !config.typescript {
 		return None;
 	}

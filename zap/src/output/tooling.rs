@@ -15,7 +15,7 @@ struct ToolingOutput<'src> {
 }
 
 impl<'src> ToolingOutput<'src> {
-	pub fn new(config: &'src Config) -> Self {
+	pub fn new(config: &'src Config<'src>) -> Self {
 		Self {
 			config,
 			tabs: 0,
@@ -111,7 +111,7 @@ impl<'src> ToolingOutput<'src> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let ty = &tydecl.ty;
+		let ty = &*tydecl.ty.borrow();
 
 		self.push_line(&format!("function types.read_{tydecl}()"));
 		self.indent();
@@ -584,7 +584,7 @@ impl<'src> ToolingOutput<'src> {
 	}
 }
 
-pub fn code(config: &Config) -> Option<Output> {
+pub fn code<'src>(config: &'src Config<'src>) -> Option<Output> {
 	if !config.tooling {
 		return None;
 	}
