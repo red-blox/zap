@@ -191,7 +191,9 @@ impl<'src> ServerOutput<'src> {
 					NamespaceEntry::EvDecl(evdecl) => {
 						if evdecl.call == EvCall::Polling {
 							this.push_indent();
-							this.push(&format!("{iter}: () => IterableFunction<LuaTuple<[{index}: number, {player}: Player"));
+							this.push(&format!(
+								"{iter}: () => IterableFunction<LuaTuple<[{index}: number, {player}: Player"
+							));
 
 							for (index, parameter) in evdecl.data.iter().enumerate() {
 								let name = match parameter.name {
