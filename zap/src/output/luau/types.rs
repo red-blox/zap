@@ -41,10 +41,10 @@ impl<'src> TypesOutput<'src> {
 		let ty = &*tydecl.ty.borrow();
 
 		self.push_indent();
-		self.push(&format!(
-			"{}type {tydecl} = ",
-			if tydecl.path.is_empty() { "export " } else { "" }
-		));
+		if tydecl.path.is_empty() {
+			self.push("export ");
+		}
+		self.push(&format!("type {tydecl} = "));
 		self.push_ty(ty);
 		self.push("\n");
 	}

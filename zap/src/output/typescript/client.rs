@@ -1,5 +1,4 @@
-use crate::config::NamespaceEntry;
-use crate::config::{Config, EvCall, EvSource, TyDecl, YieldType};
+use crate::config::{Config, EvCall, EvSource, NamespaceEntry, TyDecl, YieldType};
 
 use super::ConfigProvider;
 use super::Output;
@@ -116,7 +115,7 @@ impl<'src> ClientOutput<'src> {
 					NamespaceEntry::EvDecl(evdecl) => {
 						if evdecl.call == EvCall::Polling {
 							this.push_indent();
-							this.push(&format!("{iter}: Iter<LuaTuple<[{index}: number"));
+							this.push(&format!("{iter}: () => IterableFunction<LuaTuple<[{index}: number"));
 
 							for (index, parameter) in evdecl.data.iter().enumerate() {
 								let name = match parameter.name {
