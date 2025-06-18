@@ -83,18 +83,21 @@ impl<'src> Config<'src> {
 		}
 	}
 
+	pub fn visit_ns_entries<'a, C>(&'a self, mut cb: C)
+	where
+		C: FnMut(&'a NamespaceEntry<'src>),
+	{
+		self.traverse_namespaces(&mut (), |_, _| {}, |_, _, entry, _| cb(entry));
+	}
+
 	pub fn evdecls<'a>(&'a self) -> Vec<&'a EvDecl<'src>> {
 		let mut evdecls = vec![];
 
-		self.traverse_namespaces(
-			&mut (),
-			|_, _| {},
-			|_, _, entry, _| {
-				if let NamespaceEntry::EvDecl(evdecl) = entry {
-					evdecls.push(evdecl)
-				}
-			},
-		);
+		self.visit_ns_entries(|entry| {
+			if let NamespaceEntry::EvDecl(evdecl) = entry {
+				evdecls.push(evdecl)
+			}
+		});
 
 		evdecls
 	}
@@ -102,15 +105,11 @@ impl<'src> Config<'src> {
 	pub fn fndecls<'a>(&'a self) -> Vec<&'a FnDecl<'src>> {
 		let mut fndecls = vec![];
 
-		self.traverse_namespaces(
-			&mut (),
-			|_, _| {},
-			|_, _, entry, _| {
-				if let NamespaceEntry::FnDecl(fndecl) = entry {
-					fndecls.push(fndecl)
-				}
-			},
-		);
+		self.visit_ns_entries(|entry| {
+			if let NamespaceEntry::FnDecl(fndecl) = entry {
+				fndecls.push(fndecl)
+			}
+		});
 
 		fndecls
 	}

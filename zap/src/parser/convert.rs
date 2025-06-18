@@ -186,10 +186,6 @@ impl<'src> Converter<'src> {
 			}
 		}
 
-		if namespaces.is_empty() {
-			self.report(Report::AnalyzeEmptyEvDecls);
-		}
-
 		let (typescript, ..) = self.boolean_opt("typescript", false, &config.opts);
 		let (typescript_max_tuple_length, ..) = self.num_opt("typescript_max_tuple_length", 10.0, &config.opts);
 
@@ -240,6 +236,14 @@ impl<'src> Converter<'src> {
 			async_lib,
 			disable_fire_all,
 		};
+
+		let mut has_evdecls = false;
+		config.visit_ns_entries(|entry| {
+			has_evdecls = has_evdecls || matches!(entry, NamespaceEntry::EvDecl(_) | NamespaceEntry::FnDecl(_));
+		});
+		if has_evdecls {
+			self.report(Report::AnalyzeEmptyEvDecls);
+		}
 
 		(config, self.reports)
 	}
