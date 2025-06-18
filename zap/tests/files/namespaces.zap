@@ -8,7 +8,7 @@ event Event1 = {
 }
 
 namespace NS = {
-    type MyType = string
+    type MyType = struct { thetype: MyType? }
 
     event Event1 = {
         from: Client,
@@ -24,3 +24,5 @@ event Event2 = {
     call: SingleSync,
     data: NS.MyType
 }
+
+type TheirType = NS.MyType

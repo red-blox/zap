@@ -241,7 +241,7 @@ impl<'src> Converter<'src> {
 		config.visit_ns_entries(|entry| {
 			has_evdecls = has_evdecls || matches!(entry, NamespaceEntry::EvDecl(_) | NamespaceEntry::FnDecl(_));
 		});
-		if has_evdecls {
+		if !has_evdecls {
 			self.report(Report::AnalyzeEmptyEvDecls);
 		}
 
