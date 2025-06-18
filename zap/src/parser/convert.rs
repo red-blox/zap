@@ -776,11 +776,11 @@ impl<'src> Converter<'src> {
 								name: Cow::Borrowed(name),
 							});
 
-							return Ty::Ref(name.to_string(), Rc::new(RefCell::new(Ty::Opt(Box::new(Ty::Unknown)))));
+							return Ty::Opt(Box::new(Ty::Unknown));
 						};
 
 						let tydecl = self.tydecl(&tydecl);
-						Ty::Ref(tydecl.to_string(), tydecl.ty)
+						Ty::Ref(tydecl)
 					}
 				}
 			}
@@ -788,16 +788,16 @@ impl<'src> Converter<'src> {
 			SyntaxTyKind::Path(path) => {
 				let path = path.iter().map(|iden| iden.name).collect::<Vec<_>>().join(".");
 
-				let Some(tydecl) = self.all_tydecls.get(&path) else {
+				let Some(tydecl) = self.all_tydecls.get(&path).cloned() else {
 					self.report(Report::AnalyzeUnknownTypeRef {
 						span: ty.span(),
 						name: Cow::Owned(path.clone()),
 					});
 
-					return Ty::Ref(path.clone(), Rc::new(RefCell::new(Ty::Opt(Box::new(Ty::Unknown)))));
+					return Ty::Opt(Box::new(Ty::Unknown));
 				};
 
-				Ty::Ref(tydecl.to_string(), tydecl.ty.clone())
+				Ty::Ref(tydecl)
 			}
 
 			SyntaxTyKind::Enum(enum_ty) => Ty::Enum(self.enum_ty(enum_ty)),

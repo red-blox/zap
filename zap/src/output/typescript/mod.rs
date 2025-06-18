@@ -134,7 +134,15 @@ pub trait Output<'src>: ConfigProvider<'src> {
 				}
 			}
 
-			Ty::Ref(name, ..) => self.push(name),
+			Ty::Ref(tydecl) => self.push(
+				&tydecl
+					.path
+					.iter()
+					.copied()
+					.chain(std::iter::once(tydecl.name))
+					.collect::<Vec<_>>()
+					.join("."),
+			),
 
 			Ty::Enum(enum_ty) => match enum_ty {
 				Enum::Unit(enumerators) => self.push(

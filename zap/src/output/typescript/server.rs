@@ -48,10 +48,25 @@ impl<'src> ServerOutput<'src> {
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
 		let ty = &*tydecl.ty.borrow();
 
+		let mut depth = 0usize;
+		for name in &tydecl.path {
+			depth += 1;
+			self.push_indent();
+			self.push("export ");
+			if depth == 1 {
+				self.push("declare ");
+			}
+			self.push(&format!("namespace {name} {{\n"));
+			self.indent();
+		}
 		self.push_indent();
-		self.push(&format!("type {tydecl} = "));
+		self.push(&format!("export type {} = ", tydecl.name));
 		self.push_ty(ty);
 		self.push(";\n");
+		for _ in 0..depth {
+			self.dedent();
+			self.push_line("}");
+		}
 	}
 
 	fn push_tydecls(&mut self) {

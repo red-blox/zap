@@ -120,7 +120,7 @@ pub trait Output {
 				}
 			}
 
-			Ty::Ref(name, ..) => self.push(name),
+			Ty::Ref(tydecl) => self.push(&tydecl.to_string()),
 
 			Ty::Enum(enum_ty) => match enum_ty {
 				Enum::Unit(enumerators) => self.push(
