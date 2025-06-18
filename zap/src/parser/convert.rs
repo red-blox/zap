@@ -238,7 +238,7 @@ impl<'src> Converter<'src> {
 		};
 
 		let mut has_evdecls = false;
-		config.visit_ns_entries(|entry| {
+		config.visit_ns_entries(|_, entry| {
 			has_evdecls = has_evdecls || matches!(entry, NamespaceEntry::EvDecl(_) | NamespaceEntry::FnDecl(_));
 		});
 		if !has_evdecls {

@@ -96,7 +96,9 @@ impl<'src> ClientOutput<'src> {
 					this.push_line("}");
 				}
 			},
-			|this, name, entry, depth| {
+			|this, path, entry| {
+				let depth = path.len() - 1;
+				let name = path.last().unwrap();
 				this.push_line(&format!(
 					"export {}{} {name}{} {{",
 					if depth == 0 { "declare " } else { "" },

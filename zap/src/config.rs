@@ -57,23 +57,27 @@ impl<'src> Config<'src> {
 	pub fn traverse_namespaces<'a, T, R, C>(&'a self, this: &mut T, mut reset: R, mut cb: C)
 	where
 		R: FnMut(&mut T, usize),
-		C: FnMut(&mut T, &'src str, &'a NamespaceEntry<'src>, usize),
+		C: FnMut(&mut T, &[&'src str], &'a NamespaceEntry<'src>),
 	{
-		let mut stack = self.namespaces.iter().map(|(k, v)| (k, v, 0)).collect::<Vec<_>>();
+		let mut stack = self.namespaces.iter().map(|(k, v)| (vec![*k], v)).collect::<Vec<_>>();
 
 		let mut max_depth = 0;
 
-		while let Some((key, entry, depth)) = stack.pop() {
+		while let Some((path, entry)) = stack.pop() {
+			let depth = path.len() - 1;
 			if depth < max_depth {
 				reset(this, max_depth - depth)
 			}
 			max_depth = depth;
 
-			cb(this, key, entry, depth);
+			cb(this, &path, entry);
 
 			if let NamespaceEntry::Ns(entries) = entry {
 				for (sub_key, sub_entry) in entries.iter() {
-					stack.push((sub_key, sub_entry, depth + 1));
+					stack.push((
+						path.iter().copied().chain(std::iter::once(*sub_key)).collect(),
+						sub_entry,
+					));
 				}
 			}
 		}
@@ -85,15 +89,15 @@ impl<'src> Config<'src> {
 
 	pub fn visit_ns_entries<'a, C>(&'a self, mut cb: C)
 	where
-		C: FnMut(&'a NamespaceEntry<'src>),
+		C: FnMut(&[&'src str], &'a NamespaceEntry<'src>),
 	{
-		self.traverse_namespaces(&mut (), |_, _| {}, |_, _, entry, _| cb(entry));
+		self.traverse_namespaces(&mut (), |_, _| {}, |_, path, entry| cb(path, entry));
 	}
 
 	pub fn evdecls<'a>(&'a self) -> Vec<&'a EvDecl<'src>> {
 		let mut evdecls = vec![];
 
-		self.visit_ns_entries(|entry| {
+		self.visit_ns_entries(|_, entry| {
 			if let NamespaceEntry::EvDecl(evdecl) = entry {
 				evdecls.push(evdecl)
 			}
@@ -105,7 +109,7 @@ impl<'src> Config<'src> {
 	pub fn fndecls<'a>(&'a self) -> Vec<&'a FnDecl<'src>> {
 		let mut fndecls = vec![];
 
-		self.visit_ns_entries(|entry| {
+		self.visit_ns_entries(|_, entry| {
 			if let NamespaceEntry::FnDecl(fndecl) = entry {
 				fndecls.push(fndecl)
 			}

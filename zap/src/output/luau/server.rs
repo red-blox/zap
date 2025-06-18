@@ -82,7 +82,8 @@ impl<'src> ServerOutput<'src> {
 					this.push_line("}),");
 				}
 			},
-			|this, name, entry, _| {
+			|this, path, entry| {
+				let name = path.last().unwrap();
 				this.push_line(&format!("{name} = table.freeze({{"));
 				this.indent();
 
@@ -1312,7 +1313,8 @@ impl<'src> ServerOutput<'src> {
 					this.push_line("},");
 				}
 			},
-			|this, name, entry, _| {
+			|this, path, entry| {
+				let name = path.last().unwrap();
 				this.push_line(&format!("{name} = {{"));
 				this.indent();
 

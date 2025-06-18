@@ -1,7 +1,7 @@
 use std::{cmp::max, collections::HashMap};
 
 use crate::{
-	config::{Config, EvDecl, EvSource, EvType, FnDecl, NumTy, TyDecl, UNRELIABLE_ORDER_NUMTY},
+	config::{Config, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, NumTy, TyDecl, UNRELIABLE_ORDER_NUMTY},
 	irgen::{des, Stmt},
 	output::get_unnamed_values,
 	Output,
@@ -12,16 +12,43 @@ struct ToolingOutput<'src> {
 	tabs: u32,
 	buf: String,
 	var_occurrences: HashMap<String, usize>,
+	client_evpaths: HashMap<(usize, bool), String>,
+	server_evpaths: HashMap<(usize, bool), String>,
+	client_fnpaths: HashMap<usize, String>,
+	server_fnpaths: HashMap<usize, String>,
 }
 
 impl<'src> ToolingOutput<'src> {
 	pub fn new(config: &'src Config<'src>) -> Self {
-		Self {
+		let mut output = Self {
 			config,
 			tabs: 0,
 			buf: String::new(),
 			var_occurrences: HashMap::new(),
-		}
+			client_evpaths: HashMap::new(),
+			server_evpaths: HashMap::new(),
+			client_fnpaths: HashMap::new(),
+			server_fnpaths: HashMap::new(),
+		};
+
+		config.visit_ns_entries(|path, entry| match entry {
+			NamespaceEntry::EvDecl(evdecl) => {
+				let map = if evdecl.from == EvSource::Client {
+					&mut output.client_evpaths
+				} else {
+					&mut output.server_evpaths
+				};
+
+				map.insert((evdecl.id, evdecl.evty == EvType::Reliable), path.join("."));
+			}
+			NamespaceEntry::FnDecl(fndecl) => {
+				output.client_fnpaths.insert(fndecl.client_id, path.join("."));
+				output.server_fnpaths.insert(fndecl.server_id, path.join("."));
+			}
+			NamespaceEntry::Ns(_) => {}
+		});
+
+		output
 	}
 
 	fn push(&mut self, s: &str) {
@@ -166,7 +193,14 @@ impl<'src> ToolingOutput<'src> {
 		self.push_line("table.insert(events, {");
 		self.indent();
 
-		self.push_line(&format!("Name = \"{}\",", ev.name));
+		self.push_line(&format!(
+			"Name = \"{}\",",
+			if ev.from == EvSource::Client {
+				&self.client_evpaths
+			} else {
+				&self.server_evpaths
+			}[&(ev.id, ev.evty == EvType::Reliable)]
+		));
 
 		self.push_indent();
 		self.push("Arguments = { ");
@@ -239,7 +273,7 @@ impl<'src> ToolingOutput<'src> {
 			self.push_line("table.insert(events, {");
 			self.indent();
 
-			self.push_line(&format!("Name = \"{} (request)\",", fn_decl.name));
+			self.push_line(&format!("Name = \"{} (request)\",", self.server_fnpaths[&id]));
 
 			self.push_indent();
 			self.push("Arguments = { ");
@@ -271,7 +305,7 @@ impl<'src> ToolingOutput<'src> {
 			self.push_line("table.insert(events, {");
 			self.indent();
 
-			self.push_line(&format!("Name = \"{} (callback)\",", fn_decl.name));
+			self.push_line(&format!("Name = \"{} (callback)\",", self.client_fnpaths[&id]));
 
 			self.push_indent();
 			self.push("Arguments = { ");
