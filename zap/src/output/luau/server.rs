@@ -1296,7 +1296,7 @@ impl<'src> ServerOutput<'src> {
 		self.push_line("table.freeze(polling_queues_unreliable)\n");
 	}
 
-	pub fn push_return(&mut self) {
+	fn push_return(&mut self) {
 		self.push_line("local returns = {");
 		self.indent();
 

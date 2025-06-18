@@ -139,7 +139,7 @@ impl<'src> ServerOutput<'src> {
 		self.push(") => void\n");
 	}
 
-	pub fn push_return(&mut self) {
+	fn push_return(&mut self) {
 		let iter = self.config.casing.with("Iter", "iter", "iter");
 		let index = self.config.casing.with("Index", "index", "index");
 		let value = self.config.casing.with("Value", "value", "value");
