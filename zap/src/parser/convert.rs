@@ -553,6 +553,7 @@ impl<'src> Converter<'src> {
 			call,
 			data: data.unwrap_or_default(),
 			id,
+			path: self.path.clone(),
 		}
 	}
 
@@ -600,6 +601,7 @@ impl<'src> Converter<'src> {
 			rets,
 			client_id,
 			server_id,
+			path: self.path.clone(),
 		}
 	}
 

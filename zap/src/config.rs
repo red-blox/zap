@@ -204,6 +204,7 @@ pub struct FnDecl<'src> {
 	pub rets: Option<Vec<Ty<'src>>>,
 	pub client_id: usize,
 	pub server_id: usize,
+	pub path: Vec<&'src str>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -220,6 +221,7 @@ pub struct EvDecl<'src> {
 	pub call: EvCall,
 	pub data: Vec<Parameter<'src>>,
 	pub id: usize,
+	pub path: Vec<&'src str>,
 }
 
 #[derive(Debug, Clone)]
