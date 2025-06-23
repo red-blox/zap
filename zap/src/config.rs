@@ -256,6 +256,7 @@ pub struct TyDecl<'src> {
 	pub name: &'src str,
 	pub ty: Rc<RefCell<Ty<'src>>>,
 	pub path: Vec<&'src str>,
+	pub inline: bool,
 }
 
 impl Display for TyDecl<'_> {

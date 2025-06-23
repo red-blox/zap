@@ -147,6 +147,10 @@ impl<'src> ServerOutput<'src> {
 		self.push_ty(ty);
 		self.push("\n");
 
+		if tydecl.inline {
+			return;
+		}
+
 		self.push_line(&format!("function types.write_{tydecl}(value: {tydecl})"));
 		self.indent();
 		let statements = &ser::gen(
