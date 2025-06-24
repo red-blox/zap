@@ -1033,23 +1033,15 @@ impl<'src> Converter<'src> {
 					.collect::<Vec<_>>()
 					.join(".");
 
-				match &*key {
-					ref_name if ref_name == target_path => TyRecursionKind::Unbounded(*ref_ty),
-
-					"boolean" | "Color3" | "Vector3" | "vector" | "AlignedCFrame" | "CFrame" | "unknown" => {
-						TyRecursionKind::None
-					}
-
-					_ => {
-						if searched.contains(&key) {
-							TyRecursionKind::None
-						} else if let Some(tydecl) = self.tydecls.get(&key) {
-							searched.insert(key);
-							self.ty_recursion_kind(target_path, &tydecl.ty, searched)
-						} else {
-							TyRecursionKind::None
-						}
-					}
+				if key == target_path {
+					TyRecursionKind::Unbounded(*ref_ty)
+				} else if searched.contains(&key) {
+					TyRecursionKind::None
+				} else if let Some(tydecl) = self.tydecls.get(&key) {
+					searched.insert(key);
+					self.ty_recursion_kind(target_path, &tydecl.ty, searched)
+				} else {
+					TyRecursionKind::None
 				}
 			}
 
@@ -1062,7 +1054,9 @@ impl<'src> Converter<'src> {
 					.collect::<Vec<_>>()
 					.join(".");
 
-				if let Some(tydecl) = self.tydecls.get(&path) {
+				if searched.contains(&path) {
+					TyRecursionKind::None
+				} else if let Some(tydecl) = self.tydecls.get(&path) {
 					searched.insert(path);
 					self.ty_recursion_kind(target_path, &tydecl.ty, searched)
 				} else {
