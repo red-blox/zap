@@ -24,7 +24,7 @@ struct Converter<'src> {
 	tydecls: HashMap<String, SyntaxTyDecl<'src>>,
 	resolved_tys: HashMap<String, Rc<RefCell<Ty<'src>>>>,
 	all_tydecls: HashMap<String, TyDecl<'src>>,
-	current_tydecl_name: Option<&'src str>,
+	current_tydecl: Option<SyntaxTyDecl<'src>>,
 	path: Vec<&'src str>,
 
 	reports: Vec<Report<'src>>,
@@ -44,7 +44,7 @@ impl<'src> Converter<'src> {
 			config,
 			tydecls: HashMap::new(),
 			all_tydecls: HashMap::new(),
-			current_tydecl_name: None,
+			current_tydecl: None,
 			path: Vec::new(),
 			resolved_tys: Default::default(),
 
@@ -643,9 +643,9 @@ impl<'src> Converter<'src> {
 
 			let cache_ty = Rc::new(RefCell::new(Ty::Opt(Box::new(Ty::Unknown))));
 			self.resolved_tys.insert(key, cache_ty.clone());
-			self.current_tydecl_name = Some(tydecl.name.name);
+			self.current_tydecl = Some(tydecl.clone());
 			let ty = self.ty(&tydecl.ty);
-			self.current_tydecl_name = None;
+			self.current_tydecl = None;
 			cache_ty.replace(ty);
 			cache_ty
 		};
@@ -929,10 +929,13 @@ impl<'src> Converter<'src> {
 			}
 
 			let ty = self.ty(syntax_ty);
-			if let Some(current_name) = self.current_tydecl_name {
+			if let Some(curr_tydecl) = &self.current_tydecl {
 				if let Ty::Ref(tydecl) = &ty {
-					if tydecl.path == self.path && tydecl.name == current_name {
-						self.report(Report::AnalyzeOrNestedOptional { span: syntax_ty.span() });
+					if tydecl.path == self.path && tydecl.name == curr_tydecl.name.name {
+						self.report(Report::AnalyzeRecursiveOr {
+							decl_span: curr_tydecl.name.span(),
+							usage_span: syntax_ty.span(),
+						});
 						continue;
 					}
 				}

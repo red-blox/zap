@@ -133,6 +133,11 @@ pub enum Report<'src> {
 	AnalyzeOrNestedOptional {
 		span: Span,
 	},
+
+	AnalyzeRecursiveOr {
+		decl_span: Span,
+		usage_span: Span,
+	},
 }
 
 impl Report<'_> {
@@ -166,6 +171,7 @@ impl Report<'_> {
 			Self::AnalyzeNamedReturn { .. } => Severity::Error,
 			Self::AnalyzeOrDuplicateType { .. } => Severity::Error,
 			Self::AnalyzeOrNestedOptional { .. } => Severity::Error,
+			Self::AnalyzeRecursiveOr { .. } => Severity::Error,
 		}
 	}
 
@@ -202,6 +208,7 @@ impl Report<'_> {
 			Self::AnalyzeNamedReturn { .. } => "rets cannot be named".to_string(),
 			Self::AnalyzeOrDuplicateType { .. } => "duplicate types used in OR".to_string(),
 			Self::AnalyzeOrNestedOptional { .. } => "optional type used in OR".to_string(),
+			Self::AnalyzeRecursiveOr { .. } => "OR used recursively".to_string(),
 		}
 	}
 
@@ -235,6 +242,7 @@ impl Report<'_> {
 			Self::AnalyzeMissingEvDeclCall { .. } => "3019",
 			Self::AnalyzeOrDuplicateType { .. } => "3020",
 			Self::AnalyzeOrNestedOptional { .. } => "3021",
+			Self::AnalyzeRecursiveOr { .. } => "3022",
 		}
 	}
 
@@ -366,6 +374,11 @@ impl Report<'_> {
 			Self::AnalyzeOrNestedOptional { span } => {
 				vec![Label::primary((), span.clone()).with_message("optional type")]
 			}
+
+			Self::AnalyzeRecursiveOr { decl_span, usage_span } => vec![
+				Label::secondary((), decl_span.clone()).with_message("type declaration"),
+				Label::primary((), usage_span.clone()).with_message("type used recursively"),
+			],
 		}
 	}
 
@@ -446,6 +459,10 @@ impl Report<'_> {
 			Self::AnalyzeOrNestedOptional { .. } => Some(vec![
 				"optional types cannot be used in ORs".to_string(),
 				"consider making the whole OR optional".to_string(),
+			]),
+			Self::AnalyzeRecursiveOr { .. } => Some(vec![
+				"ORs may not be used recursively".to_string(),
+				"consider using a tagged enum instead".to_string(),
 			]),
 		}
 	}
