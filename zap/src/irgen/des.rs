@@ -298,8 +298,6 @@ impl Des<'_> {
 					self.push_ty(ty, into.clone().eindex(var_expr.clone()));
 					self.push_stmt(Stmt::End);
 				} else {
-					self.new_scope();
-
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
@@ -320,6 +318,8 @@ impl Des<'_> {
 						to: len_expr.clone(),
 					});
 
+					self.new_scope();
+
 					let (inner_var_name, _) = self.add_occurrence("val");
 
 					self.push_local(inner_var_name.clone(), None);
@@ -331,15 +331,13 @@ impl Des<'_> {
 						Var::Name(inner_var_name.clone()).into(),
 					));
 
-					self.push_stmt(Stmt::End);
-
 					self.end_scope();
+
+					self.push_stmt(Stmt::End);
 				}
 			}
 
 			Ty::Map(key, val) => {
-				self.new_scope();
-
 				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
 				self.push_assign(into.clone(), Expr::EmptyTable);
@@ -349,6 +347,8 @@ impl Des<'_> {
 					from: 1.0.into(),
 					to: self.readnumty(length_numty),
 				});
+
+				self.new_scope();
 
 				let (key_name, key_expr) = self.add_occurrence("key");
 				self.push_local(key_name.clone(), None);
@@ -360,14 +360,12 @@ impl Des<'_> {
 
 				self.push_assign(into.clone().eindex(key_expr.clone()), val_expr.clone());
 
-				self.push_stmt(Stmt::End);
-
 				self.end_scope();
+
+				self.push_stmt(Stmt::End);
 			}
 
 			Ty::Set(key) => {
-				self.new_scope();
-
 				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
 				self.push_assign(into.clone(), Expr::EmptyTable);
@@ -378,6 +376,8 @@ impl Des<'_> {
 					to: self.readnumty(length_numty),
 				});
 
+				self.new_scope();
+
 				let (key_name, key_expr) = self.add_occurrence("key");
 				self.push_local(key_name.clone(), None);
 
@@ -385,9 +385,9 @@ impl Des<'_> {
 
 				self.push_assign(into.clone().eindex(key_expr.clone()), Expr::True);
 
-				self.push_stmt(Stmt::End);
-
 				self.end_scope();
+
+				self.push_stmt(Stmt::End);
 			}
 
 			Ty::Opt(ty) => {

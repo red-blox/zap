@@ -361,8 +361,6 @@ impl Ser<'_> {
 					self.push_ty(ty, from.clone().eindex(var_expr.clone()));
 					self.push_stmt(Stmt::End);
 				} else {
-					self.new_scope();
-
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
@@ -385,6 +383,8 @@ impl Ser<'_> {
 						to: len_expr.clone(),
 					});
 
+					self.new_scope();
+
 					let (inner_var_name, _) = self.add_occurrence("val");
 
 					self.push_stmt(Stmt::Local(
@@ -393,15 +393,14 @@ impl Ser<'_> {
 					));
 
 					self.push_ty(ty, Var::Name(inner_var_name));
-					self.push_stmt(Stmt::End);
 
 					self.end_scope();
+
+					self.push_stmt(Stmt::End);
 				}
 			}
 
 			Ty::Map(key, val) => {
-				self.new_scope();
-
 				let (len_name, len_expr) = self.add_occurrence("len");
 				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
 
@@ -422,9 +421,13 @@ impl Ser<'_> {
 					obj: from_expr,
 				});
 
+				self.new_scope();
+
 				self.push_assign(Var::Name(len_name.clone()), len_expr.clone().add(1.0.into()));
 				self.push_ty(key, key_name.as_str().into());
 				self.push_ty(val, val_name.as_str().into());
+
+				self.end_scope();
 
 				self.push_stmt(Stmt::End);
 
@@ -433,13 +436,9 @@ impl Ser<'_> {
 					None,
 					vec!["outgoing_buff".into(), len_pos_expr.clone(), len_expr.clone()],
 				));
-
-				self.end_scope();
 			}
 
 			Ty::Set(key) => {
-				self.new_scope();
-
 				let (len_name, len_expr) = self.add_occurrence("len");
 				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
 
@@ -460,8 +459,12 @@ impl Ser<'_> {
 					obj: from_expr,
 				});
 
+				self.new_scope();
+
 				self.push_assign(Var::Name(len_name.clone()), len_expr.clone().add(1.0.into()));
 				self.push_ty(key, key_name.as_str().into());
+
+				self.end_scope();
 
 				self.push_stmt(Stmt::End);
 
@@ -470,8 +473,6 @@ impl Ser<'_> {
 					None,
 					vec!["outgoing_buff".into(), len_pos_expr.clone(), len_expr.clone()],
 				));
-
-				self.end_scope();
 			}
 
 			Ty::Opt(ty) => {
