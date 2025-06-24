@@ -1,12 +1,16 @@
-use crate::config::{Enum, NumTy, PrimitiveTy, Struct, Ty};
+use crate::{
+	config::{Enum, NumTy, PrimitiveTy, Struct, Ty},
+	irgen::{OutputBuffer, Scope},
+};
 use std::collections::HashMap;
 
 use super::{Expr, Gen, Stmt, Var};
 
 struct Ser<'src> {
 	checks: bool,
-	buf: Vec<Stmt>,
+	buf: OutputBuffer,
 	var_occurrences: &'src mut HashMap<String, usize>,
+	scopes: Vec<Scope>,
 }
 
 impl Gen for Ser<'_> {
@@ -18,11 +22,15 @@ impl Gen for Ser<'_> {
 	where
 		I: Iterator<Item = &'a Ty<'src>>,
 	{
+		self.new_scope();
+
 		for (ty, name) in types.zip(names) {
 			self.push_ty(ty, Var::Name(name.to_string()));
 		}
 
-		self.buf
+		self.end_scope();
+
+		self.buf.output()
 	}
 
 	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize> {
@@ -31,6 +39,47 @@ impl Gen for Ser<'_> {
 }
 
 impl Ser<'_> {
+	fn new_scope(&mut self) {
+		let scope_buf = OutputBuffer::new();
+		self.buf.push(scope_buf.clone());
+		self.scopes.push(Scope {
+			bitpack_budget: vec![],
+			buf: scope_buf,
+		});
+	}
+
+	fn current_scope(&mut self) -> &mut Scope {
+		self.scopes.last_mut().unwrap()
+	}
+
+	fn end_scope(&mut self) {
+		let scope = self.scopes.pop().unwrap();
+
+		for (shift, name) in scope.bitpack_budget {
+			let (pos_name, pos_expr) = self.add_occurrence(&format!("{name}_pos"));
+			let numty = NumTy::from_f64(0.0, ((1u64 << (shift + 1)) - 1) as f64);
+
+			scope.buf.push(Stmt::Local(name.clone(), Some(Expr::Num(0.0))));
+			scope.buf.push(Stmt::Local(
+				pos_name,
+				Some(Expr::Call(
+					Var::Name("alloc".into()).into(),
+					None,
+					vec![Expr::Num(numty.size() as f64)],
+				)),
+			));
+			self.buf.push(Stmt::Call(
+				Var::NameIndex(Var::Name("buffer".into()).into(), format!("write{numty}")),
+				None,
+				vec![
+					Expr::Var(Var::Name("outgoing_buff".into()).into()),
+					pos_expr,
+					Expr::Var(Var::Name(name).into()),
+				],
+			));
+		}
+	}
+
 	fn push_struct(&mut self, struct_ty: &Struct, from: Var) {
 		for (name, ty) in struct_ty.fields.iter() {
 			self.push_ty(ty, from.clone().eindex(Expr::Str((*name).into())));
@@ -199,6 +248,34 @@ impl Ser<'_> {
 		self.push_stmt(Stmt::End);
 	}
 
+	fn push_bool<F: FnOnce(&mut Self)>(&mut self, cond_expr: Expr, cb: F) {
+		let (bits, var) = {
+			let scope = self.current_scope();
+
+			let existing = scope.bitpack_budget.last_mut().filter(|(shift, _)| *shift < 31);
+			if let Some(existing) = existing {
+				existing.0 += 1;
+				(1u32 << existing.0, Var::Name(existing.1.clone()))
+			} else {
+				let (name, _) = self.add_occurrence("bool");
+				self.current_scope().bitpack_budget.push((0, name.clone()));
+				(1u32, Var::Name(name))
+			}
+		};
+
+		self.push_stmt(Stmt::If(cond_expr));
+		self.push_assign(
+			var.clone(),
+			Expr::Call(
+				Box::new(Var::NameIndex(Box::new(Var::Name("bit32".into())), "bor".into())),
+				None,
+				vec![Expr::Var(Box::new(var)), Expr::Num(bits as f64)],
+			),
+		);
+		cb(self);
+		self.push_stmt(Stmt::End);
+	}
+
 	fn push_ty(&mut self, ty: &Ty, from: Var) {
 		let from_expr = Expr::from(from.clone());
 
@@ -297,6 +374,8 @@ impl Ser<'_> {
 					self.push_ty(ty, from.clone().eindex(var_expr.clone()));
 					self.push_stmt(Stmt::End);
 				} else {
+					self.new_scope();
+
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
@@ -328,10 +407,14 @@ impl Ser<'_> {
 
 					self.push_ty(ty, Var::Name(inner_var_name));
 					self.push_stmt(Stmt::End);
+
+					self.end_scope();
 				}
 			}
 
 			Ty::Map(key, val) => {
+				self.new_scope();
+
 				let (len_name, len_expr) = self.add_occurrence("len");
 				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
 
@@ -363,9 +446,13 @@ impl Ser<'_> {
 					None,
 					vec!["outgoing_buff".into(), len_pos_expr.clone(), len_expr.clone()],
 				));
+
+				self.end_scope();
 			}
 
 			Ty::Set(key) => {
+				self.new_scope();
+
 				let (len_name, len_expr) = self.add_occurrence("len");
 				let (len_pos_name, len_pos_expr) = self.add_occurrence("len_pos");
 
@@ -396,6 +483,8 @@ impl Ser<'_> {
 					None,
 					vec!["outgoing_buff".into(), len_pos_expr.clone(), len_expr.clone()],
 				));
+
+				self.end_scope();
 			}
 
 			Ty::Opt(ty) => {
@@ -403,16 +492,9 @@ impl Ser<'_> {
 					return self.push_or(from, tys, *discriminant_numty, true);
 				}
 
-				self.push_stmt(Stmt::If(from_expr.clone().eq(Expr::Nil)));
-
-				self.push_writeu8(0.0.into());
-
-				self.push_stmt(Stmt::Else);
-
-				self.push_writeu8(1.0.into());
-				self.push_ty(ty, from);
-
-				self.push_stmt(Stmt::End);
+				self.push_bool(from_expr.clone().eq(Expr::Nil), |this| {
+					this.push_ty(ty, from);
+				});
 			}
 
 			Ty::Ref(name, ..) => self.push_stmt(Stmt::Call(
@@ -556,7 +638,7 @@ impl Ser<'_> {
 				self.push_ty(&Ty::Vector3, axis_name.as_str().into());
 			}
 
-			Ty::Boolean => self.push_writeu8(from_expr.and(1.0.into()).or(0.0.into())),
+			Ty::Boolean => self.push_bool(from_expr, |_| {}),
 		}
 	}
 }
@@ -572,8 +654,9 @@ where
 {
 	Ser {
 		checks,
-		buf: vec![],
+		buf: OutputBuffer::new(),
 		var_occurrences,
+		scopes: vec![],
 	}
 	.gen(names, types.into_iter())
 }

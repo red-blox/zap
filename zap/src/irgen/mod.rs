@@ -1,5 +1,7 @@
 #![allow(clippy::should_implement_trait)]
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::{fmt::Display, vec};
 
 use crate::config::{NumTy, Range, Ty};
@@ -272,6 +274,59 @@ pub trait Gen {
 			}
 		}
 	}
+}
+
+#[derive(Debug)]
+pub enum OutputEntryKind {
+	Stmt(Stmt),
+	Buffer(OutputBuffer),
+}
+
+#[derive(Debug)]
+pub struct OutputEntry(OutputEntryKind);
+
+impl From<Stmt> for OutputEntry {
+	fn from(value: Stmt) -> Self {
+		OutputEntry(OutputEntryKind::Stmt(value))
+	}
+}
+
+impl From<OutputBuffer> for OutputEntry {
+	fn from(value: OutputBuffer) -> Self {
+		OutputEntry(OutputEntryKind::Buffer(value))
+	}
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct OutputBuffer(Rc<RefCell<Vec<OutputEntry>>>);
+
+impl OutputBuffer {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	pub fn push<T: Into<OutputEntry>>(&self, item: T) {
+		self.0.borrow_mut().push(item.into());
+	}
+
+	pub fn output(self) -> Vec<Stmt> {
+		let mut output = vec![];
+
+		for entry in self.0.take() {
+			match entry.0 {
+				OutputEntryKind::Stmt(stmt) => output.push(stmt),
+				OutputEntryKind::Buffer(buf) => output.extend(buf.output()),
+			}
+		}
+
+		output
+	}
+}
+
+#[derive(Debug)]
+pub struct Scope {
+	pub bitpack_budget: Vec<(u8, String)>,
+	pub buf: OutputBuffer,
 }
 
 #[derive(Debug, Clone)]

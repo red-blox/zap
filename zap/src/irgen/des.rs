@@ -1,12 +1,16 @@
-use crate::config::{Enum, NumTy, PrimitiveTy, Struct, Ty};
+use crate::{
+	config::{Enum, NumTy, PrimitiveTy, Struct, Ty},
+	irgen::{OutputBuffer, Scope},
+};
 use std::collections::HashMap;
 
 use super::{Expr, Gen, Stmt, Var};
 
 struct Des<'src> {
 	checks: bool,
-	buf: Vec<Stmt>,
+	buf: OutputBuffer,
 	var_occurrences: &'src mut HashMap<String, usize>,
+	scopes: Vec<Scope>,
 }
 
 impl Gen for Des<'_> {
@@ -18,11 +22,15 @@ impl Gen for Des<'_> {
 	where
 		I: Iterator<Item = &'a Ty<'src>>,
 	{
+		self.new_scope();
+
 		for (ty, name) in types.zip(names) {
 			self.push_ty(ty, Var::Name(name.to_string()));
 		}
 
-		self.buf
+		self.end_scope();
+
+		self.buf.output()
 	}
 
 	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize> {
@@ -31,6 +39,43 @@ impl Gen for Des<'_> {
 }
 
 impl Des<'_> {
+	fn new_scope(&mut self) {
+		let scope_buf = OutputBuffer::new();
+		self.buf.push(scope_buf.clone());
+		self.scopes.push(Scope {
+			bitpack_budget: vec![],
+			buf: scope_buf,
+		});
+	}
+
+	fn current_scope(&mut self) -> &mut Scope {
+		self.scopes.last_mut().unwrap()
+	}
+
+	fn end_scope(&mut self) {
+		let scope = self.scopes.pop().unwrap();
+
+		for (shift, name) in scope.bitpack_budget {
+			let numty = NumTy::from_f64(0.0, ((1u64 << (shift + 1)) - 1) as f64);
+
+			scope.buf.push(Stmt::Local(
+				name.clone(),
+				Some(Expr::Call(
+					Var::NameIndex(Var::Name("buffer".into()).into(), format!("read{numty}")).into(),
+					None,
+					vec![
+						Expr::Var(Var::Name("incoming_buff".into()).into()),
+						Expr::Call(
+							Var::Name("read".into()).into(),
+							None,
+							vec![Expr::Num(numty.size() as f64)],
+						),
+					],
+				)),
+			));
+		}
+	}
+
 	fn push_struct(&mut self, struct_ty: &Struct, into: Var) {
 		for (name, ty) in struct_ty.fields.iter() {
 			self.push_ty(ty, into.clone().eindex(Expr::Str((*name).into())))
@@ -172,6 +217,28 @@ impl Des<'_> {
 		self.push_stmt(Stmt::End);
 	}
 
+	fn readboolean(&mut self) -> Expr {
+		let (bits, var) = {
+			let scope = self.current_scope();
+
+			let existing = scope.bitpack_budget.last_mut().filter(|(shift, _)| *shift < 31);
+			if let Some(existing) = existing {
+				existing.0 += 1;
+				(1u32 << existing.0, Var::Name(existing.1.clone()))
+			} else {
+				let (name, _) = self.add_occurrence("bool");
+				self.current_scope().bitpack_budget.push((0, name.clone()));
+				(1u32, Var::Name(name))
+			}
+		};
+
+		Expr::Call(
+			Box::new(Var::NameIndex(Box::new(Var::Name("bit32".into())), "btest".into())),
+			None,
+			vec![Expr::Var(Box::new(var)), Expr::Num(bits as f64)],
+		)
+	}
+
 	fn push_ty(&mut self, ty: &Ty, into: Var) {
 		let into_expr = Expr::from(into.clone());
 
@@ -243,6 +310,8 @@ impl Des<'_> {
 					self.push_ty(ty, into.clone().eindex(var_expr.clone()));
 					self.push_stmt(Stmt::End);
 				} else {
+					self.new_scope();
+
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
@@ -275,10 +344,14 @@ impl Des<'_> {
 					));
 
 					self.push_stmt(Stmt::End);
+
+					self.end_scope();
 				}
 			}
 
 			Ty::Map(key, val) => {
+				self.new_scope();
+
 				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
 				self.push_assign(into.clone(), Expr::EmptyTable);
@@ -300,9 +373,13 @@ impl Des<'_> {
 				self.push_assign(into.clone().eindex(key_expr.clone()), val_expr.clone());
 
 				self.push_stmt(Stmt::End);
+
+				self.end_scope();
 			}
 
 			Ty::Set(key) => {
+				self.new_scope();
+
 				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
 				self.push_assign(into.clone(), Expr::EmptyTable);
@@ -321,6 +398,8 @@ impl Des<'_> {
 				self.push_assign(into.clone().eindex(key_expr.clone()), Expr::True);
 
 				self.push_stmt(Stmt::End);
+
+				self.end_scope();
 			}
 
 			Ty::Opt(ty) => {
@@ -328,7 +407,8 @@ impl Des<'_> {
 					return self.push_or(into, tys, *discriminant_numty, true);
 				}
 
-				self.push_stmt(Stmt::If(self.readu8().eq(1.0.into())));
+				let expr = self.readboolean();
+				self.push_stmt(Stmt::If(expr));
 
 				if let Ty::Instance(class) = **ty {
 					self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
@@ -443,7 +523,10 @@ impl Des<'_> {
 				),
 			),
 
-			Ty::Boolean => self.push_assign(into, self.readu8().eq(1.0.into())),
+			Ty::Boolean => {
+				let expr = self.readboolean();
+				self.push_assign(into, expr);
+			}
 
 			Ty::Color3 => self.push_assign(
 				into,
@@ -587,8 +670,9 @@ where
 {
 	Des {
 		checks,
-		buf: vec![],
+		buf: OutputBuffer::new(),
 		var_occurrences,
+		scopes: vec![],
 	}
 	.gen(names, types.into_iter())
 }
