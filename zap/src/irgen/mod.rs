@@ -282,7 +282,7 @@ pub trait Gen {
 	fn get_bitpack(&mut self) -> (u32, Var) {
 		let scope = self.current_scope();
 
-		let existing = scope.bitpack_budget.last_mut().filter(|(shift, _)| *shift < 7);
+		let existing = scope.bitpack_budget.last_mut().filter(|(shift, _)| *shift < 15);
 		if let Some(existing) = existing {
 			existing.0 += 1;
 			(1u32 << existing.0, Var::Name(existing.1.clone()))
