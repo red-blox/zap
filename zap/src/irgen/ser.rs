@@ -256,7 +256,7 @@ impl Ser<'_> {
 			Expr::Call(
 				Box::new(Var::NameIndex(Box::new(Var::Name("bit32".into())), "bor".into())),
 				None,
-				vec![Expr::Var(Box::new(var)), Expr::Num(bits as f64)],
+				vec![Expr::Var(Box::new(var)), Expr::BinaryNum(bits)],
 			),
 		);
 		cb(self);

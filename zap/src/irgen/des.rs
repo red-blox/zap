@@ -223,7 +223,7 @@ impl Des<'_> {
 		Expr::Call(
 			Box::new(Var::NameIndex(Box::new(Var::Name("bit32".into())), "btest".into())),
 			None,
-			vec![Expr::Var(Box::new(var)), Expr::Num(bits as f64)],
+			vec![Expr::Var(Box::new(var)), Expr::BinaryNum(bits)],
 		)
 	}
 

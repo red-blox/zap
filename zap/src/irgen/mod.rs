@@ -416,6 +416,7 @@ pub enum Expr {
 	StrOrBool(String),
 	Var(Box<Var>),
 	Num(f64),
+	BinaryNum(u32),
 
 	// Function Call
 	Call(Box<Var>, Option<String>, Vec<Expr>),
@@ -542,6 +543,7 @@ impl Display for Expr {
 
 			Self::Var(var) => write!(f, "{}", var),
 			Self::Num(num) => write!(f, "{}", num),
+			Self::BinaryNum(num) => write!(f, "0b{:016b}", num),
 
 			Self::Call(var, method, args) => match method {
 				Some(method) => write!(
