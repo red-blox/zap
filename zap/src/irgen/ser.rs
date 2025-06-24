@@ -36,9 +36,7 @@ impl Gen for Ser<'_> {
 	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize> {
 		self.var_occurrences
 	}
-}
 
-impl Ser<'_> {
 	fn new_scope(&mut self) {
 		let scope_buf = OutputBuffer::new();
 		self.buf.push(scope_buf.clone());
@@ -79,7 +77,9 @@ impl Ser<'_> {
 			));
 		}
 	}
+}
 
+impl Ser<'_> {
 	fn push_struct(&mut self, struct_ty: &Struct, from: Var) {
 		for (name, ty) in struct_ty.fields.iter() {
 			self.push_ty(ty, from.clone().eindex(Expr::Str((*name).into())));
@@ -249,20 +249,7 @@ impl Ser<'_> {
 	}
 
 	fn push_bool<F: FnOnce(&mut Self)>(&mut self, cond_expr: Expr, cb: F) {
-		let (bits, var) = {
-			let scope = self.current_scope();
-
-			let existing = scope.bitpack_budget.last_mut().filter(|(shift, _)| *shift < 31);
-			if let Some(existing) = existing {
-				existing.0 += 1;
-				(1u32 << existing.0, Var::Name(existing.1.clone()))
-			} else {
-				let (name, _) = self.add_occurrence("bool");
-				self.current_scope().bitpack_budget.push((0, name.clone()));
-				(1u32, Var::Name(name))
-			}
-		};
-
+		let (bits, var) = self.get_bitpack();
 		self.push_stmt(Stmt::If(cond_expr));
 		self.push_assign(
 			var.clone(),

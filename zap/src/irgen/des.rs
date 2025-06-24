@@ -36,9 +36,7 @@ impl Gen for Des<'_> {
 	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize> {
 		self.var_occurrences
 	}
-}
 
-impl Des<'_> {
 	fn new_scope(&mut self) {
 		let scope_buf = OutputBuffer::new();
 		self.buf.push(scope_buf.clone());
@@ -75,7 +73,9 @@ impl Des<'_> {
 			));
 		}
 	}
+}
 
+impl Des<'_> {
 	fn push_struct(&mut self, struct_ty: &Struct, into: Var) {
 		for (name, ty) in struct_ty.fields.iter() {
 			self.push_ty(ty, into.clone().eindex(Expr::Str((*name).into())))
@@ -218,19 +218,7 @@ impl Des<'_> {
 	}
 
 	fn readboolean(&mut self) -> Expr {
-		let (bits, var) = {
-			let scope = self.current_scope();
-
-			let existing = scope.bitpack_budget.last_mut().filter(|(shift, _)| *shift < 31);
-			if let Some(existing) = existing {
-				existing.0 += 1;
-				(1u32 << existing.0, Var::Name(existing.1.clone()))
-			} else {
-				let (name, _) = self.add_occurrence("bool");
-				self.current_scope().bitpack_budget.push((0, name.clone()));
-				(1u32, Var::Name(name))
-			}
-		};
+		let (bits, var) = self.get_bitpack();
 
 		Expr::Call(
 			Box::new(Var::NameIndex(Box::new(Var::Name("bit32".into())), "btest".into())),

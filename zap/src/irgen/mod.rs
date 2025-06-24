@@ -274,6 +274,24 @@ pub trait Gen {
 			}
 		}
 	}
+
+	fn new_scope(&mut self);
+	fn current_scope(&mut self) -> &mut Scope;
+	fn end_scope(&mut self);
+
+	fn get_bitpack(&mut self) -> (u32, Var) {
+		let scope = self.current_scope();
+
+		let existing = scope.bitpack_budget.last_mut().filter(|(shift, _)| *shift < 31);
+		if let Some(existing) = existing {
+			existing.0 += 1;
+			(1u32 << existing.0, Var::Name(existing.1.clone()))
+		} else {
+			let (name, _) = self.add_occurrence("bool");
+			self.current_scope().bitpack_budget.push((0, name.clone()));
+			(1u32, Var::Name(name))
+		}
+	}
 }
 
 #[derive(Debug)]
