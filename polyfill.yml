@@ -10,6 +10,15 @@ globals:
     - required: false
       type: number
     must_use: true
+  Color3.fromRGB:
+    args:
+    - required: true
+      type: number
+    - required: true
+      type: number
+    - required: true
+      type: number
+    must_use: true
   game:
     struct: DataModel
   Instance.new:
