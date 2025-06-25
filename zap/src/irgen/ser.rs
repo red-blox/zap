@@ -98,6 +98,9 @@ impl Ser<'_> {
 			VariantStorageKind::Bit((bits, var)) => {
 				if i != 0 {
 					self.set_bitfield(var.clone(), *bits);
+				} else {
+					// make selene happy
+					self.push_stmt(Stmt::Local("_".into(), None));
 				}
 			}
 		}

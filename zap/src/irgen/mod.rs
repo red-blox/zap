@@ -367,7 +367,7 @@ impl Scope {
 	pub fn remaining_bitpack_budget(&self) -> u8 {
 		self.bitpack_budget
 			.last()
-			.map(|(shift, _)| BitpackMask::BITS as u8 - shift + 1)
+			.map(|(shift, _)| BitpackMask::BITS as u8 - (shift + 1))
 			.unwrap_or(0)
 	}
 }
