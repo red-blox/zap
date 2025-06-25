@@ -1,6 +1,6 @@
 use crate::{
 	config::{Enum, NumTy, PrimitiveTy, Struct, Ty},
-	irgen::{OutputBuffer, Scope},
+	irgen::{BitpackMask, OutputBuffer, Scope, VariantStorageKind},
 };
 use std::collections::HashMap;
 
@@ -82,13 +82,35 @@ impl Des<'_> {
 		}
 	}
 
+	fn readvariant_storage(&mut self, storage: &VariantStorageKind) -> Expr {
+		match storage {
+			VariantStorageKind::Full(numty) => self.readnumty(*numty),
+			VariantStorageKind::Bitpack(variants) => {
+				let (variant_name, variant_expr) = self.add_occurrence("variant");
+				self.push_local(variant_name.clone(), None);
+				for (i, (bits, var)) in variants.iter().enumerate() {
+					let cond = self.check_bitfield(var.clone(), *bits);
+
+					self.push_stmt(if i == 0 { Stmt::If(cond) } else { Stmt::ElseIf(cond) });
+					self.push_assign(Var::Name(variant_name.clone()), (i as f64).into());
+				}
+				self.push_stmt(Stmt::End);
+				variant_expr
+			}
+			VariantStorageKind::Bit((bits, var)) => {
+				self.check_bitfield(var.clone(), *bits).and(1.0.into()).or(0.0.into())
+			}
+		}
+	}
+
 	fn push_enum(&mut self, enum_ty: &Enum, into: Var) {
 		match enum_ty {
 			Enum::Unit(enumerators) => {
-				let numty = NumTy::from_f64(0.0, enumerators.len() as f64 - 1.0);
+				let storage = self.variant_storage(enumerators.len());
 
 				let (enum_value_name, enum_value_expr) = self.add_occurrence("enum_value");
-				self.push_local(enum_value_name, Some(self.readnumty(numty)));
+				let i_expr = self.readvariant_storage(&storage);
+				self.push_local(enum_value_name, Some(i_expr));
 
 				for (i, enumerator) in enumerators.iter().enumerate() {
 					if i == 0 {
@@ -105,10 +127,11 @@ impl Des<'_> {
 			}
 
 			Enum::Tagged { tag, variants } => {
-				let numty = NumTy::from_f64(0.0, variants.len() as f64 - 1.0);
+				let storage = self.variant_storage(variants.len());
 
 				let (enum_value_name, enum_value_expr) = self.add_occurrence("enum_value");
-				self.push_local(enum_value_name, Some(self.readnumty(numty)));
+				let i_expr = self.readvariant_storage(&storage);
+				self.push_local(enum_value_name, Some(i_expr));
 
 				for (i, (name, struct_ty)) in variants.iter().enumerate() {
 					if i == 0 {
@@ -131,10 +154,12 @@ impl Des<'_> {
 		}
 	}
 
-	fn push_or(&mut self, into: Var, tys: &Vec<Ty<'_>>, discriminant_numty: NumTy, optional: bool) {
+	fn push_or(&mut self, into: Var, tys: &Vec<Ty<'_>>, optional: bool) {
 		let (into_ty_i_name, into_ty_i_expr) = self.add_occurrence("ty_i");
+		let storage = self.variant_storage(tys.len() + optional as usize);
 
-		self.push_local(into_ty_i_name, Some(self.readnumty(discriminant_numty)));
+		let i_expr = self.readvariant_storage(&storage);
+		self.push_local(into_ty_i_name, Some(i_expr));
 		let mut initial_if = true;
 		let mut i_offset = 0usize;
 
@@ -217,14 +242,18 @@ impl Des<'_> {
 		self.push_stmt(Stmt::End);
 	}
 
+	fn check_bitfield(&mut self, var: Var, bits: BitpackMask) -> Expr {
+		Expr::Call(
+			Var::NameIndex(Var::Name("bit32".into()).into(), "btest".into()).into(),
+			None,
+			vec![Expr::Var(var.into()), Expr::BinaryNum(bits)],
+		)
+	}
+
 	fn readboolean(&mut self) -> Expr {
 		let (bits, var) = self.get_bitpack();
 
-		Expr::Call(
-			Box::new(Var::NameIndex(Box::new(Var::Name("bit32".into())), "btest".into())),
-			None,
-			vec![Expr::Var(Box::new(var)), Expr::BinaryNum(bits)],
-		)
+		self.check_bitfield(var, bits)
 	}
 
 	fn push_ty(&mut self, ty: &Ty, into: Var) {
@@ -391,8 +420,8 @@ impl Des<'_> {
 			}
 
 			Ty::Opt(ty) => {
-				if let Ty::Or(tys, discriminant_numty) = &**ty {
-					return self.push_or(into, tys, *discriminant_numty, true);
+				if let Ty::Or(tys, _) = &**ty {
+					return self.push_or(into, tys, true);
 				}
 
 				let expr = self.readboolean();
@@ -447,7 +476,7 @@ impl Des<'_> {
 				self.push_struct(struct_ty, into)
 			}
 
-			Ty::Or(tys, discriminant_numty) => self.push_or(into, tys, *discriminant_numty, false),
+			Ty::Or(tys, _) => self.push_or(into, tys, false),
 
 			Ty::Instance(class) => {
 				self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));

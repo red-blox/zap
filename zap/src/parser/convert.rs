@@ -989,18 +989,7 @@ impl<'src> Converter<'src> {
 			_ => Ordering::Equal,
 		});
 
-		let ty = Ty::Or(
-			tys,
-			NumTy::from_f64(
-				0.0,
-				(used_tys.len()
-					+ used_instances.len()
-					+ used_variants.len()
-					+ prev_unknown_span.is_some() as usize
-					+ optional as usize
-					- 1) as f64,
-			),
-		);
+		let ty = Ty::Or(tys, optional);
 
 		if prev_unknown_span.is_some() || optional {
 			Ty::Opt(Box::new(ty))
