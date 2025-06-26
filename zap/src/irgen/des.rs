@@ -315,18 +315,12 @@ impl Des<'_> {
 			Ty::Arr(ty, range) => {
 				self.push_assign(into.clone(), Expr::EmptyTable);
 
-				let (var_name, var_expr) = self.add_occurrence("i");
-
 				if let Some(len) = range.exact() {
-					self.push_stmt(Stmt::NumFor {
-						var: var_name.clone(),
-						from: 1.0.into(),
-						to: len.into(),
-					});
-
-					self.push_ty(ty, into.clone().eindex(var_expr.clone()));
-					self.push_stmt(Stmt::End);
+					for i in 1..=(len as usize) {
+						self.push_ty(ty, into.clone().eindex((i as f64).into()));
+					}
 				} else {
+					let (var_name, var_expr) = self.add_occurrence("i");
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 

@@ -140,7 +140,7 @@ impl<'src> TestOutput<'src> {
 
 		for (ser_name, des_name) in ser_names.iter().zip(des_names.iter()) {
 			self.push_line(&format!(
-				r#"assert(deepEquals({ser_name}, {des_name}), "deserialised value differs from original!")"#
+				r#"assert(deepEquals({ser_name}, {des_name}), "deserialised value differs from original in {default_value_index}!")"#
 			));
 		}
 
@@ -433,4 +433,41 @@ event Simple = {
 	insta_settings.set_input_file("unbounded_recursive_type.zap");
 
 	insta_settings.bind(|| assert_debug_snapshot!(reports))
+}
+
+#[tokio::test]
+async fn test_bitpacking() {
+	let (config, reports) = parse(include_str!("../files/bitpacking.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([
+		(
+			"Event1",
+			vec![r#"{ true, false, false, true, true, true, false, false }"#],
+		),
+		(
+			"Event2",
+			vec![
+				r#"{ true, false, false, true, true, true, false, false, true, false, false, true, true, true, false, false, true }"#,
+			],
+		),
+		(
+			"Event3",
+			vec![
+				r#"{ bools = { false, true, true, false, false, false, false, true, true, false, false, false, true, false }, enum = "world" }"#,
+			],
+		),
+		(
+			"Event4",
+			vec![
+				r#"{ bools = { false, true, true, false, false, false, false, true, true, false, false, false, true, false }, enum = "there" }"#,
+			],
+		),
+	]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
 }
