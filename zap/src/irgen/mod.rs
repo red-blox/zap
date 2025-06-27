@@ -368,7 +368,7 @@ impl Scope {
 		self.bitpack_budget
 			.last()
 			.map(|(shift, _)| BitpackMask::BITS as u8 - (shift + 1))
-			.unwrap_or(0)
+			.unwrap_or(BitpackMask::BITS as u8)
 	}
 }
 
