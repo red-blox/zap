@@ -165,7 +165,16 @@ impl Ser<'_> {
 			)),
 		);
 
-		let storage = self.variant_storage(tys.len() + optional as usize);
+		let storage = self.variant_storage(
+			tys.iter()
+				.map(|ty| match ty.primitive_ty() {
+					PrimitiveTy::Enum(Enum::Unit(variants)) => variants.len(),
+					PrimitiveTy::Enum(Enum::Tagged { variants, .. }) => variants.len(),
+					_ => 1,
+				})
+				.sum::<usize>()
+				+ optional as usize,
+		);
 
 		let mut unknown_i = None;
 		let mut initial_if = true;
