@@ -290,12 +290,10 @@ impl Ser<'_> {
 		);
 	}
 
-	fn push_bool<F: FnOnce(&mut Self)>(&mut self, cond_expr: Expr, cb: F) {
+	fn push_bool(&mut self, cond_expr: Expr) {
 		let (bits, var) = self.get_bitpack();
 		self.push_stmt(Stmt::If(cond_expr));
 		self.set_bitfield(var, bits);
-		cb(self);
-		self.push_stmt(Stmt::End);
 	}
 
 	fn push_ty(&mut self, ty: &Ty, from: Var) {
@@ -509,9 +507,9 @@ impl Ser<'_> {
 					return self.push_or(from, tys, true);
 				}
 
-				self.push_bool(from_expr.clone().eq(Expr::Nil), |this| {
-					this.push_ty(ty, from);
-				});
+				self.push_bool(from_expr.clone().eq(Expr::Nil));
+				self.push_ty(ty, from);
+				self.push_stmt(Stmt::End);
 			}
 
 			Ty::Ref(name, ..) => self.push_stmt(Stmt::Call(
@@ -655,7 +653,10 @@ impl Ser<'_> {
 				self.push_ty(&Ty::Vector3, axis_name.as_str().into());
 			}
 
-			Ty::Boolean => self.push_bool(from_expr, |_| {}),
+			Ty::Boolean => {
+				self.push_bool(from_expr);
+				self.push_stmt(Stmt::End);
+			}
 		}
 	}
 }
