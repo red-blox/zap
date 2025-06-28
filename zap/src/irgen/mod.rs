@@ -309,7 +309,7 @@ pub trait Gen {
 }
 
 #[derive(Debug)]
-pub enum OutputEntryKind {
+enum OutputEntryKind {
 	Stmt(Stmt),
 	Buffer(OutputBuffer),
 }

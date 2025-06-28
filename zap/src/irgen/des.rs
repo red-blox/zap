@@ -86,19 +86,19 @@ impl Des<'_> {
 		match storage {
 			VariantStorageKind::Full(numty) => self.readnumty(*numty),
 			VariantStorageKind::Bitpack(variants) => {
-				let (variant_name, variant_expr) = self.add_occurrence("variant");
-				self.push_local(variant_name.clone(), None);
+				let (variant_i, variant_expr) = self.add_occurrence("variant");
+				self.push_local(variant_i.clone(), None);
 				for (i, (bits, var)) in variants.iter().enumerate() {
-					let cond = self.check_bitfield(var.clone(), *bits);
+					let cond = self.check_bitfield(*bits, var.clone());
 
 					self.push_stmt(if i == 0 { Stmt::If(cond) } else { Stmt::ElseIf(cond) });
-					self.push_assign(Var::Name(variant_name.clone()), (i as f64).into());
+					self.push_assign(Var::Name(variant_i.clone()), (i as f64).into());
 				}
 				self.push_stmt(Stmt::End);
 				variant_expr
 			}
 			VariantStorageKind::Bit((bits, var)) => {
-				self.check_bitfield(var.clone(), *bits).and(1.0.into()).or(0.0.into())
+				self.check_bitfield(*bits, var.clone()).and(1.0.into()).or(0.0.into())
 			}
 		}
 	}
@@ -242,7 +242,7 @@ impl Des<'_> {
 		self.push_stmt(Stmt::End);
 	}
 
-	fn check_bitfield(&mut self, var: Var, bits: BitpackMask) -> Expr {
+	fn check_bitfield(&mut self, bits: BitpackMask, var: Var) -> Expr {
 		Expr::Call(
 			Var::NameIndex(Var::Name("bit32".into()).into(), "btest".into()).into(),
 			None,
@@ -253,7 +253,7 @@ impl Des<'_> {
 	fn readboolean(&mut self) -> Expr {
 		let (bits, var) = self.get_bitpack();
 
-		self.check_bitfield(var, bits)
+		self.check_bitfield(bits, var)
 	}
 
 	fn push_ty(&mut self, ty: &Ty, into: Var) {
