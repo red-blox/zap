@@ -93,11 +93,11 @@ impl Ser<'_> {
 			}
 			VariantStorageKind::Bitpack(variants) => {
 				let (bits, var) = &variants[i];
-				self.set_bitfield(var.clone(), *bits);
+				self.set_bitfield(*bits, var.clone());
 			}
 			VariantStorageKind::Bit((bits, var)) => {
 				if i != 0 {
-					self.set_bitfield(var.clone(), *bits);
+					self.set_bitfield(*bits, var.clone());
 				} else {
 					// make selene happy
 					self.push_stmt(Stmt::Local("_".into(), None));
@@ -279,7 +279,7 @@ impl Ser<'_> {
 		self.push_stmt(Stmt::End);
 	}
 
-	fn set_bitfield(&mut self, var: Var, bits: BitpackMask) {
+	fn set_bitfield(&mut self, bits: BitpackMask, var: Var) {
 		self.push_assign(
 			var.clone(),
 			Expr::Call(
@@ -288,12 +288,6 @@ impl Ser<'_> {
 				vec![Expr::Var(var.into()), Expr::BinaryNum(bits)],
 			),
 		);
-	}
-
-	fn push_bool(&mut self, cond_expr: Expr) {
-		let (bits, var) = self.get_bitpack();
-		self.push_stmt(Stmt::If(cond_expr));
-		self.set_bitfield(var, bits);
 	}
 
 	fn push_ty(&mut self, ty: &Ty, from: Var) {
@@ -507,7 +501,9 @@ impl Ser<'_> {
 					return self.push_or(from, tys, true);
 				}
 
-				self.push_bool(from_expr.clone().eq(Expr::Nil));
+				self.push_stmt(Stmt::If(from_expr.clone().eq(Expr::Nil)));
+				let (bits, var) = self.get_bitpack();
+				self.set_bitfield(bits, var);
 				self.push_ty(ty, from);
 				self.push_stmt(Stmt::End);
 			}
@@ -654,7 +650,9 @@ impl Ser<'_> {
 			}
 
 			Ty::Boolean => {
-				self.push_bool(from_expr);
+				self.push_stmt(Stmt::If(from_expr));
+				let (bits, var) = self.get_bitpack();
+				self.set_bitfield(bits, var);
 				self.push_stmt(Stmt::End);
 			}
 		}
