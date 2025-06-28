@@ -240,7 +240,7 @@ impl<'src> ServerOutput<'src> {
 					if i == 1 {
 						"value".to_string()
 					} else {
-						format!("value{}", i)
+						format!("value{i}")
 					}
 				})
 				.collect::<Vec<_>>()
@@ -298,8 +298,7 @@ impl<'src> ServerOutput<'src> {
 		for (index, argument) in arguments.iter().enumerate() {
 			if index > 0 {
 				self.push_line(&format!(
-					"new_arguments[((new_write_cursor + {}) % new_queue_size) + 1] = {argument}",
-					index
+					"new_arguments[((new_write_cursor + {index}) % new_queue_size) + 1] = {argument}"
 				));
 			} else {
 				self.push_line(&format!(
@@ -322,8 +321,7 @@ impl<'src> ServerOutput<'src> {
 		for (index, argument) in arguments.iter().enumerate() {
 			if index > 0 {
 				self.push_line(&format!(
-					"arguments[((write_cursor + {}) % queue_size) + 1] = {argument}",
-					index
+					"arguments[((write_cursor + {index}) % queue_size) + 1] = {argument}"
 				));
 			} else {
 				self.push_line(&format!("arguments[(write_cursor % queue_size) + 1] = {argument}"));
@@ -442,7 +440,7 @@ impl<'src> ServerOutput<'src> {
 
 		let rets_string = if !rets.is_empty() {
 			(1..=rets.len())
-				.map(|i| format!("ret_{}", i))
+				.map(|i| format!("ret_{i}"))
 				.collect::<Vec<_>>()
 				.join(", ")
 		} else {
@@ -452,7 +450,7 @@ impl<'src> ServerOutput<'src> {
 		if fndecl.call == FnCall::Async {
 			let args = if !fndecl.args.is_empty() {
 				(1..=fndecl.args.len())
-					.map(|i| format!("value_{}", i))
+					.map(|i| format!("value_{i}"))
 					.collect::<Vec<_>>()
 					.join(", ")
 			} else {
@@ -586,7 +584,7 @@ impl<'src> ServerOutput<'src> {
 
 		let values = self.get_values(&ev.data);
 
-		self.push_line(&format!("local {}", values));
+		self.push_line(&format!("local {values}"));
 
 		if !ev.data.is_empty() {
 			let statements = &des::gen(
@@ -643,11 +641,11 @@ impl<'src> ServerOutput<'src> {
 		let unreliable_count = self.config.server_unreliable_count();
 
 		if reliable_count > 0 {
-			self.push_line(&format!("local reliable_events = table.create({})", reliable_count));
+			self.push_line(&format!("local reliable_events = table.create({reliable_count})"));
 		}
 
 		if unreliable_count > 0 {
-			self.push_line(&format!("local unreliable_events = table.create({})", unreliable_count));
+			self.push_line(&format!("local unreliable_events = table.create({unreliable_count})"));
 		}
 
 		for evdecl in self.config.evdecls().iter().filter(|ev_decl| {
@@ -664,7 +662,7 @@ impl<'src> ServerOutput<'src> {
 		let num_ty = self.config.client_reliable_ty();
 
 		self.push_line(&format!("alloc({})", num_ty.size()));
-		self.push_line(&format!("buffer.write{}(outgoing_buff, outgoing_apos, {id})", num_ty));
+		self.push_line(&format!("buffer.write{num_ty}(outgoing_buff, outgoing_apos, {id})"));
 	}
 
 	fn push_alloc_order_id(&mut self) {
@@ -1000,7 +998,7 @@ impl<'src> ServerOutput<'src> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_set} = function({set}: {{ [Player]: unknown }}"));
+		self.push(&format!("{fire_set} = function({set}: {{ [Player]: any }}"));
 
 		if !parameters.is_empty() {
 			self.push(", ");
@@ -1210,7 +1208,7 @@ impl<'src> ServerOutput<'src> {
 					"value_{}{}",
 					index + 1,
 					if let Some(name) = parameter.name {
-						format!("_{}", name)
+						format!("_{name}")
 					} else {
 						String::from("")
 					}

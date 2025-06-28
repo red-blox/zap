@@ -108,7 +108,7 @@ pub trait Output {
 			Ty::Set(key) => {
 				self.push("{ [");
 				self.push_ty(key);
-				self.push("]: true");
+				self.push("]: any");
 				self.push(" }");
 			}
 
@@ -126,7 +126,7 @@ pub trait Output {
 				Enum::Unit(enumerators) => self.push(
 					&enumerators
 						.iter()
-						.map(|v| format!("\"{}\"", v))
+						.map(|v| format!("\"{v}\""))
 						.collect::<Vec<_>>()
 						.join(" | ")
 						.to_string(),

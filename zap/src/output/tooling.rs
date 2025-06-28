@@ -261,7 +261,7 @@ impl<'src> ToolingOutput<'src> {
 			self.push("Arguments = { ");
 
 			if self.config.tooling_show_internal_data {
-				self.push(&format!("{{ {} = id, {} = call_id }}, ", event_id, call_id));
+				self.push(&format!("{{ {event_id} = id, {call_id} = call_id }}, "));
 			}
 
 			self.push(&format!("{} }}", values.join(", ")));
@@ -293,7 +293,7 @@ impl<'src> ToolingOutput<'src> {
 			self.push("Arguments = { ");
 
 			if self.config.tooling_show_internal_data {
-				self.push(&format!("{{ {} = id, {} = call_id }}, ", event_id, call_id));
+				self.push(&format!("{{ {event_id} = id, {call_id} = call_id }}, "));
 			}
 
 			self.push(&format!("{} }}", values.join(", ")));

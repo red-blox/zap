@@ -254,7 +254,7 @@ impl<'src> ClientOutput<'src> {
 					if i == 1 {
 						"value".to_string()
 					} else {
-						format!("value{}", i)
+						format!("value{i}")
 					}
 				})
 				.collect::<Vec<_>>()
@@ -310,8 +310,7 @@ impl<'src> ClientOutput<'src> {
 		for (index, argument) in arguments.iter().enumerate() {
 			if index > 0 {
 				self.push_line(&format!(
-					"new_arguments[((new_write_cursor + {} - 1) % new_queue_size) + 1] = {argument}",
-					index
+					"new_arguments[((new_write_cursor + {index} - 1) % new_queue_size) + 1] = {argument}"
 				));
 			} else {
 				self.push_line(&format!("new_arguments[new_write_cursor] = {argument}"));
@@ -331,8 +330,7 @@ impl<'src> ClientOutput<'src> {
 		for (index, argument) in arguments.iter().enumerate() {
 			if index > 0 {
 				self.push_line(&format!(
-					"arguments[((write_cursor + {} - 1) % queue_size) + 1] = {argument}",
-					index
+					"arguments[((write_cursor + {index} - 1) % queue_size) + 1] = {argument}"
 				));
 			} else {
 				self.push_line(&format!("arguments[write_cursor] = {argument}"));
@@ -697,23 +695,19 @@ impl<'src> ClientOutput<'src> {
 
 		if client_reliable_count > 0 {
 			self.push_line(&format!(
-				"local reliable_events = table.create({})",
-				client_reliable_count
+				"local reliable_events = table.create({client_reliable_count})"
 			));
 			self.push_line(&format!(
-				"local reliable_event_queue: {{ [number]: {{ any }} }} = table.create({})",
-				client_reliable_count
+				"local reliable_event_queue: {{ [number]: {{ any }} }} = table.create({client_reliable_count})"
 			));
 		}
 
 		if client_unreliable_count > 0 {
 			self.push_line(&format!(
-				"local unreliable_events = table.create({})",
-				client_unreliable_count
+				"local unreliable_events = table.create({client_unreliable_count})"
 			));
 			self.push_line(&format!(
-				"local unreliable_event_queue: {{ [number]: {{ any }} }} = table.create({})",
-				client_unreliable_count
+				"local unreliable_event_queue: {{ [number]: {{ any }} }} = table.create({client_unreliable_count})"
 			));
 		}
 
@@ -758,7 +752,7 @@ impl<'src> ClientOutput<'src> {
 		let num_ty = self.config.server_reliable_ty();
 
 		self.push_line(&format!("alloc({})", num_ty.size()));
-		self.push_line(&format!("buffer.write{}(outgoing_buff, outgoing_apos, {id})", num_ty));
+		self.push_line(&format!("buffer.write{num_ty}(outgoing_buff, outgoing_apos, {id})"));
 	}
 
 	fn push_write_evdecl_event_id(&mut self, ev: &EvDecl) {
@@ -1015,7 +1009,7 @@ impl<'src> ClientOutput<'src> {
 					"value_{}{}",
 					index + 1,
 					if let Some(name) = parameter.name {
-						format!("_{}", name)
+						format!("_{name}")
 					} else {
 						String::from("")
 					}

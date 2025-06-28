@@ -16,6 +16,13 @@ namespace NS = {
         call: SingleSync,
         data: MyType
     }
+
+    event Event3 = {
+        from: Client,
+        type: Reliable,
+        call: SingleSync,
+        data: (Color3 | string | unknown)
+    }
 }
 
 event Event2 = {

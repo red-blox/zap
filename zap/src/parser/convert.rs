@@ -783,46 +783,44 @@ impl<'src> Converter<'src> {
 				Ty::Opt(Box::new(parsed_ty))
 			}
 
-			SyntaxTyKind::Ref(ref_ty) => {
-				let path = self
-					.path
-					.iter()
-					.copied()
-					.chain(std::iter::once(ref_ty.name))
-					.collect::<Vec<_>>()
-					.join(".");
+			SyntaxTyKind::Ref(ref_ty) => match ref_ty.name {
+				"BrickColor" => Ty::BrickColor,
+				"DateTimeMillis" => Ty::DateTimeMillis,
+				"DateTime" => Ty::DateTime,
+				"boolean" => Ty::Boolean,
+				"Color3" => Ty::Color3,
+				"Vector2" => Ty::Vector2,
+				"Vector3" => Ty::Vector3,
+				"AlignedCFrame" => Ty::AlignedCFrame,
+				"CFrame" => Ty::CFrame,
+				"unknown" => Ty::Opt(Box::new(Ty::Unknown)),
 
-				match &*path {
-					"BrickColor" => Ty::BrickColor,
-					"DateTimeMillis" => Ty::DateTimeMillis,
-					"DateTime" => Ty::DateTime,
-					"boolean" => Ty::Boolean,
-					"Color3" => Ty::Color3,
-					"Vector2" => Ty::Vector2,
-					"Vector3" => Ty::Vector3,
-					"AlignedCFrame" => Ty::AlignedCFrame,
-					"CFrame" => Ty::CFrame,
-					"unknown" => Ty::Opt(Box::new(Ty::Unknown)),
+				_ => {
+					let path = self
+						.path
+						.iter()
+						.copied()
+						.chain(std::iter::once(ref_ty.name))
+						.collect::<Vec<_>>()
+						.join(".");
 
-					_ => {
-						let Some(tydecl) = self.tydecls.get(&path).cloned() else {
-							self.report(Report::AnalyzeUnknownTypeRef {
-								span: ref_ty.span(),
-								name: Cow::Borrowed(ref_ty.name),
-							});
+					let Some(tydecl) = self.tydecls.get(&path).cloned() else {
+						self.report(Report::AnalyzeUnknownTypeRef {
+							span: ref_ty.span(),
+							name: Cow::Borrowed(ref_ty.name),
+						});
 
-							return Ty::Opt(Box::new(Ty::Unknown));
-						};
+						return Ty::Opt(Box::new(Ty::Unknown));
+					};
 
-						let tydecl = self.tydecl(&tydecl);
-						if tydecl.inline {
-							(*tydecl.ty.borrow()).clone()
-						} else {
-							Ty::Ref(tydecl)
-						}
+					let tydecl = self.tydecl(&tydecl);
+					if tydecl.inline {
+						(*tydecl.ty.borrow()).clone()
+					} else {
+						Ty::Ref(tydecl)
 					}
 				}
-			}
+			},
 
 			SyntaxTyKind::Path(raw_path) => {
 				let path = self

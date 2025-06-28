@@ -429,9 +429,9 @@ impl From<&str> for Var {
 impl Display for Var {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::Name(name) => write!(f, "{}", name),
-			Self::NameIndex(var, index) => write!(f, "{}.{}", var, index),
-			Self::ExprIndex(var, index) => write!(f, "{}[{}]", var, index),
+			Self::Name(name) => write!(f, "{name}"),
+			Self::NameIndex(var, index) => write!(f, "{var}.{index}"),
+			Self::ExprIndex(var, index) => write!(f, "{var}[{index}]"),
 		}
 	}
 }
@@ -564,18 +564,18 @@ impl Display for Expr {
 			Self::True => write!(f, "true"),
 			Self::Nil => write!(f, "nil"),
 
-			Self::Str(string) => write!(f, "\"{}\"", string),
+			Self::Str(string) => write!(f, "\"{string}\""),
 			Self::StrOrBool(string) => {
 				if string == "false" || string == "true" {
-					write!(f, "{}", string)
+					write!(f, "{string}")
 				} else {
-					write!(f, "\"{}\"", string)
+					write!(f, "\"{string}\"")
 				}
 			}
 
-			Self::Var(var) => write!(f, "{}", var),
-			Self::Num(num) => write!(f, "{}", num),
-			Self::BinaryNum(num) => write!(f, "0b{:016b}", num),
+			Self::Var(var) => write!(f, "{var}"),
+			Self::Num(num) => write!(f, "{num}"),
+			Self::BinaryNum(num) => write!(f, "0b{num:016b}"),
 
 			Self::Call(var, method, args) => match method {
 				Some(method) => write!(
@@ -596,8 +596,8 @@ impl Display for Expr {
 
 			Self::EmptyTable => write!(f, "{{}}"),
 
-			Self::Color3(x, y, z) => write!(f, "Color3.fromRGB({}, {}, {})", x, y, z),
-			Self::Vector3(x, y, z) => write!(f, "Vector3.new({}, {}, {})", x, y, z),
+			Self::Color3(r, g, b) => write!(f, "Color3.fromRGB({r}, {g}, {b})"),
+			Self::Vector3(x, y, z) => write!(f, "Vector3.new({x}, {y}, {z})"),
 			Self::Vector(x, y, z) => write!(
 				f,
 				"vector.create({}, {}, {})",
@@ -606,22 +606,22 @@ impl Display for Expr {
 				z.as_ref().unwrap_or(&Box::new(Expr::Num(0 as f64)))
 			),
 
-			Self::Len(expr) => write!(f, "#{}", expr),
-			Self::Not(expr) => write!(f, "not {}", expr),
+			Self::Len(expr) => write!(f, "#{expr}"),
+			Self::Not(expr) => write!(f, "not {expr}"),
 
-			Self::And(lhs, rhs) => write!(f, "{} and {}", lhs, rhs),
-			Self::Or(lhs, rhs) => write!(f, "{} or {}", lhs, rhs),
+			Self::And(lhs, rhs) => write!(f, "{lhs} and {rhs}"),
+			Self::Or(lhs, rhs) => write!(f, "{lhs} or {rhs}"),
 
-			Self::Gte(lhs, rhs) => write!(f, "{} >= {}", lhs, rhs),
-			Self::Lte(lhs, rhs) => write!(f, "{} <= {}", lhs, rhs),
-			Self::Neq(lhs, rhs) => write!(f, "{} ~= {}", lhs, rhs),
-			Self::Gt(lhs, rhs) => write!(f, "{} > {}", lhs, rhs),
-			Self::Lt(lhs, rhs) => write!(f, "{} < {}", lhs, rhs),
-			Self::Eq(lhs, rhs) => write!(f, "{} == {}", lhs, rhs),
+			Self::Gte(lhs, rhs) => write!(f, "{lhs} >= {rhs}"),
+			Self::Lte(lhs, rhs) => write!(f, "{lhs} <= {rhs}"),
+			Self::Neq(lhs, rhs) => write!(f, "{lhs} ~= {rhs}"),
+			Self::Gt(lhs, rhs) => write!(f, "{lhs} > {rhs}"),
+			Self::Lt(lhs, rhs) => write!(f, "{lhs} < {rhs}"),
+			Self::Eq(lhs, rhs) => write!(f, "{lhs} == {rhs}"),
 
-			Self::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
-			Self::Sub(lhs, rhs) => write!(f, "{} - {}", lhs, rhs),
-			Self::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
+			Self::Add(lhs, rhs) => write!(f, "{lhs} + {rhs}"),
+			Self::Sub(lhs, rhs) => write!(f, "{lhs} - {rhs}"),
+			Self::Mul(lhs, rhs) => write!(f, "{lhs} * {rhs}"),
 		}
 	}
 }

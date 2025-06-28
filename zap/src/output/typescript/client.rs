@@ -146,7 +146,7 @@ impl<'src> ClientOutput<'src> {
 									}
 								};
 
-								this.push(&format!(", {}: ", name));
+								this.push(&format!(", {name}: "));
 								this.push_ty(&parameter.ty);
 							}
 

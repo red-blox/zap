@@ -224,7 +224,7 @@ impl<'src> ServerOutput<'src> {
 									}
 								};
 
-								this.push(&format!(", {}: ", name));
+								this.push(&format!(", {name}: "));
 								this.push_ty(&parameter.ty);
 							}
 
