@@ -138,6 +138,11 @@ pub enum Report<'src> {
 		decl_span: Span,
 		usage_span: Span,
 	},
+
+	AnalyzeConflictingExport {
+		span: Span,
+		name: &'src str,
+	},
 }
 
 impl Report<'_> {
@@ -172,6 +177,7 @@ impl Report<'_> {
 			Self::AnalyzeOrDuplicateType { .. } => Severity::Error,
 			Self::AnalyzeOrNestedOptional { .. } => Severity::Error,
 			Self::AnalyzeRecursiveOr { .. } => Severity::Error,
+			Self::AnalyzeConflictingExport { .. } => Severity::Error,
 		}
 	}
 
@@ -209,6 +215,7 @@ impl Report<'_> {
 			Self::AnalyzeOrDuplicateType { .. } => "duplicate types used in OR".to_string(),
 			Self::AnalyzeOrNestedOptional { .. } => "optional type used in OR".to_string(),
 			Self::AnalyzeRecursiveOr { .. } => "OR used recursively".to_string(),
+			Self::AnalyzeConflictingExport { name, .. } => format!("Zap exports {name} at the top level"),
 		}
 	}
 
@@ -243,6 +250,7 @@ impl Report<'_> {
 			Self::AnalyzeOrDuplicateType { .. } => "3020",
 			Self::AnalyzeOrNestedOptional { .. } => "3021",
 			Self::AnalyzeRecursiveOr { .. } => "3022",
+			Self::AnalyzeConflictingExport { .. } => "3023",
 		}
 	}
 
@@ -379,6 +387,8 @@ impl Report<'_> {
 				Label::secondary((), decl_span.clone()).with_message("type declaration"),
 				Label::primary((), usage_span.clone()).with_message("type used recursively"),
 			],
+
+			Self::AnalyzeConflictingExport { span, .. } => vec![Label::primary((), span.clone())],
 		}
 	}
 
@@ -463,6 +473,10 @@ impl Report<'_> {
 			Self::AnalyzeRecursiveOr { .. } => Some(vec![
 				"ORs may not be used recursively".to_string(),
 				"consider using a tagged enum instead".to_string(),
+			]),
+			Self::AnalyzeConflictingExport { .. } => Some(vec![
+				"you will need to rename this declaration".to_string(),
+				"or move it inside a namespace".to_string(),
 			]),
 		}
 	}

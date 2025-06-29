@@ -252,13 +252,8 @@ impl<'src> Converter<'src> {
 			disable_fire_all,
 		};
 
-		let mut has_evdecls = false;
-		config.visit_ns_entries(|_, entry| {
-			has_evdecls = has_evdecls || matches!(entry, NamespaceEntry::EvDecl(_) | NamespaceEntry::FnDecl(_));
-		});
-		if !has_evdecls {
-			self.report(Report::AnalyzeEmptyEvDecls);
-		}
+		self.check_empty_file(&config);
+		self.check_conflicting_exports(casing);
 
 		(config, self.reports)
 	}
@@ -494,6 +489,58 @@ impl<'src> Converter<'src> {
 					seen.insert(identifier.name, identifier.span());
 				}
 			}
+		}
+	}
+
+	fn check_empty_file(&mut self, config: &Config) {
+		let mut has_evdecls = false;
+
+		config.visit_ns_entries(|_, entry| {
+			has_evdecls = has_evdecls || matches!(entry, NamespaceEntry::EvDecl(_) | NamespaceEntry::FnDecl(_));
+		});
+
+		if !has_evdecls {
+			self.report(Report::AnalyzeEmptyEvDecls);
+		}
+	}
+
+	fn check_conflicting_exports(&mut self, casing: Casing) {
+		let send_events = casing.with("SendEvents", "sendEvents", "send_events");
+
+		// we can do self.config.decls instead of traverse_namespaces as we're only interested in checking at the top level!
+		let report = self.config.decls.iter().find_map(|decl| match decl {
+			SyntaxDecl::Ev(evdecl) => {
+				if evdecl.name.name == send_events {
+					return Some(Report::AnalyzeConflictingExport {
+						span: evdecl.span(),
+						name: evdecl.name.name,
+					});
+				}
+				None
+			}
+			SyntaxDecl::Fn(fndecl) => {
+				if fndecl.name.name == send_events {
+					return Some(Report::AnalyzeConflictingExport {
+						span: fndecl.span(),
+						name: fndecl.name.name,
+					});
+				}
+				None
+			}
+			SyntaxDecl::Ns(nsdecl) => {
+				if nsdecl.name.name == send_events {
+					return Some(Report::AnalyzeConflictingExport {
+						span: nsdecl.span(),
+						name: nsdecl.name.name,
+					});
+				}
+				None
+			}
+			SyntaxDecl::Ty(_) => None,
+		});
+
+		if let Some(report) = report {
+			self.report(report);
 		}
 	}
 
