@@ -103,6 +103,7 @@ impl Ser<'_> {
 					self.push_stmt(Stmt::Local("_".into(), None));
 				}
 			}
+			VariantStorageKind::None => {}
 		}
 	}
 

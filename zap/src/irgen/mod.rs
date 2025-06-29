@@ -297,8 +297,10 @@ pub trait Gen {
 	}
 
 	fn variant_storage(&mut self, amount: usize) -> VariantStorageKind {
-		// 0 is variant 1, 1 is variant 2
-		if amount <= 2 {
+		if amount == 1 {
+			VariantStorageKind::None
+			// 0 is variant 1, 1 is variant 2
+		} else if amount == 2 {
 			VariantStorageKind::Bit(self.get_bitpack())
 		} else if self.current_scope().remaining_bitpack_budget() as usize >= amount {
 			VariantStorageKind::Bitpack(std::iter::repeat_with(|| self.get_bitpack()).take(amount).collect())
@@ -377,6 +379,7 @@ pub enum VariantStorageKind {
 	Full(NumTy, usize),
 	Bitpack(Vec<(BitpackMask, Var)>),
 	Bit((BitpackMask, Var)),
+	None,
 }
 
 #[derive(Debug, Clone)]

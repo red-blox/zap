@@ -112,6 +112,9 @@ impl Des<'_> {
 				cb(self, 1);
 				self.push_stmt(Stmt::End);
 			}
+			VariantStorageKind::None => {
+				cb(self, 0);
+			}
 		}
 	}
 
