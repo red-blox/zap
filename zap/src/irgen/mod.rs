@@ -303,7 +303,7 @@ pub trait Gen {
 		} else if self.current_scope().remaining_bitpack_budget() as usize >= amount {
 			VariantStorageKind::Bitpack(std::iter::repeat_with(|| self.get_bitpack()).take(amount).collect())
 		} else {
-			VariantStorageKind::Full(NumTy::from_f64(0.0, amount as f64 - 1.0))
+			VariantStorageKind::Full(NumTy::from_f64(0.0, amount as f64 - 1.0), amount)
 		}
 	}
 }
@@ -374,7 +374,7 @@ impl Scope {
 
 #[derive(Debug)]
 pub enum VariantStorageKind {
-	Full(NumTy),
+	Full(NumTy, usize),
 	Bitpack(Vec<(BitpackMask, Var)>),
 	Bit((BitpackMask, Var)),
 }

@@ -82,23 +82,35 @@ impl Des<'_> {
 		}
 	}
 
-	fn readvariant_storage(&mut self, storage: &VariantStorageKind) -> Expr {
+	fn readvariant_storage(&mut self, storage: VariantStorageKind, mut cb: impl FnMut(&mut Self, usize)) {
 		match storage {
-			VariantStorageKind::Full(numty) => self.readnumty(*numty),
-			VariantStorageKind::Bitpack(variants) => {
+			VariantStorageKind::Full(numty, amount) => {
 				let (variant_i, variant_expr) = self.add_occurrence("variant");
-				self.push_local(variant_i.clone(), None);
-				for (i, (bits, var)) in variants.iter().enumerate() {
-					let cond = self.check_bitfield(*bits, var.clone());
+				self.push_local(variant_i.clone(), Some(self.readnumty(numty)));
+				for i in 0..amount {
+					let cond = variant_expr.clone().eq((i as f64).into());
 
 					self.push_stmt(if i == 0 { Stmt::If(cond) } else { Stmt::ElseIf(cond) });
-					self.push_assign(Var::Name(variant_i.clone()), (i as f64).into());
+					cb(self, i)
 				}
 				self.push_stmt(Stmt::End);
-				variant_expr
+			}
+			VariantStorageKind::Bitpack(variants) => {
+				for (i, (bits, var)) in variants.into_iter().enumerate() {
+					let cond = self.check_bitfield(bits, var);
+
+					self.push_stmt(if i == 0 { Stmt::If(cond) } else { Stmt::ElseIf(cond) });
+					cb(self, i)
+				}
+				self.push_stmt(Stmt::End);
 			}
 			VariantStorageKind::Bit((bits, var)) => {
-				self.check_bitfield(*bits, var.clone()).and(1.0.into()).or(0.0.into())
+				let cond = self.check_bitfield(bits, var);
+				self.push_stmt(Stmt::If(cond));
+				cb(self, 0);
+				self.push_stmt(Stmt::Else);
+				cb(self, 1);
+				self.push_stmt(Stmt::End);
 			}
 		}
 	}
@@ -108,138 +120,82 @@ impl Des<'_> {
 			Enum::Unit(enumerators) => {
 				let storage = self.variant_storage(enumerators.len());
 
-				let (enum_value_name, enum_value_expr) = self.add_occurrence("enum_value");
-				let i_expr = self.readvariant_storage(&storage);
-				self.push_local(enum_value_name, Some(i_expr));
-
-				for (i, enumerator) in enumerators.iter().enumerate() {
-					if i == 0 {
-						self.push_stmt(Stmt::If(enum_value_expr.clone().eq((i as f64).into())));
-					} else {
-						self.push_stmt(Stmt::ElseIf(enum_value_expr.clone().eq((i as f64).into())));
-					}
-					self.push_assign(into.clone(), Expr::StrOrBool(enumerator.to_string()));
-				}
-
-				self.push_stmt(Stmt::Else);
-				self.push_stmt(Stmt::Error("Invalid enumerator".into()));
-				self.push_stmt(Stmt::End);
+				self.readvariant_storage(storage, |this, i| {
+					this.push_assign(into.clone(), Expr::StrOrBool(enumerators[i].to_string()));
+				});
 			}
 
 			Enum::Tagged { tag, variants } => {
 				let storage = self.variant_storage(variants.len());
 
-				let (enum_value_name, enum_value_expr) = self.add_occurrence("enum_value");
-				let i_expr = self.readvariant_storage(&storage);
-				self.push_local(enum_value_name, Some(i_expr));
-
-				for (i, (name, struct_ty)) in variants.iter().enumerate() {
-					if i == 0 {
-						self.push_stmt(Stmt::If(enum_value_expr.clone().eq((i as f64).into())));
-					} else {
-						self.push_stmt(Stmt::ElseIf(enum_value_expr.clone().eq((i as f64).into())));
-					}
-
-					self.push_assign(
+				self.readvariant_storage(storage, |this, i| {
+					let (name, struct_ty) = &variants[i];
+					this.push_assign(
 						into.clone().eindex(Expr::Str((*tag).into())),
 						Expr::StrOrBool(name.to_string()),
 					);
-					self.push_struct(struct_ty, into.clone());
-				}
-
-				self.push_stmt(Stmt::Else);
-				self.push_stmt(Stmt::Error("Invalid variant".into()));
-				self.push_stmt(Stmt::End);
+					this.push_struct(struct_ty, into.clone());
+				});
 			}
 		}
 	}
 
 	fn push_or(&mut self, into: Var, tys: &Vec<Ty<'_>>, optional: bool) {
-		let (into_ty_i_name, into_ty_i_expr) = self.add_occurrence("ty_i");
-		let storage = self.variant_storage(tys.len() + optional as usize);
-
-		let i_expr = self.readvariant_storage(&storage);
-		self.push_local(into_ty_i_name, Some(i_expr));
-		let mut initial_if = true;
-		let mut i_offset = 0usize;
-
-		for ty in tys {
-			let i = i_offset;
-
-			match ty.primitive_ty() {
-				PrimitiveTy::Enum(Enum::Unit(variants)) => {
-					i_offset += variants.len();
-
-					for (offset, variant) in variants.into_iter().enumerate() {
-						let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
-						if initial_if {
-							self.push_stmt(Stmt::If(condition));
-							initial_if = false;
-						} else {
-							self.push_stmt(Stmt::ElseIf(condition));
-						}
-
-						self.push_assign(into.clone(), Expr::Str(variant.to_string()));
-					}
-				}
-				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
-					i_offset += variants.len();
-
-					for (offset, (variant, data)) in variants.into_iter().enumerate() {
-						let condition = into_ty_i_expr.clone().eq(((i + offset) as f64).into());
-						if initial_if {
-							self.push_stmt(Stmt::If(condition));
-							initial_if = false;
-						} else {
-							self.push_stmt(Stmt::ElseIf(condition));
-						}
-
-						self.push_assign(into.clone(), Expr::EmptyTable);
-						self.push_assign(
-							into.clone().eindex(Expr::Str(tag.to_string())),
-							Expr::Str(variant.to_string()),
-						);
-						self.push_struct(&data, into.clone());
-					}
-				}
+		// this pushes rust to its limits
+		let mut tys = tys
+			.iter()
+			.flat_map(|ty| match ty.primitive_ty() {
+				PrimitiveTy::Enum(Enum::Unit(variants)) => variants
+					.into_iter()
+					.map(|variant| {
+						let into = into.clone();
+						Box::new(move |this: &mut Self| {
+							this.push_assign(into, Expr::Str(variant.to_string()));
+						}) as Box<dyn FnOnce(&mut Self)>
+					})
+					.collect::<Vec<_>>(),
+				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => variants
+					.into_iter()
+					.map(|(variant, data)| {
+						let into = into.clone();
+						Box::new(move |this: &mut Self| {
+							this.push_assign(into.clone(), Expr::EmptyTable);
+							this.push_assign(
+								into.clone().eindex(Expr::Str(tag.to_string())),
+								Expr::Str(variant.to_string()),
+							);
+							this.push_struct(&data, into);
+						}) as Box<dyn FnOnce(&mut Self)>
+					})
+					.collect::<Vec<_>>(),
 				PrimitiveTy::Unknown => {
-					i_offset += 1;
-
-					let condition = into_ty_i_expr.clone().eq((i as f64).into());
-					if initial_if {
-						self.push_stmt(Stmt::If(condition));
-						initial_if = false;
-					} else {
-						self.push_stmt(Stmt::ElseIf(condition));
-					}
-
-					self.push_ty(&Ty::Unknown, into.clone());
+					let into = into.clone();
+					vec![Box::new(move |this: &mut Self| {
+						this.push_ty(&Ty::Unknown, into);
+					}) as Box<dyn FnOnce(&mut Self)>]
 				}
 				PrimitiveTy::None(..) => unreachable!(),
 				_ => {
-					i_offset += 1;
-
-					let condition = into_ty_i_expr.clone().eq((i as f64).into());
-					if initial_if {
-						self.push_stmt(Stmt::If(condition));
-						initial_if = false;
-					} else {
-						self.push_stmt(Stmt::ElseIf(condition));
-					}
-
-					self.push_ty(ty, into.clone());
+					let into = into.clone();
+					vec![Box::new(move |this: &mut Self| {
+						this.push_ty(ty, into);
+					}) as Box<dyn FnOnce(&mut Self)>]
 				}
-			};
-		}
+			})
+			.collect::<Vec<Box<dyn FnOnce(&mut Self)>>>();
 
 		if optional {
-			self.push_stmt(Stmt::ElseIf(into_ty_i_expr.clone().eq((i_offset as f64).into())));
-			self.push_assign(into, Expr::Nil);
+			tys.push(Box::new(|this| {
+				this.push_assign(into, Expr::Nil);
+			}));
 		}
 
-		self.push_stmt(Stmt::Else);
-		self.push_stmt(Stmt::Error("Invalid enumerator".into()));
-		self.push_stmt(Stmt::End);
+		let mut tys = tys.into_iter().map(Some).collect::<Vec<_>>();
+
+		let storage = self.variant_storage(tys.len());
+		self.readvariant_storage(storage, |this, i| {
+			tys[i].take().unwrap()(this);
+		});
 	}
 
 	fn check_bitfield(&mut self, bits: BitpackMask, var: Var) -> Expr {

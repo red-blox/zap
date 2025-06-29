@@ -88,7 +88,7 @@ impl Ser<'_> {
 
 	fn push_variant_storage(&mut self, storage: &VariantStorageKind, i: usize) {
 		match storage {
-			VariantStorageKind::Full(numty) => {
+			VariantStorageKind::Full(numty, _) => {
 				self.push_writenumty((i as f64).into(), *numty);
 			}
 			VariantStorageKind::Bitpack(variants) => {
