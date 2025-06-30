@@ -431,7 +431,17 @@ impl<'src> Ty<'src> {
 					}
 				}
 
-				let discriminant_numty = NumTy::from_f64(0.0, (or_tys.len() + *optional as usize) as f64);
+				let discriminant_numty = NumTy::from_f64(
+					0.0,
+					(or_tys
+						.iter()
+						.map(|ty| match ty.primitive_ty() {
+							PrimitiveTy::Enum(Enum::Unit(variants)) => variants.len(),
+							PrimitiveTy::Enum(Enum::Tagged { variants, .. }) => variants.len(),
+							_ => 1,
+						})
+						.sum::<usize>() + *optional as usize) as f64,
+				);
 
 				(
 					min + discriminant_numty.size(),

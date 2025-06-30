@@ -987,9 +987,10 @@ impl<'src> Converter<'src> {
 			_ => Ordering::Equal,
 		});
 
+		let optional = prev_unknown_span.is_some() || optional;
 		let ty = Ty::Or(tys, optional);
 
-		if prev_unknown_span.is_some() || optional {
+		if optional {
 			Ty::Opt(Box::new(ty))
 		} else {
 			ty
