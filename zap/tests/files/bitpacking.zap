@@ -9,7 +9,7 @@ event Event2 = {
     from: Client,
     type: Reliable,
     call: SingleSync,
-    data: boolean[17]
+    data: boolean?[17]
 }
 
 event Event3 = {

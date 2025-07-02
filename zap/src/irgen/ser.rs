@@ -502,7 +502,7 @@ impl Ser<'_> {
 					return self.push_or(from, tys, true);
 				}
 
-				self.push_stmt(Stmt::If(from_expr.clone().eq(Expr::Nil)));
+				self.push_stmt(Stmt::If(from_expr.clone().neq(Expr::Nil)));
 				let (bits, var) = self.get_bitpack();
 				self.set_bitfield(bits, var);
 				self.push_ty(ty, from);
