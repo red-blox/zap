@@ -221,7 +221,9 @@ impl Report<'_> {
 			Self::AnalyzeOrNestedOptional { .. } => "optional type used in OR".to_string(),
 			Self::AnalyzeRecursiveOr { .. } => "OR used recursively".to_string(),
 			Self::AnalyzeConflictingExport { name, .. } => format!("Zap exports {name} at the top level"),
-			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => "upper bound set on a constricted range".to_string(),
+			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => {
+				"upper bound set on a constricted range".to_string()
+			}
 		}
 	}
 
@@ -453,8 +455,8 @@ impl Report<'_> {
 			Self::AnalyzeUnknownOptName { .. } => None,
 			Self::AnalyzeUnknownTypeRef { .. } => None,
 			Self::AnalyzeNumOutsideRange { min, max, .. } => Some(vec![
-				format!("the minimum must be greater than or equal to: {}", min),
-				format!("the maximum must be less than or equal to: {}", max),
+				format!("the minimum must be greater than or equal to: {min}"),
+				format!("the maximum must be less than or equal to: {max}"),
 			]),
 			Self::AnalyzeInvalidOptionalType { .. } => Some(vec![
 				"you cannot have 'double optional' types, where a type is optional twice".to_string(),
