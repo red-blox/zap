@@ -31,6 +31,7 @@ pub struct Config<'src> {
 
 	pub typescript: bool,
 	pub typescript_max_tuple_length: f64,
+	pub typescript_enum: TypeScriptEnumType,
 
 	pub tooling: bool,
 	pub tooling_show_internal_data: bool,
@@ -194,6 +195,13 @@ impl std::fmt::Display for YieldType {
 			YieldType::Promise => write!(f, "Promise"),
 		}
 	}
+}
+
+#[derive(Debug, Clone)]
+pub enum TypeScriptEnumType {
+	StringLiteral,
+	ConstNumber,
+	ConstString,
 }
 
 #[derive(Debug, Clone)]

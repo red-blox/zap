@@ -1,5 +1,5 @@
 use crate::{
-	config::{Enum, NumTy, PrimitiveTy, Struct, Ty},
+	config::{Enum, NumTy, PrimitiveTy, Struct, Ty, TypeScriptEnumType},
 	irgen::{BitpackMask, OutputBuffer, Scope, VariantStorageKind},
 };
 use std::collections::HashMap;
@@ -11,6 +11,7 @@ struct Des<'src> {
 	buf: OutputBuffer,
 	var_occurrences: &'src mut HashMap<String, usize>,
 	scopes: Vec<Scope>,
+	typescript_enum_type: &'src TypeScriptEnumType,
 }
 
 impl Gen for Des<'_> {
@@ -124,7 +125,12 @@ impl Des<'_> {
 				let storage = self.variant_storage(enumerators.len());
 
 				self.read_variant_storage(storage, |this, i| {
-					this.push_assign(into.clone(), Expr::StrOrBool(enumerators[i].to_string()));
+					let condition = match this.typescript_enum_type {
+						TypeScriptEnumType::ConstNumber => Expr::Num(i as f64),
+						_ => Expr::StrOrBool(enumerators[i].to_string()),
+					};
+
+					this.push_assign(into.clone(), condition);
 				});
 			}
 
@@ -153,9 +159,15 @@ impl Des<'_> {
 		for ty in tys {
 			match ty.primitive_ty() {
 				PrimitiveTy::Enum(Enum::Unit(variants)) => {
-					for variant in variants {
-						ty_functions.push(Box::new(|this| {
-							this.push_assign(into.clone(), Expr::Str(variant.to_string()));
+					for (i, variant) in variants.into_iter().enumerate() {
+						let into = into.clone();
+						ty_functions.push(Box::new(move |this| {
+							let condition = match this.typescript_enum_type {
+								TypeScriptEnumType::ConstNumber => Expr::Num(i as f64),
+								_ => Expr::StrOrBool(variant.to_string()),
+							};
+
+							this.push_assign(into.clone(), condition);
 						}));
 					}
 				}
@@ -656,6 +668,7 @@ pub fn gen<'a, 'src: 'a, I>(
 	names: &[String],
 	checks: bool,
 	var_occurrences: &mut HashMap<String, usize>,
+	typescript_enum_type: &TypeScriptEnumType,
 ) -> Vec<Stmt>
 where
 	I: IntoIterator<Item = &'a Ty<'src>>,
@@ -665,6 +678,7 @@ where
 		buf: OutputBuffer::new(),
 		var_occurrences,
 		scopes: vec![],
+		typescript_enum_type,
 	}
 	.gen(names, types.into_iter())
 }

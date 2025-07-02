@@ -8,7 +8,7 @@ use std::{
 
 use crate::config::{
 	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, NonPrimitiveTy, NumTy, Parameter,
-	PrimitiveTy, Range, Struct, Ty, TyDecl, YieldType, UNRELIABLE_ORDER_NUMTY,
+	PrimitiveTy, Range, Struct, Ty, TyDecl, TypeScriptEnumType, YieldType, UNRELIABLE_ORDER_NUMTY,
 };
 
 use super::{
@@ -203,6 +203,7 @@ impl<'src> Converter<'src> {
 
 		let (typescript, ..) = self.boolean_opt("typescript", false, &config.opts);
 		let (typescript_max_tuple_length, ..) = self.num_opt("typescript_max_tuple_length", 10.0, &config.opts);
+		let typescript_enum = self.typescript_enum_opt(&config.opts);
 
 		let (tooling, ..) = self.boolean_opt("tooling", false, &config.opts);
 		let (tooling_show_internal_data, ..) = self.boolean_opt("tooling_show_internal_data", false, &config.opts);
@@ -215,7 +216,7 @@ impl<'src> Converter<'src> {
 
 		let (server_output, ..) = self.str_opt("server_output", "network/server.lua", &config.opts);
 		let (client_output, ..) = self.str_opt("client_output", "network/client.lua", &config.opts);
-		let types_output: Option<&str> = self.types_output_opt(&config.opts);
+		let types_output = self.types_output_opt(&config.opts);
 		let (tooling_output, ..) = self.str_opt("tooling_output", "network/tooling.lua", &config.opts);
 
 		let casing = self.casing_opt(&config.opts);
@@ -230,6 +231,7 @@ impl<'src> Converter<'src> {
 
 			typescript,
 			typescript_max_tuple_length,
+			typescript_enum,
 
 			tooling,
 			tooling_show_internal_data,
@@ -324,6 +326,25 @@ impl<'src> Converter<'src> {
 				});
 
 				Casing::Pascal
+			}
+
+			_ => unreachable!(),
+		}
+	}
+
+	fn typescript_enum_opt(&mut self, opts: &[SyntaxOpt<'src>]) -> TypeScriptEnumType {
+		match self.str_opt("typescript_enum", "StringLiteral", opts) {
+			("StringLiteral", ..) => TypeScriptEnumType::StringLiteral,
+			("StringConstEnum", ..) => TypeScriptEnumType::ConstString,
+			("ConstEnum", ..) => TypeScriptEnumType::ConstNumber,
+
+			(_, Some(span)) => {
+				self.report(Report::AnalyzeInvalidOptValue {
+					span,
+					expected: "`StringLiteral`, `ConstEnum`, or `StringConstEnum`",
+				});
+
+				TypeScriptEnumType::StringLiteral
 			}
 
 			_ => unreachable!(),

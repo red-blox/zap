@@ -1,5 +1,5 @@
 use crate::{
-	config::{Enum, NumTy, PrimitiveTy, Struct, Ty},
+	config::{Enum, NumTy, PrimitiveTy, Struct, Ty, TypeScriptEnumType},
 	irgen::{BitpackMask, OutputBuffer, Scope, VariantStorageKind},
 };
 use std::collections::HashMap;
@@ -11,6 +11,7 @@ struct Ser<'src> {
 	buf: OutputBuffer,
 	var_occurrences: &'src mut HashMap<String, usize>,
 	scopes: Vec<Scope>,
+	typescript_enum_type: &'src TypeScriptEnumType,
 }
 
 impl Gen for Ser<'_> {
@@ -114,12 +115,15 @@ impl Ser<'_> {
 				let storage = self.variant_storage(enumerators.len());
 
 				for (i, enumerator) in enumerators.iter().enumerate() {
+					let condition = match self.typescript_enum_type {
+						TypeScriptEnumType::ConstNumber => Expr::Num(i as f64),
+						_ => Expr::StrOrBool(enumerator.to_string()),
+					};
+
 					if i == 0 {
-						self.push_stmt(Stmt::If(from_expr.clone().eq(Expr::StrOrBool(enumerator.to_string()))));
+						self.push_stmt(Stmt::If(from_expr.clone().eq(condition)));
 					} else {
-						self.push_stmt(Stmt::ElseIf(
-							from_expr.clone().eq(Expr::StrOrBool(enumerator.to_string())),
-						));
+						self.push_stmt(Stmt::ElseIf(from_expr.clone().eq(condition)));
 					}
 
 					self.push_variant_storage(&storage, i);
@@ -226,7 +230,11 @@ impl Ser<'_> {
 					i_offset += variants.len();
 
 					for (offset, variant) in variants.into_iter().enumerate() {
-						let condition = Expr::from(from.clone()).eq(Expr::Str(variant.to_string()));
+						let condition = Expr::from(from.clone()).eq(match self.typescript_enum_type {
+							TypeScriptEnumType::ConstNumber => Expr::Num(i as f64),
+							_ => Expr::StrOrBool(variant.to_string()),
+						});
+
 						if initial_if {
 							self.push_stmt(Stmt::If(condition));
 							initial_if = false;
@@ -704,6 +712,7 @@ pub fn gen<'a, 'src: 'a, I>(
 	names: &[String],
 	checks: bool,
 	var_occurrences: &mut HashMap<String, usize>,
+	typescript_enum_type: &TypeScriptEnumType,
 ) -> Vec<Stmt>
 where
 	I: IntoIterator<Item = &'a Ty<'src>>,
@@ -713,6 +722,7 @@ where
 		buf: OutputBuffer::new(),
 		var_occurrences,
 		scopes: vec![],
+		typescript_enum_type,
 	}
 	.gen(names, types.into_iter())
 }

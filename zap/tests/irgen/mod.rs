@@ -70,6 +70,7 @@ impl<'src> TestOutput<'src> {
 			&["value".to_string()],
 			self.config.write_checks,
 			&mut HashMap::new(),
+			&self.config.typescript_enum,
 		);
 		self.push_stmts(statements);
 		self.dedent();
@@ -78,7 +79,13 @@ impl<'src> TestOutput<'src> {
 		self.push_line(&format!("function types.read_{tydecl}()"));
 		self.indent();
 		self.push_line("local value;");
-		let statements = &des::gen(&[ty.clone()], &["value".to_string()], true, &mut HashMap::new());
+		let statements = &des::gen(
+			&[ty.clone()],
+			&["value".to_string()],
+			true,
+			&mut HashMap::new(),
+			&self.config.typescript_enum,
+		);
 		self.push_stmts(statements);
 		self.push_line("return value");
 		self.dedent();
@@ -120,6 +127,7 @@ impl<'src> TestOutput<'src> {
 			&ser_names,
 			self.config.write_checks,
 			&mut self.var_occurrences,
+			&self.config.typescript_enum,
 		);
 
 		self.push_stmts(&ser_statements);
@@ -134,6 +142,7 @@ impl<'src> TestOutput<'src> {
 			&des_names,
 			self.config.write_checks,
 			&mut self.var_occurrences,
+			&self.config.typescript_enum,
 		);
 
 		self.push_stmts(&des_statements);
