@@ -578,7 +578,7 @@ impl Display for Expr {
 
 			Self::Var(var) => write!(f, "{var}"),
 			Self::Num(num) => write!(f, "{num}"),
-			Self::BinaryNum(num) => write!(f, "0b{num:016b}"),
+			Self::BinaryNum(num) => write!(f, "{num:#018b}"),
 
 			Self::Call(var, method, args) => match method {
 				Some(method) => write!(
