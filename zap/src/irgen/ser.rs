@@ -466,7 +466,11 @@ impl Ser<'_> {
 				self.push_stmt(Stmt::Call(
 					Var::from("buffer").nindex(format!("write{length_numty}")),
 					None,
-					vec!["outgoing_buff".into(), len_pos_expr.clone(), len_expr.clone()],
+					vec![
+						"outgoing_buff".into(),
+						len_pos_expr.clone(),
+						len_expr.clone().sub(1.0.into()),
+					],
 				));
 
 				self.push_stmt(Stmt::Else);
@@ -518,7 +522,11 @@ impl Ser<'_> {
 				self.push_stmt(Stmt::Call(
 					Var::from("buffer").nindex(format!("write{length_numty}")),
 					None,
-					vec!["outgoing_buff".into(), len_pos_expr.clone(), len_expr.clone()],
+					vec![
+						"outgoing_buff".into(),
+						len_pos_expr.clone(),
+						len_expr.clone().sub(1.0.into()),
+					],
 				));
 
 				self.push_stmt(Stmt::Else);

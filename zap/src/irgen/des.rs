@@ -340,7 +340,7 @@ impl Des<'_> {
 				self.push_stmt(Stmt::NumFor {
 					var: "_".into(),
 					from: 1.0.into(),
-					to: self.readnumty(length_numty),
+					to: self.readnumty(length_numty).add(1.0.into()),
 				});
 
 				self.new_scope();
@@ -374,7 +374,7 @@ impl Des<'_> {
 				self.push_stmt(Stmt::NumFor {
 					var: "_".into(),
 					from: 1.0.into(),
-					to: self.readnumty(length_numty),
+					to: self.readnumty(length_numty).add(1.0.into()),
 				});
 
 				self.new_scope();
