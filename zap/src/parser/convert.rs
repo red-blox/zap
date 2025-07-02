@@ -1,11 +1,14 @@
 use std::{
+	borrow::Cow,
+	cell::RefCell,
 	cmp::Ordering,
-	collections::{HashMap, HashSet, VecDeque},
+	collections::{BTreeMap, HashMap, HashSet, VecDeque},
+	rc::Rc,
 };
 
 use crate::config::{
-	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NonPrimitiveTy, NumTy, Parameter, PrimitiveTy,
-	Range, Struct, Ty, TyDecl, YieldType, UNRELIABLE_ORDER_NUMTY,
+	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, NonPrimitiveTy, NumTy, Parameter,
+	PrimitiveTy, Range, Struct, Ty, TyDecl, YieldType, UNRELIABLE_ORDER_NUMTY,
 };
 
 use super::{
@@ -18,24 +21,32 @@ pub const MAX_UNRELIABLE_SIZE: usize = 998;
 
 struct Converter<'src> {
 	config: SyntaxConfig<'src>,
-	tydecls: HashMap<&'src str, SyntaxTyDecl<'src>>,
+	tydecls: HashMap<String, SyntaxTyDecl<'src>>,
+	resolved_tys: HashMap<String, Rc<RefCell<Ty<'src>>>>,
+	all_tydecls: HashMap<String, TyDecl<'src>>,
+	current_tydecl: Option<SyntaxTyDecl<'src>>,
+	path: Vec<&'src str>,
 
 	reports: Vec<Report<'src>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TyRecursionKind<'src> {
+	Unbounded(SyntaxIdentifier<'src>),
+	// recursive, although bounded
+	Recursive,
+	None,
+}
+
 impl<'src> Converter<'src> {
 	fn new(config: SyntaxConfig<'src>) -> Self {
-		let mut tydecls = HashMap::new();
-
-		for decl in config.decls.iter() {
-			if let SyntaxDecl::Ty(tydecl) = decl {
-				tydecls.insert(tydecl.name.name, tydecl.clone());
-			}
-		}
-
 		Self {
 			config,
-			tydecls,
+			tydecls: HashMap::new(),
+			all_tydecls: HashMap::new(),
+			current_tydecl: None,
+			path: Vec::new(),
+			resolved_tys: Default::default(),
 
 			reports: Vec::new(),
 		}
@@ -46,67 +57,148 @@ impl<'src> Converter<'src> {
 
 		self.check_duplicate_decls(&config.decls);
 
-		let mut tydecls = Vec::new();
-		let mut evdecls = Vec::new();
-		let mut fndecls = Vec::new();
+		let mut namespaces = BTreeMap::new();
 
 		let mut server_reliable_id = 0;
 		let mut server_unreliable_id = 0;
 		let mut client_reliable_id = 0;
 		let mut client_unreliable_id = 0;
 
-		for tydecl in config.decls.iter().filter_map(|decl| match decl {
-			SyntaxDecl::Ty(tydecl) => Some(tydecl),
-			_ => None,
-		}) {
-			tydecls.push(self.tydecl(tydecl));
+		let mut nsdecls = Vec::new();
+		let mut queue = config
+			.decls
+			.iter()
+			.filter_map(|decl| match decl {
+				SyntaxDecl::Ns(nsdecl) => Some((nsdecl, vec![nsdecl.name.name])),
+				_ => None,
+			})
+			.collect::<VecDeque<_>>();
+
+		while let Some((nsdecl, path)) = queue.pop_front() {
+			nsdecls.push((&nsdecl.decls, path.clone()));
+
+			for decl in &nsdecl.decls {
+				if let SyntaxDecl::Ns(nsdecl) = decl {
+					queue.push_back((
+						nsdecl,
+						path.iter().copied().chain(std::iter::once(nsdecl.name.name)).collect(),
+					));
+				}
+			}
 		}
 
-		for evdecl in config.decls.iter().filter_map(|decl| match decl {
-			SyntaxDecl::Ev(evdecl) => Some(evdecl),
-			_ => None,
-		}) {
-			let id = match evdecl.from {
-				EvSource::Server => match evdecl.evty {
-					EvType::Reliable => {
-						let current_id = client_reliable_id;
-						client_reliable_id += 1;
-						current_id
-					}
-					EvType::Unreliable(_) => {
-						let current_id = client_unreliable_id;
-						client_unreliable_id += 1;
-						current_id
-					}
-				},
-				EvSource::Client => match evdecl.evty {
-					EvType::Reliable => {
-						let current_id = server_reliable_id;
-						server_reliable_id += 1;
-						current_id
-					}
-					EvType::Unreliable(_) => {
-						let current_id = server_unreliable_id;
-						server_unreliable_id += 1;
-						current_id
-					}
-				},
+		for (decls, path) in nsdecls
+			.into_iter()
+			// reverse so namespaces higher can use types from namespaces lower
+			.rev()
+			.chain(std::iter::once((&config.decls, vec![])))
+		{
+			self.path = path;
+
+			let current_tydecls = decls.iter().filter_map(|decl| match decl {
+				SyntaxDecl::Ty(tydecl) => Some(tydecl),
+				_ => None,
+			});
+
+			for tydecl in current_tydecls.clone() {
+				self.tydecls.insert(
+					self.path
+						.iter()
+						.copied()
+						.chain(std::iter::once(tydecl.name.name))
+						.collect::<Vec<_>>()
+						.join("."),
+					tydecl.clone(),
+				);
+			}
+
+			for tydecl in current_tydecls {
+				let tydecl = self.tydecl(tydecl);
+				self.all_tydecls.insert(
+					self.path
+						.iter()
+						.copied()
+						.chain(std::iter::once(tydecl.name))
+						.collect::<Vec<_>>()
+						.join("."),
+					tydecl,
+				);
+			}
+
+			let mut push_ns_entry = |this: &mut Self, data: NamespaceEntry<'src>| {
+				if this.path.is_empty() {
+					namespaces.insert(data.name(), data);
+					return;
+				}
+
+				let mut path = this.path.iter().copied();
+
+				let entry = namespaces
+					.entry(path.next().unwrap())
+					.or_insert_with(|| NamespaceEntry::Ns(BTreeMap::new()));
+				let NamespaceEntry::Ns(entries) = entry else {
+					unreachable!()
+				};
+
+				let mut prev_entry: &mut BTreeMap<&str, NamespaceEntry<'src>> = entries;
+
+				for part in path {
+					let new_entry = prev_entry
+						.entry(part)
+						.or_insert_with(|| NamespaceEntry::Ns(BTreeMap::new()));
+					let NamespaceEntry::Ns(new_entry) = new_entry else {
+						unreachable!();
+					};
+					prev_entry = new_entry;
+				}
+
+				prev_entry.insert(data.name(), data);
 			};
 
-			evdecls.push(self.evdecl(evdecl, id));
-		}
+			for evdecl in decls.iter().filter_map(|decl| match decl {
+				SyntaxDecl::Ev(evdecl) => Some(evdecl),
+				_ => None,
+			}) {
+				let id = match evdecl.from {
+					EvSource::Server => match evdecl.evty {
+						EvType::Reliable => {
+							let current_id = client_reliable_id;
+							client_reliable_id += 1;
+							current_id
+						}
+						EvType::Unreliable(_) => {
+							let current_id = client_unreliable_id;
+							client_unreliable_id += 1;
+							current_id
+						}
+					},
+					EvSource::Client => match evdecl.evty {
+						EvType::Reliable => {
+							let current_id = server_reliable_id;
+							server_reliable_id += 1;
+							current_id
+						}
+						EvType::Unreliable(_) => {
+							let current_id = server_unreliable_id;
+							server_unreliable_id += 1;
+							current_id
+						}
+					},
+				};
 
-		for fndecl in config.decls.iter().filter_map(|decl| match decl {
-			SyntaxDecl::Fn(fndecl) => Some(fndecl),
-			_ => None,
-		}) {
-			fndecls.push(self.fndecl(fndecl, client_reliable_id, server_reliable_id));
-			client_reliable_id += 1;
-			server_reliable_id += 1;
-		}
+				let evdecl = self.evdecl(evdecl, id);
+				push_ns_entry(&mut self, NamespaceEntry::EvDecl(evdecl));
+			}
 
-		if evdecls.is_empty() && fndecls.is_empty() {
-			self.report(Report::AnalyzeEmptyEvDecls);
+			for fndecl in decls.iter().filter_map(|decl| match decl {
+				SyntaxDecl::Fn(fndecl) => Some(fndecl),
+				_ => None,
+			}) {
+				let fndecl = self.fndecl(fndecl, client_reliable_id, server_reliable_id);
+				push_ns_entry(&mut self, NamespaceEntry::FnDecl(fndecl));
+				client_reliable_id += 1;
+				server_reliable_id += 1;
+			}
 		}
 
 		let (typescript, ..) = self.boolean_opt("typescript", false, &config.opts);
@@ -133,9 +225,8 @@ impl<'src> Converter<'src> {
 		let (disable_fire_all, ..) = self.boolean_opt("disable_fire_all", false, &config.opts);
 
 		let config = Config {
-			tydecls,
-			evdecls,
-			fndecls,
+			tydecls: self.all_tydecls.drain().map(|(_, tydecl)| tydecl).collect(),
+			namespaces,
 
 			typescript,
 			typescript_max_tuple_length,
@@ -160,6 +251,9 @@ impl<'src> Converter<'src> {
 			async_lib,
 			disable_fire_all,
 		};
+
+		self.check_empty_file(&config);
+		self.check_conflicting_exports(casing);
 
 		(config, self.reports)
 	}
@@ -350,27 +444,14 @@ impl<'src> Converter<'src> {
 		let mut ntdecls = HashMap::new();
 
 		for decl in decls.iter() {
-			match decl {
-				SyntaxDecl::Ev(ev) => {
-					if let Some(prev_span) = ntdecls.insert(ev.name.name, ev.span()) {
-						self.report(Report::AnalyzeDuplicateDecl {
-							prev_span,
-							dup_span: ev.span(),
-							name: ev.name.name,
-						});
-					}
-				}
+			let (name, span) = match decl {
+				SyntaxDecl::Ns(ns) => {
+					self.check_duplicate_decls(&ns.decls);
 
-				SyntaxDecl::Fn(fn_) => {
-					if let Some(prev_span) = ntdecls.insert(fn_.name.name, fn_.span()) {
-						self.report(Report::AnalyzeDuplicateDecl {
-							prev_span,
-							dup_span: fn_.span(),
-							name: fn_.name.name,
-						});
-					}
+					(&ns.name.name, ns.span())
 				}
-
+				SyntaxDecl::Ev(ev) => (&ev.name.name, ev.span()),
+				SyntaxDecl::Fn(fn_) => (&fn_.name.name, fn_.span()),
 				SyntaxDecl::Ty(ty) => {
 					if let Some(prev_span) = tydecls.insert(ty.name.name, ty.span()) {
 						self.report(Report::AnalyzeDuplicateDecl {
@@ -379,7 +460,17 @@ impl<'src> Converter<'src> {
 							name: ty.name.name,
 						});
 					}
+
+					continue;
 				}
+			};
+
+			if let Some(prev_span) = ntdecls.insert(name, span.clone()) {
+				self.report(Report::AnalyzeDuplicateDecl {
+					prev_span,
+					dup_span: span,
+					name,
+				});
 			}
 		}
 	}
@@ -398,6 +489,58 @@ impl<'src> Converter<'src> {
 					seen.insert(identifier.name, identifier.span());
 				}
 			}
+		}
+	}
+
+	fn check_empty_file(&mut self, config: &Config) {
+		let mut has_evdecls = false;
+
+		config.visit_ns_entries(|_, entry| {
+			has_evdecls = has_evdecls || matches!(entry, NamespaceEntry::EvDecl(_) | NamespaceEntry::FnDecl(_));
+		});
+
+		if !has_evdecls {
+			self.report(Report::AnalyzeEmptyEvDecls);
+		}
+	}
+
+	fn check_conflicting_exports(&mut self, casing: Casing) {
+		let send_events = casing.with("SendEvents", "sendEvents", "send_events");
+
+		// we can do self.config.decls instead of traverse_namespaces as we're only interested in checking at the top level!
+		let report = self.config.decls.iter().find_map(|decl| match decl {
+			SyntaxDecl::Ev(evdecl) => {
+				if evdecl.name.name == send_events {
+					return Some(Report::AnalyzeConflictingExport {
+						span: evdecl.span(),
+						name: evdecl.name.name,
+					});
+				}
+				None
+			}
+			SyntaxDecl::Fn(fndecl) => {
+				if fndecl.name.name == send_events {
+					return Some(Report::AnalyzeConflictingExport {
+						span: fndecl.span(),
+						name: fndecl.name.name,
+					});
+				}
+				None
+			}
+			SyntaxDecl::Ns(nsdecl) => {
+				if nsdecl.name.name == send_events {
+					return Some(Report::AnalyzeConflictingExport {
+						span: nsdecl.span(),
+						name: nsdecl.name.name,
+					});
+				}
+				None
+			}
+			SyntaxDecl::Ty(_) => None,
+		});
+
+		if let Some(report) = report {
+			self.report(report);
 		}
 	}
 
@@ -472,6 +615,7 @@ impl<'src> Converter<'src> {
 			call,
 			data: data.unwrap_or_default(),
 			id,
+			path: self.path.clone(),
 		}
 	}
 
@@ -519,21 +663,46 @@ impl<'src> Converter<'src> {
 			rets,
 			client_id,
 			server_id,
+			path: self.path.clone(),
 		}
 	}
 
 	fn tydecl(&mut self, tydecl: &SyntaxTyDecl<'src>) -> TyDecl<'src> {
-		let name = tydecl.name.name;
-		let ty = self.ty(&tydecl.ty);
+		let key = self
+			.path
+			.iter()
+			.copied()
+			.chain(std::iter::once(tydecl.name.name))
+			.collect::<Vec<_>>()
+			.join(".");
 
-		if let Some(ref_ty) = self.ty_has_unbounded_ref(name, &tydecl.ty, &mut HashSet::new()) {
-			self.report(Report::AnalyzeUnboundedRecursiveType {
-				decl_span: tydecl.span(),
-				use_span: ref_ty.span(),
-			});
+		let recursion_type = self.ty_recursion_kind(&key, &tydecl.ty, &mut HashSet::new());
+
+		let ty = if let Some(ty) = self.resolved_tys.get(&*key) {
+			ty.clone()
+		} else {
+			if let TyRecursionKind::Unbounded(ref_ty) = recursion_type {
+				self.report(Report::AnalyzeUnboundedRecursiveType {
+					decl_span: tydecl.span(),
+					use_span: ref_ty.span(),
+				});
+			}
+
+			let cache_ty = Rc::new(RefCell::new(Ty::Opt(Box::new(Ty::Unknown))));
+			self.resolved_tys.insert(key, cache_ty.clone());
+			self.current_tydecl = Some(tydecl.clone());
+			let ty = self.ty(&tydecl.ty);
+			self.current_tydecl = None;
+			cache_ty.replace(ty);
+			cache_ty
+		};
+
+		TyDecl {
+			name: tydecl.name.name,
+			ty,
+			path: self.path.clone(),
+			inline: recursion_type == TyRecursionKind::None,
 		}
-
-		TyDecl { name, ty }
 	}
 
 	fn ty(&mut self, ty: &SyntaxTy<'src>) -> Ty<'src> {
@@ -652,33 +821,67 @@ impl<'src> Converter<'src> {
 				Ty::Opt(Box::new(parsed_ty))
 			}
 
-			SyntaxTyKind::Ref(ref_ty) => {
-				let name = ref_ty.name;
+			SyntaxTyKind::Ref(ref_ty) => match ref_ty.name {
+				"BrickColor" => Ty::BrickColor,
+				"DateTimeMillis" => Ty::DateTimeMillis,
+				"DateTime" => Ty::DateTime,
+				"boolean" => Ty::Boolean,
+				"Color3" => Ty::Color3,
+				"Vector2" => Ty::Vector2,
+				"Vector3" => Ty::Vector3,
+				"AlignedCFrame" => Ty::AlignedCFrame,
+				"CFrame" => Ty::CFrame,
+				"unknown" => Ty::Opt(Box::new(Ty::Unknown)),
 
-				match name {
-					"BrickColor" => Ty::BrickColor,
-					"DateTimeMillis" => Ty::DateTimeMillis,
-					"DateTime" => Ty::DateTime,
-					"boolean" => Ty::Boolean,
-					"Color3" => Ty::Color3,
-					"Vector2" => Ty::Vector2,
-					"Vector3" => Ty::Vector3,
-					"AlignedCFrame" => Ty::AlignedCFrame,
-					"CFrame" => Ty::CFrame,
-					"unknown" => Ty::Opt(Box::new(Ty::Unknown)),
+				_ => {
+					let path = self
+						.path
+						.iter()
+						.copied()
+						.chain(std::iter::once(ref_ty.name))
+						.collect::<Vec<_>>()
+						.join(".");
 
-					_ => {
-						let Some(tydecl) = self.tydecls.get(name).cloned() else {
-							self.report(Report::AnalyzeUnknownTypeRef {
-								span: ref_ty.span(),
-								name,
-							});
+					let Some(tydecl) = self.tydecls.get(&path).cloned() else {
+						self.report(Report::AnalyzeUnknownTypeRef {
+							span: ref_ty.span(),
+							name: Cow::Borrowed(ref_ty.name),
+						});
 
-							return Ty::Ref(name, Box::new(Ty::Opt(Box::new(Ty::Unknown))));
-						};
+						return Ty::Opt(Box::new(Ty::Unknown));
+					};
 
-						Ty::Ref(name, Box::new(self.tydecl(&tydecl).ty))
+					let tydecl = self.tydecl(&tydecl);
+					if tydecl.inline {
+						(*tydecl.ty.borrow()).clone()
+					} else {
+						Ty::Ref(tydecl)
 					}
+				}
+			},
+
+			SyntaxTyKind::Path(raw_path) => {
+				let path = self
+					.path
+					.iter()
+					.copied()
+					.chain(raw_path.iter().map(|i| i.name))
+					.collect::<Vec<_>>()
+					.join(".");
+
+				let Some(tydecl) = self.all_tydecls.get(&path).cloned() else {
+					self.report(Report::AnalyzeUnknownTypeRef {
+						span: ty.span(),
+						name: Cow::Owned(raw_path.iter().map(|i| i.name).collect::<Vec<_>>().join(".")),
+					});
+
+					return Ty::Opt(Box::new(Ty::Unknown));
+				};
+
+				if tydecl.inline {
+					(*tydecl.ty.borrow()).clone()
+				} else {
+					Ty::Ref(tydecl)
 				}
 			}
 
@@ -762,6 +965,17 @@ impl<'src> Converter<'src> {
 			}
 
 			let ty = self.ty(syntax_ty);
+			if let Some(curr_tydecl) = &self.current_tydecl {
+				if let Ty::Ref(tydecl) = &ty {
+					if tydecl.path == self.path && tydecl.name == curr_tydecl.name.name {
+						self.report(Report::AnalyzeRecursiveOr {
+							decl_span: curr_tydecl.name.span(),
+							usage_span: syntax_ty.span(),
+						});
+						continue;
+					}
+				}
+			}
 
 			let prev_spans: Vec<_> = match ty.primitive_ty() {
 				PrimitiveTy::Name(primitive) => used_tys.insert(primitive, syntax_ty.span()).into_iter().collect(),
@@ -811,106 +1025,137 @@ impl<'src> Converter<'src> {
 			_ => Ordering::Equal,
 		});
 
-		let ty = Ty::Or(
-			tys,
-			NumTy::from_f64(
-				0.0,
-				(used_tys.len()
-					+ used_instances.len()
-					+ used_variants.len()
-					+ prev_unknown_span.is_some() as usize
-					+ optional as usize
-					- 1) as f64,
-			),
-		);
+		let optional = prev_unknown_span.is_some() || optional;
+		let ty = Ty::Or(tys, optional);
 
-		if prev_unknown_span.is_some() || optional {
+		if optional {
 			Ty::Opt(Box::new(ty))
 		} else {
 			ty
 		}
 	}
 
-	fn ty_has_unbounded_ref(
+	fn ty_recursion_kind(
 		&self,
-		name: &'src str,
+		target_path: &str,
 		ty: &SyntaxTy<'src>,
-		searched: &mut HashSet<&'src str>,
-	) -> Option<SyntaxIdentifier<'src>> {
+		searched: &mut HashSet<String>,
+	) -> TyRecursionKind<'src> {
 		match &ty.kind {
 			SyntaxTyKind::Arr(ty, len) => {
 				let len = len.map(|len| self.range(&len)).unwrap_or_default();
 
 				// if array does not have a min size of 0, it is unbounded
 				if len.min != 0.0 {
-					self.ty_has_unbounded_ref(name, ty, searched)
+					self.ty_recursion_kind(target_path, ty, searched)
 				} else {
-					None
+					TyRecursionKind::None
 				}
 			}
 
 			SyntaxTyKind::Ref(ref_ty) => {
-				let ref_name = ref_ty.name;
+				let key = self
+					.path
+					.iter()
+					.copied()
+					.chain(std::iter::once(ref_ty.name))
+					.collect::<Vec<_>>()
+					.join(".");
 
-				match ref_name {
-					ref_name if ref_name == name => Some(*ref_ty),
-
-					"boolean" | "Color3" | "Vector3" | "vector" | "AlignedCFrame" | "CFrame" | "unknown" => None,
-
-					_ => {
-						if searched.contains(ref_name) {
-							None
-						} else if let Some(tydecl) = self.tydecls.get(ref_name) {
-							searched.insert(ref_name);
-							self.ty_has_unbounded_ref(name, &tydecl.ty, searched)
-						} else {
-							None
-						}
-					}
+				if key == target_path {
+					TyRecursionKind::Unbounded(*ref_ty)
+				} else if searched.contains(&key) {
+					TyRecursionKind::None
+				} else if let Some(tydecl) = self.tydecls.get(&key) {
+					searched.insert(key);
+					self.ty_recursion_kind(target_path, &tydecl.ty, searched)
+				} else {
+					TyRecursionKind::None
 				}
 			}
 
-			SyntaxTyKind::Enum(enum_ty) => self.enum_has_unbounded_ref(name, enum_ty, searched),
-			SyntaxTyKind::Struct(struct_ty) => self.struct_has_unbounded_ref(name, struct_ty, searched),
+			SyntaxTyKind::Path(path) => {
+				let path = self
+					.path
+					.iter()
+					.copied()
+					.chain(path.iter().map(|i| i.name))
+					.collect::<Vec<_>>()
+					.join(".");
 
-			_ => None,
+				if searched.contains(&path) {
+					TyRecursionKind::None
+				} else if let Some(tydecl) = self.tydecls.get(&path) {
+					searched.insert(path);
+					self.ty_recursion_kind(target_path, &tydecl.ty, searched)
+				} else {
+					TyRecursionKind::None
+				}
+			}
+
+			SyntaxTyKind::Enum(enum_ty) => self.enum_recursion_kind(target_path, enum_ty, searched),
+			SyntaxTyKind::Struct(struct_ty) => self.struct_recursion_kind(target_path, struct_ty, searched),
+			SyntaxTyKind::Set(key_ty) => self.ty_recursion_kind(target_path, key_ty, searched),
+			SyntaxTyKind::Or(tys) => tys
+				.iter()
+				.find_map(|ty| match self.ty_recursion_kind(target_path, ty, searched) {
+					TyRecursionKind::None => None,
+					kind => Some(kind),
+				})
+				.unwrap_or(TyRecursionKind::None),
+
+			SyntaxTyKind::Opt(ty) => match self.ty_recursion_kind(target_path, ty, searched) {
+				TyRecursionKind::None => TyRecursionKind::None,
+				// it is bounded because it's optional
+				_ => TyRecursionKind::Recursive,
+			},
+
+			_ => TyRecursionKind::None,
 		}
 	}
 
-	fn enum_has_unbounded_ref(
+	fn enum_recursion_kind(
 		&self,
-		name: &'src str,
+		target_path: &str,
 		ty: &SyntaxEnum<'src>,
-		searched: &mut HashSet<&'src str>,
-	) -> Option<SyntaxIdentifier<'src>> {
+		searched: &mut HashSet<String>,
+	) -> TyRecursionKind<'src> {
 		match &ty.kind {
-			SyntaxEnumKind::Unit { .. } => None,
+			SyntaxEnumKind::Unit { .. } => TyRecursionKind::None,
 
 			SyntaxEnumKind::Tagged { variants, .. } => {
+				let mut kind = TyRecursionKind::None;
+
 				for variant in variants.iter() {
-					if let Some(ty) = self.struct_has_unbounded_ref(name, &variant.1, searched) {
-						return Some(ty);
-					}
+					match self.struct_recursion_kind(target_path, &variant.1, searched) {
+						TyRecursionKind::Unbounded(ident) => return TyRecursionKind::Unbounded(ident),
+						TyRecursionKind::Recursive => kind = TyRecursionKind::Recursive,
+						TyRecursionKind::None => {}
+					};
 				}
 
-				None
+				kind
 			}
 		}
 	}
 
-	fn struct_has_unbounded_ref(
+	fn struct_recursion_kind(
 		&self,
-		name: &'src str,
+		target_path: &str,
 		ty: &SyntaxStruct<'src>,
-		searched: &mut HashSet<&'src str>,
-	) -> Option<SyntaxIdentifier<'src>> {
+		searched: &mut HashSet<String>,
+	) -> TyRecursionKind<'src> {
+		let mut kind = TyRecursionKind::None;
+
 		for field in ty.fields.iter() {
-			if let Some(ty) = self.ty_has_unbounded_ref(name, &field.1, searched) {
-				return Some(ty);
-			}
+			match self.ty_recursion_kind(target_path, &field.1, searched) {
+				TyRecursionKind::Unbounded(ident) => return TyRecursionKind::Unbounded(ident),
+				TyRecursionKind::Recursive => kind = TyRecursionKind::Recursive,
+				TyRecursionKind::None => {}
+			};
 		}
 
-		None
+		kind
 	}
 
 	fn report(&mut self, report: Report<'src>) {

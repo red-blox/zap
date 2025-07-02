@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use insta::{assert_debug_snapshot, Settings};
 use lune::Runtime;
 use zap::{
 	config::{Config, Parameter, TyDecl},
@@ -48,15 +49,21 @@ impl<'src> TestOutput<'src> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let name = &tydecl.name;
-		let ty = &tydecl.ty;
+		let ty = &*tydecl.ty.borrow();
 
 		self.push_indent();
-		self.push(&format!("export type {name} = "));
+		if tydecl.path.is_empty() {
+			self.push("export ");
+		}
+		self.push(&format!("type {tydecl} = "));
 		self.push_ty(ty);
 		self.push("\n");
 
-		self.push_line(&format!("function types.write_{name}(value: {name})"));
+		if tydecl.inline {
+			return;
+		}
+
+		self.push_line(&format!("function types.write_{tydecl}(value: {tydecl})"));
 		self.indent();
 		let statements = &ser::gen(
 			&[ty.clone()],
@@ -68,7 +75,7 @@ impl<'src> TestOutput<'src> {
 		self.dedent();
 		self.push_line("end");
 
-		self.push_line(&format!("function types.read_{name}()"));
+		self.push_line(&format!("function types.read_{tydecl}()"));
 		self.indent();
 		self.push_line("local value;");
 		let statements = &des::gen(&[ty.clone()], &["value".to_string()], true, &mut HashMap::new());
@@ -133,7 +140,7 @@ impl<'src> TestOutput<'src> {
 
 		for (ser_name, des_name) in ser_names.iter().zip(des_names.iter()) {
 			self.push_line(&format!(
-				r#"assert(deepEquals({ser_name}, {des_name}), "deserialised value differs from original!")"#
+				r#"assert(deepEquals({ser_name}, {des_name}), "deserialised value differs from original in {default_value_index}!")"#
 			));
 		}
 
@@ -149,11 +156,11 @@ impl<'src> TestOutput<'src> {
 			self.push_tydecl(tydecl);
 		}
 
-		for evdecl in self.config.evdecls.iter() {
+		for evdecl in self.config.evdecls().iter() {
 			self.push_event_callback(&evdecl.data, evdecl.name);
 		}
 
-		for fndecl in self.config.fndecls.iter() {
+		for fndecl in self.config.fndecls().iter() {
 			self.push_event_callback(&fndecl.args, &format!("{}__ARGS", fndecl.name));
 
 			if let Some(rets) = &fndecl.rets {
@@ -399,6 +406,66 @@ async fn test_or_complex() {
 	let default_value = r#"{ test = "a", b = 127 }"#;
 
 	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("Test", vec![default_value])]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
+}
+
+#[test]
+fn test_unbounded_recursive_type() {
+	let input = r#"type foo = foo
+event Simple = {
+    from: Client,
+    type: Reliable,
+    call: SingleSync,
+    data: foo
+}"#;
+
+	let (config, reports) = parse(input);
+
+	assert!(config.is_some());
+	assert!(!reports.is_empty());
+
+	let mut insta_settings = Settings::new();
+	insta_settings.set_prepend_module_to_snapshot(false);
+	insta_settings.set_sort_maps(true);
+	insta_settings.set_input_file("unbounded_recursive_type.zap");
+
+	insta_settings.bind(|| assert_debug_snapshot!(reports))
+}
+
+#[tokio::test]
+async fn test_bitpacking() {
+	let (config, reports) = parse(include_str!("../files/bitpacking.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([
+		(
+			"Event1",
+			vec![r#"{ true, false, false, true, true, true, false, false }"#],
+		),
+		(
+			"Event2",
+			vec![
+				r#"{ true, false, false, true, true, true, false, false, true, false, false, true, true, true, false, false, true }"#,
+			],
+		),
+		(
+			"Event3",
+			vec![
+				r#"{ bools = { false, true, true, false, false, false, false, true, true, false, false, false, true, false }, enum = "world" }"#,
+			],
+		),
+		(
+			"Event4",
+			vec![
+				r#"{ bools = { false, true, true, false, false, false, false, true, true, false, false, false, true, false }, enum = "there" }"#,
+			],
+		),
+	]);
 	let output = TestOutput::new(&config.unwrap(), default_values).output();
 	let mut runtime = Runtime::new();
 

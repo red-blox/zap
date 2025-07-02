@@ -108,7 +108,7 @@ pub trait Output {
 			Ty::Set(key) => {
 				self.push("{ [");
 				self.push_ty(key);
-				self.push("]: true");
+				self.push("]: any");
 				self.push(" }");
 			}
 
@@ -120,13 +120,13 @@ pub trait Output {
 				}
 			}
 
-			Ty::Ref(name, ..) => self.push(name),
+			Ty::Ref(tydecl) => self.push(&tydecl.to_string()),
 
 			Ty::Enum(enum_ty) => match enum_ty {
 				Enum::Unit(enumerators) => self.push(
 					&enumerators
 						.iter()
-						.map(|v| format!("\"{}\"", v))
+						.map(|v| format!("\"{v}\""))
 						.collect::<Vec<_>>()
 						.join(" | ")
 						.to_string(),

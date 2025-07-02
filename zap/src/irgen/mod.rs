@@ -1,6 +1,5 @@
 #![allow(clippy::should_implement_trait)]
-use std::collections::HashMap;
-use std::{fmt::Display, vec};
+use std::{cell::RefCell, collections::HashMap, fmt::Display, iter, rc::Rc};
 
 use crate::config::{NumTy, Range, Ty};
 
@@ -9,9 +8,9 @@ pub mod ser;
 
 pub trait Gen {
 	fn push_stmt(&mut self, stmt: Stmt);
-	fn gen<'a, I>(self, names: &[String], types: I) -> Vec<Stmt>
+	fn gen<'a, 'src: 'a, I>(self, names: &[String], types: I) -> Vec<Stmt>
 	where
-		I: Iterator<Item = &'a Ty<'a>>;
+		I: Iterator<Item = &'a Ty<'src>>;
 
 	fn push_local(&mut self, name: String, expr: Option<Expr>) {
 		self.push_stmt(Stmt::Local(name, expr))
@@ -273,6 +272,112 @@ pub trait Gen {
 			}
 		}
 	}
+
+	fn new_scope(&mut self);
+	fn current_scope(&mut self) -> &mut Scope;
+	fn end_scope(&mut self);
+
+	fn get_bitpack(&mut self) -> (BitpackMask, Var) {
+		let scope = self.current_scope();
+
+		let existing = scope
+			.bitpack_budget
+			.last_mut()
+			.filter(|(shift, _)| *shift < (BitpackMask::BITS as u8 - 1));
+		if let Some(existing) = existing {
+			existing.0 += 1;
+			(1 << existing.0, Var::Name(existing.1.clone()))
+		} else {
+			let (name, _) = self.add_occurrence("bool");
+			self.current_scope().bitpack_budget.push((0, name.clone()));
+			(1, Var::Name(name))
+		}
+	}
+
+	fn variant_storage(&mut self, amount: usize) -> VariantStorageKind {
+		if amount == 1 {
+			VariantStorageKind::None
+			// 0 is variant 1, 1 is variant 2
+		} else if amount == 2 {
+			VariantStorageKind::Bit(self.get_bitpack())
+		} else if self.current_scope().remaining_bitpack_budget() as usize >= amount {
+			VariantStorageKind::Bitpack(iter::repeat_with(|| self.get_bitpack()).take(amount).collect())
+		} else {
+			VariantStorageKind::Full(NumTy::from_f64(0.0, amount as f64 - 1.0), amount)
+		}
+	}
+}
+
+#[derive(Debug)]
+enum OutputEntryKind {
+	Stmt(Stmt),
+	Buffer(OutputBuffer),
+}
+
+#[derive(Debug)]
+pub struct OutputEntry(OutputEntryKind);
+
+impl From<Stmt> for OutputEntry {
+	fn from(value: Stmt) -> Self {
+		OutputEntry(OutputEntryKind::Stmt(value))
+	}
+}
+
+impl From<OutputBuffer> for OutputEntry {
+	fn from(value: OutputBuffer) -> Self {
+		OutputEntry(OutputEntryKind::Buffer(value))
+	}
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct OutputBuffer(Rc<RefCell<Vec<OutputEntry>>>);
+
+impl OutputBuffer {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	pub fn push<T: Into<OutputEntry>>(&self, item: T) {
+		self.0.borrow_mut().push(item.into());
+	}
+
+	pub fn output(self) -> Vec<Stmt> {
+		let mut output = vec![];
+
+		for entry in self.0.take() {
+			match entry.0 {
+				OutputEntryKind::Stmt(stmt) => output.push(stmt),
+				OutputEntryKind::Buffer(buf) => output.extend(buf.output()),
+			}
+		}
+
+		output
+	}
+}
+
+pub type BitpackMask = u16;
+
+#[derive(Debug)]
+pub struct Scope {
+	pub bitpack_budget: Vec<(u8, String)>,
+	pub buf: OutputBuffer,
+}
+
+impl Scope {
+	pub fn remaining_bitpack_budget(&self) -> u8 {
+		self.bitpack_budget
+			.last()
+			.map(|(shift, _)| BitpackMask::BITS as u8 - (shift + 1))
+			.unwrap_or(BitpackMask::BITS as u8)
+	}
+}
+
+#[derive(Debug)]
+pub enum VariantStorageKind {
+	Full(NumTy, usize),
+	Bitpack(Vec<(BitpackMask, Var)>),
+	Bit((BitpackMask, Var)),
+	None,
 }
 
 #[derive(Debug, Clone)]
@@ -325,9 +430,9 @@ impl From<&str> for Var {
 impl Display for Var {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::Name(name) => write!(f, "{}", name),
-			Self::NameIndex(var, index) => write!(f, "{}.{}", var, index),
-			Self::ExprIndex(var, index) => write!(f, "{}[{}]", var, index),
+			Self::Name(name) => write!(f, "{name}"),
+			Self::NameIndex(var, index) => write!(f, "{var}.{index}"),
+			Self::ExprIndex(var, index) => write!(f, "{var}[{index}]"),
 		}
 	}
 }
@@ -344,12 +449,13 @@ pub enum Expr {
 	StrOrBool(String),
 	Var(Box<Var>),
 	Num(f64),
+	BinaryNum(BitpackMask),
 
 	// Function Call
 	Call(Box<Var>, Option<String>, Vec<Expr>),
 
 	// Table
-	EmptyTable,
+	Table(Box<Vec<(Expr, Expr)>>),
 
 	// Datatypes
 	Color3(Box<Expr>, Box<Expr>, Box<Expr>),
@@ -459,17 +565,18 @@ impl Display for Expr {
 			Self::True => write!(f, "true"),
 			Self::Nil => write!(f, "nil"),
 
-			Self::Str(string) => write!(f, "\"{}\"", string),
+			Self::Str(string) => write!(f, "\"{string}\""),
 			Self::StrOrBool(string) => {
 				if string == "false" || string == "true" {
-					write!(f, "{}", string)
+					write!(f, "{string}")
 				} else {
-					write!(f, "\"{}\"", string)
+					write!(f, "\"{string}\"")
 				}
 			}
 
-			Self::Var(var) => write!(f, "{}", var),
-			Self::Num(num) => write!(f, "{}", num),
+			Self::Var(var) => write!(f, "{var}"),
+			Self::Num(num) => write!(f, "{num}"),
+			Self::BinaryNum(num) => write!(f, "{num:#018b}"),
 
 			Self::Call(var, method, args) => match method {
 				Some(method) => write!(
@@ -488,10 +595,18 @@ impl Display for Expr {
 				),
 			},
 
-			Self::EmptyTable => write!(f, "{{}}"),
+			Self::Table(items) => write!(
+				f,
+				"{{ {} }}",
+				items
+					.iter()
+					.map(|(key, value)| format!("[{key}] = {value}"))
+					.collect::<Vec<_>>()
+					.join(", ")
+			),
 
-			Self::Color3(x, y, z) => write!(f, "Color3.fromRGB({}, {}, {})", x, y, z),
-			Self::Vector3(x, y, z) => write!(f, "Vector3.new({}, {}, {})", x, y, z),
+			Self::Color3(r, g, b) => write!(f, "Color3.fromRGB({r}, {g}, {b})"),
+			Self::Vector3(x, y, z) => write!(f, "Vector3.new({x}, {y}, {z})"),
 			Self::Vector(x, y, z) => write!(
 				f,
 				"vector.create({}, {}, {})",
@@ -500,22 +615,22 @@ impl Display for Expr {
 				z.as_ref().unwrap_or(&Box::new(Expr::Num(0 as f64)))
 			),
 
-			Self::Len(expr) => write!(f, "#{}", expr),
-			Self::Not(expr) => write!(f, "not {}", expr),
+			Self::Len(expr) => write!(f, "#{expr}"),
+			Self::Not(expr) => write!(f, "not {expr}"),
 
-			Self::And(lhs, rhs) => write!(f, "{} and {}", lhs, rhs),
-			Self::Or(lhs, rhs) => write!(f, "{} or {}", lhs, rhs),
+			Self::And(lhs, rhs) => write!(f, "{lhs} and {rhs}"),
+			Self::Or(lhs, rhs) => write!(f, "{lhs} or {rhs}"),
 
-			Self::Gte(lhs, rhs) => write!(f, "{} >= {}", lhs, rhs),
-			Self::Lte(lhs, rhs) => write!(f, "{} <= {}", lhs, rhs),
-			Self::Neq(lhs, rhs) => write!(f, "{} ~= {}", lhs, rhs),
-			Self::Gt(lhs, rhs) => write!(f, "{} > {}", lhs, rhs),
-			Self::Lt(lhs, rhs) => write!(f, "{} < {}", lhs, rhs),
-			Self::Eq(lhs, rhs) => write!(f, "{} == {}", lhs, rhs),
+			Self::Gte(lhs, rhs) => write!(f, "{lhs} >= {rhs}"),
+			Self::Lte(lhs, rhs) => write!(f, "{lhs} <= {rhs}"),
+			Self::Neq(lhs, rhs) => write!(f, "{lhs} ~= {rhs}"),
+			Self::Gt(lhs, rhs) => write!(f, "{lhs} > {rhs}"),
+			Self::Lt(lhs, rhs) => write!(f, "{lhs} < {rhs}"),
+			Self::Eq(lhs, rhs) => write!(f, "{lhs} == {rhs}"),
 
-			Self::Add(lhs, rhs) => write!(f, "{} + {}", lhs, rhs),
-			Self::Sub(lhs, rhs) => write!(f, "{} - {}", lhs, rhs),
-			Self::Mul(lhs, rhs) => write!(f, "{} * {}", lhs, rhs),
+			Self::Add(lhs, rhs) => write!(f, "{lhs} + {rhs}"),
+			Self::Sub(lhs, rhs) => write!(f, "{lhs} - {rhs}"),
+			Self::Mul(lhs, rhs) => write!(f, "{lhs} * {rhs}"),
 		}
 	}
 }

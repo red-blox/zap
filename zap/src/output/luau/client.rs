@@ -1,7 +1,10 @@
 use std::{cmp::max, collections::HashMap};
 
 use crate::{
-	config::{Config, EvCall, EvDecl, EvSource, EvType, FnDecl, Parameter, TyDecl, YieldType, UNRELIABLE_ORDER_NUMTY},
+	config::{
+		Config, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, Parameter, TyDecl, YieldType,
+		UNRELIABLE_ORDER_NUMTY,
+	},
 	irgen::{des, ser},
 	output::{
 		get_named_values, get_unnamed_values,
@@ -67,65 +70,78 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line(&format!("{send_events} = noop,"));
 
-		for ev in self.config.evdecls.iter() {
-			self.push_line(&format!("{name} = table.freeze({{", name = ev.name));
-			self.indent();
+		self.config.traverse_namespaces(
+			self,
+			|this, diff| {
+				for _ in 0..diff {
+					this.dedent();
+					this.push_line("}),");
+				}
+			},
+			|this, path, entry| {
+				let name = path.last().unwrap();
+				this.push_line(&format!("{name} = table.freeze({{"));
+				this.indent();
 
-			if ev.from == EvSource::Client {
-				self.push_line(&format!("{fire} = noop"));
-			} else {
-				match ev.call {
-					EvCall::SingleSync | EvCall::SingleAsync => self.push_line(&format!("{set_callback} = noop")),
-					EvCall::ManySync | EvCall::ManyAsync => self.push_line(&format!("{on} = noop")),
-					EvCall::Polling => {
-						self.push_line(&format!("{iter} = function()"));
-						self.indent();
-						self.push_line("return noop");
-						self.dedent();
-						self.push_line("end");
+				match entry {
+					NamespaceEntry::EvDecl(ev) => {
+						if ev.from == EvSource::Client {
+							this.push_line(&format!("{fire} = noop"));
+						} else {
+							match ev.call {
+								EvCall::SingleSync | EvCall::SingleAsync => {
+									this.push_line(&format!("{set_callback} = noop"))
+								}
+								EvCall::ManySync | EvCall::ManyAsync => this.push_line(&format!("{on} = noop")),
+								EvCall::Polling => {
+									this.push_line(&format!("{iter} = function()"));
+									this.indent();
+									this.push_line("return noop");
+									this.dedent();
+									this.push_line("end");
+								}
+							}
+						}
+
+						this.dedent();
+						this.push_line("}),");
 					}
+					NamespaceEntry::FnDecl(fndecl) => {
+						this.push_indent();
+						this.push(&format!("{call} = "));
+
+						match self.config.yield_type {
+							YieldType::Yield => this.push("noop\n"),
+							YieldType::Future => {
+								this.push("function()\n");
+								this.indent();
+								this.push_line("return Future.new(function()");
+								this.indent();
+								this.push_line(&format!("error(\"{} called when game is not running\")", fndecl.name));
+								this.dedent();
+								this.push_line("end)");
+								this.dedent();
+								this.push_line("end");
+							}
+							YieldType::Promise => {
+								this.push("function()\n");
+								this.indent();
+								this.push_line(&format!(
+									"return Promise.reject(\"{} called when game is not running\")",
+									fndecl.name
+								));
+								this.dedent();
+								this.push_line("end");
+							}
+						}
+
+						this.dedent();
+						this.push_line("}),");
+					}
+					NamespaceEntry::Ns(..) => {}
 				}
-			}
-
-			self.dedent();
-			self.push_line("}),");
-		}
-
-		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("{name} = table.freeze({{", name = fndecl.name));
-			self.indent();
-
-			self.push_indent();
-			self.push(&format!("{call} = "));
-
-			match self.config.yield_type {
-				YieldType::Yield => self.push("noop\n"),
-				YieldType::Future => {
-					self.push("function()\n");
-					self.indent();
-					self.push_line("return Future.new(function()");
-					self.indent();
-					self.push_line(&format!("error(\"{} called when game is not running\")", fndecl.name));
-					self.dedent();
-					self.push_line("end)");
-					self.dedent();
-					self.push_line("end");
-				}
-				YieldType::Promise => {
-					self.push("function()\n");
-					self.indent();
-					self.push_line(&format!(
-						"return Promise.reject(\"{} called when game is not running\")",
-						fndecl.name
-					));
-					self.dedent();
-					self.push_line("end");
-				}
-			}
-
-			self.dedent();
-			self.push_line("}),");
-		}
+			},
+		);
 
 		self.dedent();
 		self.push_line("}) :: Events");
@@ -135,15 +151,21 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let name = &tydecl.name;
-		let ty = &tydecl.ty;
+		let ty = &*tydecl.ty.borrow();
 
 		self.push_indent();
-		self.push(&format!("export type {name} = "));
+		if tydecl.path.is_empty() {
+			self.push("export ");
+		}
+		self.push(&format!("type {tydecl} = "));
 		self.push_ty(ty);
 		self.push("\n");
 
-		self.push_line(&format!("function types.write_{name}(value: {name})"));
+		if tydecl.inline {
+			return;
+		}
+
+		self.push_line(&format!("function types.write_{tydecl}(value: {tydecl})"));
 		self.indent();
 		let statements = &ser::gen(
 			&[ty.clone()],
@@ -155,7 +177,7 @@ impl<'src> ClientOutput<'src> {
 		self.dedent();
 		self.push_line("end");
 
-		self.push_line(&format!("function types.read_{name}()"));
+		self.push_line(&format!("function types.read_{tydecl}()"));
 		self.indent();
 		self.push_line("local value;");
 		let statements = &des::gen(&[ty.clone()], &["value".to_string()], false, &mut HashMap::new());
@@ -232,7 +254,7 @@ impl<'src> ClientOutput<'src> {
 					if i == 1 {
 						"value".to_string()
 					} else {
-						format!("value{}", i)
+						format!("value{i}")
 					}
 				})
 				.collect::<Vec<_>>()
@@ -288,8 +310,7 @@ impl<'src> ClientOutput<'src> {
 		for (index, argument) in arguments.iter().enumerate() {
 			if index > 0 {
 				self.push_line(&format!(
-					"new_arguments[((new_write_cursor + {} - 1) % new_queue_size) + 1] = {argument}",
-					index
+					"new_arguments[((new_write_cursor + {index} - 1) % new_queue_size) + 1] = {argument}"
 				));
 			} else {
 				self.push_line(&format!("new_arguments[new_write_cursor] = {argument}"));
@@ -309,8 +330,7 @@ impl<'src> ClientOutput<'src> {
 		for (index, argument) in arguments.iter().enumerate() {
 			if index > 0 {
 				self.push_line(&format!(
-					"arguments[((write_cursor + {} - 1) % queue_size) + 1] = {argument}",
-					index
+					"arguments[((write_cursor + {index} - 1) % queue_size) + 1] = {argument}"
 				));
 			} else {
 				self.push_line(&format!("arguments[write_cursor] = {argument}"));
@@ -515,26 +535,32 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_reliable(&mut self) {
-		self.push_reliable_header();
-
 		let mut first = true;
 
 		for evdecl in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|evdecl| evdecl.from == EvSource::Server && evdecl.evty == EvType::Reliable)
 		{
+			if first {
+				self.push_reliable_header();
+			}
 			self.push_reliable_callback(first, evdecl);
 			first = false;
 		}
 
-		for fndecl in self.config.fndecls.iter() {
+		for fndecl in self.config.fndecls().iter() {
+			if first {
+				self.push_reliable_header();
+			}
 			self.push_fn_callback(first, fndecl);
 			first = false;
 		}
 
-		self.push_reliable_footer();
+		if !first {
+			self.push_reliable_footer();
+		}
 	}
 
 	fn push_unreliable_callback(&mut self, ev: &EvDecl) {
@@ -655,7 +681,7 @@ impl<'src> ClientOutput<'src> {
 	fn push_unreliable(&mut self) {
 		for ev in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Server && matches!(ev_decl.evty, EvType::Unreliable(_)))
 		{
@@ -669,27 +695,23 @@ impl<'src> ClientOutput<'src> {
 
 		if client_reliable_count > 0 {
 			self.push_line(&format!(
-				"local reliable_events = table.create({})",
-				client_reliable_count
+				"local reliable_events = table.create({client_reliable_count})"
 			));
 			self.push_line(&format!(
-				"local reliable_event_queue: {{ [number]: {{ any }} }} = table.create({})",
-				client_reliable_count
+				"local reliable_event_queue: {{ [number]: {{ any }} }} = table.create({client_reliable_count})"
 			));
 		}
 
 		if client_unreliable_count > 0 {
 			self.push_line(&format!(
-				"local unreliable_events = table.create({})",
-				client_unreliable_count
+				"local unreliable_events = table.create({client_unreliable_count})"
 			));
 			self.push_line(&format!(
-				"local unreliable_event_queue: {{ [number]: {{ any }} }} = table.create({})",
-				client_unreliable_count
+				"local unreliable_event_queue: {{ [number]: {{ any }} }} = table.create({client_unreliable_count})"
 			));
 		}
 
-		if !self.config.fndecls.is_empty() {
+		if !self.config.fndecls().is_empty() {
 			self.push_line("local function_call_id = 0");
 
 			if self.config.typescript && self.config.yield_type == YieldType::Promise {
@@ -701,7 +723,7 @@ impl<'src> ClientOutput<'src> {
 
 		for evdecl in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Server)
 		{
@@ -718,7 +740,7 @@ impl<'src> ClientOutput<'src> {
 			}
 		}
 
-		for fndecl in self.config.fndecls.iter() {
+		for fndecl in self.config.fndecls().iter() {
 			self.push_line(&format!(
 				"reliable_event_queue[{}] = table.create(255)",
 				fndecl.client_id
@@ -730,7 +752,7 @@ impl<'src> ClientOutput<'src> {
 		let num_ty = self.config.server_reliable_ty();
 
 		self.push_line(&format!("alloc({})", num_ty.size()));
-		self.push_line(&format!("buffer.write{}(outgoing_buff, outgoing_apos, {id})", num_ty));
+		self.push_line(&format!("buffer.write{num_ty}(outgoing_buff, outgoing_apos, {id})"));
 	}
 
 	fn push_write_evdecl_event_id(&mut self, ev: &EvDecl) {
@@ -815,23 +837,6 @@ impl<'src> ClientOutput<'src> {
 
 		self.dedent();
 		self.push_line("end,");
-	}
-
-	fn push_return_outgoing(&mut self) {
-		for ev in self
-			.config
-			.evdecls
-			.iter()
-			.filter(|ev_decl| ev_decl.from == EvSource::Client)
-		{
-			self.push_line(&format!("{name} = {{", name = ev.name));
-			self.indent();
-
-			self.push_return_fire(ev);
-
-			self.dedent();
-			self.push_line("},");
-		}
 	}
 
 	fn push_queued_value(&mut self, parameters: &[Parameter]) {
@@ -981,32 +986,11 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("end,");
 	}
 
-	pub fn push_return_listen(&mut self) {
-		for ev in self
-			.config
-			.evdecls
-			.iter()
-			.filter(|ev_decl| ev_decl.from == EvSource::Server)
-		{
-			self.push_line(&format!("{name} = {{", name = ev.name));
-			self.indent();
-
-			match ev.call {
-				EvCall::SingleSync | EvCall::SingleAsync => self.push_return_setcallback(ev),
-				EvCall::ManySync | EvCall::ManyAsync => self.push_return_on(ev),
-				EvCall::Polling => self.push_iter(ev),
-			}
-
-			self.dedent();
-			self.push_line("},");
-		}
-	}
-
 	fn push_polling(&mut self) {
 		let filtered_evdecls = self
 			.config
-			.evdecls
-			.iter()
+			.evdecls()
+			.into_iter()
 			.filter(|evdecl| evdecl.from == EvSource::Server && evdecl.call == EvCall::Polling)
 			.collect::<Vec<&EvDecl>>();
 
@@ -1025,7 +1009,7 @@ impl<'src> ClientOutput<'src> {
 					"value_{}{}",
 					index + 1,
 					if let Some(name) = parameter.name {
-						format!("_{}", name)
+						format!("_{name}")
 					} else {
 						String::from("")
 					}
@@ -1116,125 +1100,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("table.freeze(polling_queues_unreliable)\n");
 	}
 
-	fn push_return_functions(&mut self) {
-		let call = self.config.casing.with("Call", "call", "call");
-		let value = self.config.casing.with("Value", "value", "value");
-
-		for fndecl in self.config.fndecls.iter() {
-			let client_id = fndecl.client_id;
-
-			self.push_line(&format!("{name} = {{", name = fndecl.name));
-			self.indent();
-
-			self.push_indent();
-			self.push(&format!("{call} = function("));
-
-			if !fndecl.args.is_empty() {
-				self.push_value_parameters(&fndecl.args);
-			}
-
-			self.push(")");
-
-			if let Some(types) = &fndecl.rets {
-				match self.config.yield_type {
-					YieldType::Future => {
-						self.push(": Future.Future<(");
-
-						for (i, ty) in types.iter().enumerate() {
-							if i > 0 {
-								self.push(", ");
-							}
-							self.push_ty(ty);
-						}
-
-						self.push(")>");
-					}
-					YieldType::Yield => {
-						self.push(": (");
-						for (i, ty) in types.iter().enumerate() {
-							if i > 0 {
-								self.push(", ");
-							}
-							self.push_ty(ty);
-						}
-						self.push(")");
-					}
-					_ => (),
-				}
-			}
-
-			self.push("\n");
-			self.indent();
-
-			self.push_write_event_id(fndecl.server_id);
-
-			self.push_line("function_call_id += 1");
-
-			self.push_line("function_call_id %= 256");
-
-			self.push_line(&format!("if reliable_event_queue[{client_id}][function_call_id] then"));
-			self.indent();
-
-			self.push_line("function_call_id -= 1");
-			self.push_line("error(\"Zap has more than 256 calls awaiting a response, and therefore this packet has been dropped\")");
-
-			self.dedent();
-			self.push_line("end");
-
-			self.push_line("alloc(1)");
-			self.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, function_call_id)");
-
-			if !fndecl.args.is_empty() {
-				let statements = &ser::gen(
-					fndecl.args.iter().map(|parameter| &parameter.ty),
-					&get_named_values(value, &fndecl.args),
-					self.config.write_checks,
-					&mut self.var_occurrences,
-				);
-				self.push_stmts(statements);
-			}
-
-			match self.config.yield_type {
-				YieldType::Yield => {
-					self.push_line(&format!(
-						"reliable_event_queue[{client_id}][function_call_id] = coroutine.running()"
-					));
-					self.push_line("return coroutine.yield()");
-				}
-				YieldType::Future => {
-					self.push_line("return Future.new(function()");
-					self.indent();
-
-					self.push_line(&format!(
-						"reliable_event_queue[{client_id}][function_call_id] = coroutine.running()"
-					));
-					self.push_line("return coroutine.yield()");
-
-					self.dedent();
-					self.push_line("end)");
-				}
-				YieldType::Promise => {
-					self.push_line("return Promise.new(function(resolve)");
-					self.indent();
-
-					self.push_line(&format!(
-						"reliable_event_queue[{client_id}][function_call_id] = resolve"
-					));
-
-					self.dedent();
-					self.push_line("end)");
-				}
-			}
-
-			self.dedent();
-			self.push_line("end,");
-
-			self.dedent();
-			self.push_line("},");
-		}
-	}
-
-	pub fn push_return(&mut self) {
+	fn push_return(&mut self) {
 		self.push_line("local returns = {");
 		self.indent();
 
@@ -1242,9 +1108,152 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line(&format!("{send_events} = {send_events},"));
 
-		self.push_return_outgoing();
-		self.push_return_listen();
-		self.push_return_functions();
+		let call = self.config.casing.with("Call", "call", "call");
+		let value = self.config.casing.with("Value", "value", "value");
+
+		self.config.traverse_namespaces(
+			self,
+			|this, diff| {
+				for _ in 0..diff {
+					this.dedent();
+					this.push_line("},");
+				}
+			},
+			|this, path, entry| {
+				let name = path.last().unwrap();
+				this.push_line(&format!("{name} = {{"));
+				this.indent();
+
+				match entry {
+					NamespaceEntry::EvDecl(evdecl) if evdecl.from == EvSource::Client => {
+						this.push_return_fire(evdecl);
+
+						this.dedent();
+						this.push_line("},");
+					}
+					NamespaceEntry::EvDecl(evdecl) => {
+						match evdecl.call {
+							EvCall::SingleSync | EvCall::SingleAsync => this.push_return_setcallback(evdecl),
+							EvCall::ManySync | EvCall::ManyAsync => this.push_return_on(evdecl),
+							EvCall::Polling => this.push_iter(evdecl),
+						}
+
+						this.dedent();
+						this.push_line("},");
+					}
+					NamespaceEntry::FnDecl(fndecl) => {
+						let client_id = fndecl.client_id;
+
+						this.push_indent();
+						this.push(&format!("{call} = function("));
+
+						if !fndecl.args.is_empty() {
+							this.push_value_parameters(&fndecl.args);
+						}
+
+						this.push(")");
+
+						if let Some(types) = &fndecl.rets {
+							match this.config.yield_type {
+								YieldType::Future => {
+									this.push(": Future.Future<(");
+
+									for (i, ty) in types.iter().enumerate() {
+										if i > 0 {
+											this.push(", ");
+										}
+										this.push_ty(ty);
+									}
+
+									this.push(")>");
+								}
+								YieldType::Yield => {
+									this.push(": (");
+									for (i, ty) in types.iter().enumerate() {
+										if i > 0 {
+											this.push(", ");
+										}
+										this.push_ty(ty);
+									}
+									this.push(")");
+								}
+								_ => (),
+							}
+						}
+
+						this.push("\n");
+						this.indent();
+
+						this.push_write_event_id(fndecl.server_id);
+
+						this.push_line("function_call_id += 1");
+
+						this.push_line("function_call_id %= 256");
+
+						this.push_line(&format!("if reliable_event_queue[{client_id}][function_call_id] then"));
+						this.indent();
+
+						this.push_line("function_call_id -= 1");
+						this.push_line("error(\"Zap has more than 256 calls awaiting a response, and therefore this packet has been dropped\")");
+
+						this.dedent();
+						this.push_line("end");
+
+						this.push_line("alloc(1)");
+						this.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, function_call_id)");
+
+						if !fndecl.args.is_empty() {
+							let statements = &ser::gen(
+								fndecl.args.iter().map(|parameter| &parameter.ty),
+								&get_named_values(value, &fndecl.args),
+								this.config.write_checks,
+								&mut this.var_occurrences,
+							);
+							this.push_stmts(statements);
+						}
+
+						match self.config.yield_type {
+							YieldType::Yield => {
+								this.push_line(&format!(
+									"reliable_event_queue[{client_id}][function_call_id] = coroutine.running()"
+								));
+								this.push_line("return coroutine.yield()");
+							}
+							YieldType::Future => {
+								this.push_line("return Future.new(function()");
+								this.indent();
+
+								this.push_line(&format!(
+									"reliable_event_queue[{client_id}][function_call_id] = coroutine.running()"
+								));
+								this.push_line("return coroutine.yield()");
+
+								this.dedent();
+								this.push_line("end)");
+							}
+							YieldType::Promise => {
+								this.push_line("return Promise.new(function(resolve)");
+								this.indent();
+
+								this.push_line(&format!(
+									"reliable_event_queue[{client_id}][function_call_id] = resolve"
+								));
+
+								this.dedent();
+								this.push_line("end)");
+							}
+						}
+
+						this.dedent();
+						this.push_line("end,");
+
+						this.dedent();
+						this.push_line("},");
+					}
+					NamespaceEntry::Ns(..) => {}
+				}
+			},
+		);
 
 		self.dedent();
 		self.push_line("}");
@@ -1309,7 +1318,7 @@ impl<'src> ClientOutput<'src> {
 	pub fn output(mut self) -> String {
 		self.push_file_header("Client");
 
-		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
+		if self.config.namespaces.is_empty() {
 			self.push_line("return {}");
 			return self.buf;
 		};
@@ -1328,24 +1337,9 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_callback_lists();
 
-		if !self.config.fndecls.is_empty()
-			|| self
-				.config
-				.evdecls
-				.iter()
-				.any(|ev| ev.evty == EvType::Reliable && ev.from == EvSource::Server)
-		{
-			self.push_reliable();
-		}
+		self.push_reliable();
 
-		if self
-			.config
-			.evdecls
-			.iter()
-			.any(|ev| matches!(ev.evty, EvType::Unreliable(_)) && ev.from == EvSource::Server)
-		{
-			self.push_unreliable();
-		}
+		self.push_unreliable();
 
 		self.push_polling();
 
@@ -1355,6 +1349,6 @@ impl<'src> ClientOutput<'src> {
 	}
 }
 
-pub fn code(config: &Config) -> String {
+pub fn code<'src>(config: &'src Config<'src>) -> String {
 	ClientOutput::new(config).output()
 }

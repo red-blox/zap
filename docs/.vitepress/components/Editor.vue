@@ -20,12 +20,8 @@ import type { Ref } from "vue";
 const props = defineProps<{ modelValue: string, options?: monacoEditor.editor.IStandaloneEditorConstructionOptions, lang?: string, isCodeBlock?: boolean, lineHeight?: Ref<number>  }>()
 defineEmits<{ (e: "update:modelValue", value: string): void, (e: "mounted", editor: monacoEditor.editor.IStandaloneCodeEditor): void }>()
 
-const EDITOR_OPTIONS: monacoEditor.editor.IStandaloneEditorConstructionOptions = { ...props.options, formatOnPaste: true, formatOnType: true, stickyScroll: { enabled: true }, minimap: { enabled: false } }
+const EDITOR_OPTIONS: monacoEditor.editor.IStandaloneEditorConstructionOptions = { ...props.options, formatOnPaste: true, formatOnType: true, stickyScroll: { enabled: true }, minimap: { enabled: false }, tabSize: 4 }
 const { isDark } = useData();
-
-const onMount = (editor: monacoEditor.editor.IStandaloneCodeEditor) => {
-	if (props.lineHeight) props.lineHeight.value = editor.getOption(65);
-}
 
 const beforeMount = (monaco: Monaco) => {
 	monaco.editor.defineTheme("tab-light", {
@@ -102,7 +98,7 @@ const beforeMount = (monaco: Monaco) => {
 		],
 	});
 
-	const Keywords = ["event", "opt", "type"] as const;
+	const Keywords = ["event", "opt", "type", "funct", "namespace"] as const;
 
 	const TypeKeywords = ["enum", "struct", "map", "set"] as const;
 
@@ -144,13 +140,20 @@ const beforeMount = (monaco: Monaco) => {
 
 	const EventParamToArray = {
 		from: Locations,
-		type: Brand,
+		type: null,
 		call: Calls,
-		data: [],
+		data: null,
 	} as const;
+
+	const FunctionParamToArray = {
+		call: Calls,
+		args: null,
+		rets: null,
+	} as const
 
 	const WordToArray = {
 		...EventParamToArray,
+		...FunctionParamToArray,
 
 		opt: Options,
 
@@ -178,6 +181,13 @@ const beforeMount = (monaco: Monaco) => {
 
 		call_default: Calls.map((value) => `"${value}"`)
 	} as const;
+
+	const KeywordToArray = {
+		event: Object.keys(EventParamToArray),
+		funct: Object.keys(FunctionParamToArray),
+		namespace: [],
+		type: []
+	} as const
 
 	monaco.languages.registerTokensProviderFactory("zapConfig", {
 		create: () => ({
@@ -272,7 +282,34 @@ const beforeMount = (monaco: Monaco) => {
 				endColumn: word.endColumn,
 			};
 
-			if (range.startColumn === 1) {
+			let i = -1;
+			let wordBefore = model.getWordAtPosition({
+				...position,
+				column: word.startColumn + i,
+			});
+
+			// Go back in the line until we get a word to determine what the autocomplete should be
+			while (!wordBefore && word.startColumn + i > 0) {
+				wordBefore = model.getWordAtPosition({
+					...position,
+					column: word.startColumn + i,
+				});
+				i--;
+			}
+
+			const column = word.startColumn - (word.startColumn % 4 ? 4 : 1);
+			let lineNumber = position.lineNumber - 1;
+
+			// if unsucessful, look for the opening statement of the block (event, funct, namespace)
+			while (!wordBefore && lineNumber > 0) {
+				wordBefore = model.getWordAtPosition({
+					column,
+					lineNumber,
+				});
+				lineNumber--;
+			}
+
+			if (range.startColumn === 1 || (wordBefore?.word === "namespace" && lineNumber !== position.lineNumber - 1)) {
 				var suggestions = [
 					{
 						label: "type",
@@ -282,16 +319,6 @@ const beforeMount = (monaco: Monaco) => {
 							monaco.languages.CompletionItemInsertTextRule
 								.InsertAsSnippet,
 						documentation: "Type Statement",
-						range: range,
-					},
-					{
-						label: "opt",
-						kind: monaco.languages.CompletionItemKind.Snippet,
-						insertText: "opt ${1} = ${2}\n",
-						insertTextRules:
-							monaco.languages.CompletionItemInsertTextRule
-								.InsertAsSnippet,
-						documentation: "Settings",
 						range: range,
 					},
 					{
@@ -327,27 +354,56 @@ const beforeMount = (monaco: Monaco) => {
 						documentation: "Event",
 						range: range,
 					},
+					{
+						label: "namespace",
+						kind: monaco.languages.CompletionItemKind.Snippet,
+						insertText: [
+							"namespace ${1} = {",
+							"\t${2}",
+							"}\n",
+						].join("\n"),
+						insertTextRules:
+							monaco.languages.CompletionItemInsertTextRule
+								.InsertAsSnippet,
+						documentation: "Namespace",
+						range: range,
+					},
 				];
-				return { suggestions };
-			} else {
-				let i = -1;
-				let wordBefore = model.getWordAtPosition({
-					...position,
-					column: word.startColumn + i,
-				});
-				// Go back until we get a word to determine what the autocomplete should be
-				while (!wordBefore && word.startColumn + i > 0) {
-					wordBefore = model.getWordAtPosition({
-						...position,
-						column: word.startColumn + i,
-					});
-					i--;
+
+				if (range.startColumn == 1) {
+					suggestions.push({
+						label: "opt",
+						kind: monaco.languages.CompletionItemKind.Snippet,
+						insertText: "opt ${1} = ${2}\n",
+						insertTextRules:
+							monaco.languages.CompletionItemInsertTextRule
+								.InsertAsSnippet,
+						documentation: "Settings",
+						range: range,
+					})
 				}
 
-				// for now, if there's no wordBefore we can assume it's the event object
-				const arr = !wordBefore
-					? Object.keys(EventParamToArray)
-					: WordToArray[wordBefore.word] ?? types;
+				return { suggestions };
+			} else if (wordBefore) {
+				const wordToArray = WordToArray[wordBefore.word];
+				const keywordToArray = KeywordToArray[wordBefore.word]
+
+				let arr;
+
+				if (wordToArray) {
+					arr = wordToArray
+				} else if (keywordToArray) {
+					// special case for "type" as it can be Brand or types
+					if (wordBefore.word === "type" && model.getLineContent(lineNumber + 1).includes(":")) {
+						arr = Brand;
+					} else if (lineNumber === position.lineNumber - 1) {
+						arr = []
+					} else {
+						arr = keywordToArray
+					}
+				} else {
+					arr = types
+				}
 
 				const identifiers = arr.map((k) => ({
 					label: k,
@@ -356,7 +412,7 @@ const beforeMount = (monaco: Monaco) => {
 					range,
 				}));
 
-				if (wordBefore && !WordToArray[wordBefore.word]) {
+				if (!wordToArray && !keywordToArray && arr) {
 					identifiers.push(
 						{
 							label: "enum",

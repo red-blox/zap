@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::parser::convert::MAX_UNRELIABLE_SIZE;
 
 use codespan_reporting::diagnostic::{Diagnostic, Label, Severity};
@@ -84,7 +86,7 @@ pub enum Report<'src> {
 
 	AnalyzeUnknownTypeRef {
 		span: Span,
-		name: &'src str,
+		name: Cow<'src, str>,
 	},
 
 	AnalyzeNumOutsideRange {
@@ -132,6 +134,16 @@ pub enum Report<'src> {
 		span: Span,
 	},
 
+	AnalyzeRecursiveOr {
+		decl_span: Span,
+		usage_span: Span,
+	},
+
+	AnalyzeConflictingExport {
+		span: Span,
+		name: &'src str,
+	},
+
 	AnalyzeUpperBoundSetOnAConstrictedRange {
 		span: Span,
 	},
@@ -168,6 +180,8 @@ impl Report<'_> {
 			Self::AnalyzeNamedReturn { .. } => Severity::Error,
 			Self::AnalyzeOrDuplicateType { .. } => Severity::Error,
 			Self::AnalyzeOrNestedOptional { .. } => Severity::Error,
+			Self::AnalyzeRecursiveOr { .. } => Severity::Error,
+			Self::AnalyzeConflictingExport { .. } => Severity::Error,
 			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => Severity::Error,
 		}
 	}
@@ -193,21 +207,21 @@ impl Report<'_> {
 			Self::AnalyzeOversizeVectorComponent { .. } => "vectors cannot represent f64s".to_string(),
 			Self::AnalyzeEmptyEnum { .. } => "empty enum".to_string(),
 			Self::AnalyzeEnumTagUsed { .. } => "enum tag used in variant".to_string(),
-			Self::AnalyzeInvalidOptValue { expected, .. } => format!("invalid opt value, expected {}", expected),
+			Self::AnalyzeInvalidOptValue { expected, .. } => format!("invalid opt value, expected {expected}"),
 			Self::AnalyzeUnknownOptName { .. } => "unknown opt name".to_string(),
-			Self::AnalyzeUnknownTypeRef { name, .. } => format!("unknown type reference '{}'", name),
+			Self::AnalyzeUnknownTypeRef { name, .. } => format!("unknown type reference '{name}'"),
 			Self::AnalyzeNumOutsideRange { .. } => "number outside range".to_string(),
 			Self::AnalyzeInvalidOptionalType { .. } => "invalid optional type".to_string(),
 			Self::AnalyzeUnboundedRecursiveType { .. } => "unbounded recursive type".to_string(),
 			Self::AnalyzeMissingOptValue { .. } => "missing option expected".to_string(),
-			Self::AnalyzeDuplicateDecl { name, .. } => format!("duplicate declaration '{}'", name),
-			Self::AnalyzeDuplicateParameter { name, .. } => format!("duplicate parameter '{}'", name),
+			Self::AnalyzeDuplicateDecl { name, .. } => format!("duplicate declaration '{name}'"),
+			Self::AnalyzeDuplicateParameter { name, .. } => format!("duplicate parameter '{name}'"),
 			Self::AnalyzeNamedReturn { .. } => "rets cannot be named".to_string(),
 			Self::AnalyzeOrDuplicateType { .. } => "duplicate types used in OR".to_string(),
 			Self::AnalyzeOrNestedOptional { .. } => "optional type used in OR".to_string(),
-			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => {
-				"upper bound set on a constricted range".to_string()
-			}
+			Self::AnalyzeRecursiveOr { .. } => "OR used recursively".to_string(),
+			Self::AnalyzeConflictingExport { name, .. } => format!("Zap exports {name} at the top level"),
+			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => "upper bound set on a constricted range".to_string(),
 		}
 	}
 
@@ -241,7 +255,9 @@ impl Report<'_> {
 			Self::AnalyzeMissingEvDeclCall { .. } => "3019",
 			Self::AnalyzeOrDuplicateType { .. } => "3020",
 			Self::AnalyzeOrNestedOptional { .. } => "3021",
-			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => "3022",
+			Self::AnalyzeRecursiveOr { .. } => "3022",
+			Self::AnalyzeConflictingExport { .. } => "3023",
+			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => "3024",
 		}
 	}
 
@@ -374,6 +390,13 @@ impl Report<'_> {
 				vec![Label::primary((), span.clone()).with_message("optional type")]
 			}
 
+			Self::AnalyzeRecursiveOr { decl_span, usage_span } => vec![
+				Label::secondary((), decl_span.clone()).with_message("type declaration"),
+				Label::primary((), usage_span.clone()).with_message("type used recursively"),
+			],
+
+			Self::AnalyzeConflictingExport { span, .. } => vec![Label::primary((), span.clone())],
+
 			Self::AnalyzeUpperBoundSetOnAConstrictedRange { span } => {
 				vec![Label::primary((), span.clone()).with_message("upper bound used here")]
 			}
@@ -457,6 +480,14 @@ impl Report<'_> {
 			Self::AnalyzeOrNestedOptional { .. } => Some(vec![
 				"optional types cannot be used in ORs".to_string(),
 				"consider making the whole OR optional".to_string(),
+			]),
+			Self::AnalyzeRecursiveOr { .. } => Some(vec![
+				"ORs may not be used recursively".to_string(),
+				"consider using a tagged enum instead".to_string(),
+			]),
+			Self::AnalyzeConflictingExport { .. } => Some(vec![
+				"you will need to rename this declaration".to_string(),
+				"or move it inside a namespace".to_string(),
 			]),
 			Self::AnalyzeUpperBoundSetOnAConstrictedRange { .. } => Some(vec![
 				"you cannot change the length of this type using an upper bound".to_string(),

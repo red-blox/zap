@@ -1,7 +1,10 @@
 use std::{cmp::max, collections::HashMap};
 
 use crate::{
-	config::{Config, EvCall, EvDecl, EvSource, EvType, FnCall, FnDecl, Parameter, TyDecl, UNRELIABLE_ORDER_NUMTY},
+	config::{
+		Config, EvCall, EvDecl, EvSource, EvType, FnCall, FnDecl, NamespaceEntry, Parameter, TyDecl,
+		UNRELIABLE_ORDER_NUMTY,
+	},
 	irgen::{des, ser},
 	output::{
 		get_named_values, get_unnamed_values,
@@ -38,8 +41,8 @@ impl Output for ServerOutput<'_> {
 	}
 }
 
-impl<'a> ServerOutput<'a> {
-	pub fn new(config: &'a Config) -> Self {
+impl<'src> ServerOutput<'src> {
+	pub fn new(config: &'src Config<'src>) -> Self {
 		Self {
 			config,
 			tabs: 0,
@@ -71,47 +74,60 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line(&format!("{send_events} = noop,"));
 
-		for ev in self.config.evdecls.iter() {
-			self.push_line(&format!("{name} = table.freeze({{", name = ev.name));
-			self.indent();
+		self.config.traverse_namespaces(
+			self,
+			|this, diff| {
+				for _ in 0..diff {
+					this.dedent();
+					this.push_line("}),");
+				}
+			},
+			|this, path, entry| {
+				let name = path.last().unwrap();
+				this.push_line(&format!("{name} = table.freeze({{"));
+				this.indent();
 
-			if ev.from == EvSource::Client {
-				match ev.call {
-					EvCall::SingleSync | EvCall::SingleAsync => self.push_line(&format!("{set_callback} = noop")),
-					EvCall::ManySync | EvCall::ManyAsync => self.push_line(&format!("{on} = noop")),
-					EvCall::Polling => {
-						self.push_line(&format!("{iter} = function()"));
-						self.indent();
-						self.push_line("return noop");
-						self.dedent();
-						self.push_line("end");
+				match entry {
+					NamespaceEntry::EvDecl(evdecl) => {
+						if evdecl.from == EvSource::Client {
+							match evdecl.call {
+								EvCall::SingleSync | EvCall::SingleAsync => {
+									this.push_line(&format!("{set_callback} = noop"))
+								}
+								EvCall::ManySync | EvCall::ManyAsync => this.push_line(&format!("{on} = noop")),
+								EvCall::Polling => {
+									this.push_line(&format!("{iter} = function()"));
+									this.indent();
+									this.push_line("return noop");
+									this.dedent();
+									this.push_line("end");
+								}
+							}
+						} else {
+							this.push_line(&format!("{fire} = noop,"));
+
+							if !this.config.disable_fire_all {
+								this.push_line(&format!("{fire_all} = noop,"));
+							}
+
+							this.push_line(&format!("{fire_except} = noop,"));
+							this.push_line(&format!("{fire_list} = noop,"));
+							this.push_line(&format!("{fire_set} = noop"));
+						}
+
+						this.dedent();
+						this.push_line("}),");
 					}
+					NamespaceEntry::FnDecl(..) => {
+						this.push_line(&format!("{set_callback} = noop"));
+
+						this.dedent();
+						this.push_line("}),");
+					}
+					NamespaceEntry::Ns(..) => {}
 				}
-			} else {
-				self.push_line(&format!("{fire} = noop,"));
-
-				if !self.config.disable_fire_all {
-					self.push_line(&format!("{fire_all} = noop,"));
-				}
-
-				self.push_line(&format!("{fire_except} = noop,"));
-				self.push_line(&format!("{fire_list} = noop,"));
-				self.push_line(&format!("{fire_set} = noop"));
-			}
-
-			self.dedent();
-			self.push_line("}),");
-		}
-
-		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("{name} = table.freeze({{", name = fndecl.name));
-			self.indent();
-
-			self.push_line(&format!("{set_callback} = noop"));
-
-			self.dedent();
-			self.push_line("}),");
-		}
+			},
+		);
 
 		self.dedent();
 		self.push_line("}) :: Events");
@@ -121,15 +137,21 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_tydecl(&mut self, tydecl: &TyDecl) {
-		let name = &tydecl.name;
-		let ty = &tydecl.ty;
+		let ty = &*tydecl.ty.borrow();
 
 		self.push_indent();
-		self.push(&format!("export type {name} = "));
+		if tydecl.path.is_empty() {
+			self.push("export ");
+		}
+		self.push(&format!("type {tydecl} = "));
 		self.push_ty(ty);
 		self.push("\n");
 
-		self.push_line(&format!("function types.write_{name}(value: {name})"));
+		if tydecl.inline {
+			return;
+		}
+
+		self.push_line(&format!("function types.write_{tydecl}(value: {tydecl})"));
 		self.indent();
 		let statements = &ser::gen(
 			&[ty.clone()],
@@ -141,7 +163,7 @@ impl<'a> ServerOutput<'a> {
 		self.dedent();
 		self.push_line("end");
 
-		self.push_line(&format!("function types.read_{name}()"));
+		self.push_line(&format!("function types.read_{tydecl}()"));
 		self.indent();
 		self.push_line("local value;");
 		let statements = &des::gen(&[ty.clone()], &["value".to_string()], true, &mut HashMap::new());
@@ -218,7 +240,7 @@ impl<'a> ServerOutput<'a> {
 					if i == 1 {
 						"value".to_string()
 					} else {
-						format!("value{}", i)
+						format!("value{i}")
 					}
 				})
 				.collect::<Vec<_>>()
@@ -276,8 +298,7 @@ impl<'a> ServerOutput<'a> {
 		for (index, argument) in arguments.iter().enumerate() {
 			if index > 0 {
 				self.push_line(&format!(
-					"new_arguments[((new_write_cursor + {}) % new_queue_size) + 1] = {argument}",
-					index
+					"new_arguments[((new_write_cursor + {index}) % new_queue_size) + 1] = {argument}"
 				));
 			} else {
 				self.push_line(&format!(
@@ -300,8 +321,7 @@ impl<'a> ServerOutput<'a> {
 		for (index, argument) in arguments.iter().enumerate() {
 			if index > 0 {
 				self.push_line(&format!(
-					"arguments[((write_cursor + {}) % queue_size) + 1] = {argument}",
-					index
+					"arguments[((write_cursor + {index}) % queue_size) + 1] = {argument}"
 				));
 			} else {
 				self.push_line(&format!("arguments[(write_cursor % queue_size) + 1] = {argument}"));
@@ -420,7 +440,7 @@ impl<'a> ServerOutput<'a> {
 
 		let rets_string = if !rets.is_empty() {
 			(1..=rets.len())
-				.map(|i| format!("ret_{}", i))
+				.map(|i| format!("ret_{i}"))
 				.collect::<Vec<_>>()
 				.join(", ")
 		} else {
@@ -430,7 +450,7 @@ impl<'a> ServerOutput<'a> {
 		if fndecl.call == FnCall::Async {
 			let args = if !fndecl.args.is_empty() {
 				(1..=fndecl.args.len())
-					.map(|i| format!("value_{}", i))
+					.map(|i| format!("value_{i}"))
 					.collect::<Vec<_>>()
 					.join(", ")
 			} else {
@@ -500,26 +520,32 @@ impl<'a> ServerOutput<'a> {
 	}
 
 	fn push_reliable(&mut self) {
-		self.push_reliable_header();
-
 		let mut first = true;
 
 		for ev in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Client && ev_decl.evty == EvType::Reliable)
 		{
+			if first {
+				self.push_reliable_header();
+			}
 			self.push_reliable_callback(first, ev);
 			first = false;
 		}
 
-		for fndecl in self.config.fndecls.iter() {
+		for fndecl in self.config.fndecls().iter() {
+			if first {
+				self.push_reliable_header();
+			}
 			self.push_fn_callback(first, fndecl);
 			first = false;
 		}
 
-		self.push_reliable_footer();
+		if !first {
+			self.push_reliable_footer();
+		}
 	}
 
 	fn push_unreliable_callback(&mut self, ev: &EvDecl) {
@@ -558,7 +584,7 @@ impl<'a> ServerOutput<'a> {
 
 		let values = self.get_values(&ev.data);
 
-		self.push_line(&format!("local {}", values));
+		self.push_line(&format!("local {values}"));
 
 		if !ev.data.is_empty() {
 			let statements = &des::gen(
@@ -602,7 +628,7 @@ impl<'a> ServerOutput<'a> {
 	fn push_unreliable(&mut self) {
 		for ev in self
 			.config
-			.evdecls
+			.evdecls()
 			.iter()
 			.filter(|ev_decl| ev_decl.from == EvSource::Client && matches!(ev_decl.evty, EvType::Unreliable(_)))
 		{
@@ -615,14 +641,14 @@ impl<'a> ServerOutput<'a> {
 		let unreliable_count = self.config.server_unreliable_count();
 
 		if reliable_count > 0 {
-			self.push_line(&format!("local reliable_events = table.create({})", reliable_count));
+			self.push_line(&format!("local reliable_events = table.create({reliable_count})"));
 		}
 
 		if unreliable_count > 0 {
-			self.push_line(&format!("local unreliable_events = table.create({})", unreliable_count));
+			self.push_line(&format!("local unreliable_events = table.create({unreliable_count})"));
 		}
 
-		for evdecl in self.config.evdecls.iter().filter(|ev_decl| {
+		for evdecl in self.config.evdecls().iter().filter(|ev_decl| {
 			ev_decl.from == EvSource::Client && matches!(ev_decl.call, EvCall::ManyAsync | EvCall::ManySync)
 		}) {
 			match evdecl.evty {
@@ -636,7 +662,7 @@ impl<'a> ServerOutput<'a> {
 		let num_ty = self.config.client_reliable_ty();
 
 		self.push_line(&format!("alloc({})", num_ty.size()));
-		self.push_line(&format!("buffer.write{}(outgoing_buff, outgoing_apos, {id})", num_ty));
+		self.push_line(&format!("buffer.write{num_ty}(outgoing_buff, outgoing_apos, {id})"));
 	}
 
 	fn push_alloc_order_id(&mut self) {
@@ -902,7 +928,7 @@ impl<'a> ServerOutput<'a> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_list} = function({list}: {{ Player }}"));
+		self.push(&format!("{fire_list} = function({list}: {{ [unknown]: Player }}"));
 
 		if !parameters.is_empty() {
 			self.push(", ");
@@ -972,7 +998,7 @@ impl<'a> ServerOutput<'a> {
 		let value = self.config.casing.with("Value", "value", "value");
 
 		self.push_indent();
-		self.push(&format!("{fire_set} = function({set}: {{ [Player]: true }}"));
+		self.push(&format!("{fire_set} = function({set}: {{ [Player]: any }}"));
 
 		if !parameters.is_empty() {
 			self.push(", ");
@@ -1032,31 +1058,6 @@ impl<'a> ServerOutput<'a> {
 
 		self.dedent();
 		self.push_line("end,");
-	}
-
-	fn push_return_outgoing(&mut self) {
-		for ev in self
-			.config
-			.evdecls
-			.iter()
-			.filter(|ev_decl| ev_decl.from == EvSource::Server)
-		{
-			self.push_line(&format!("{name} = {{", name = ev.name));
-			self.indent();
-
-			self.push_return_fire(ev);
-
-			if !self.config.disable_fire_all {
-				self.push_return_fire_all(ev);
-			}
-
-			self.push_return_fire_except(ev);
-			self.push_return_fire_list(ev);
-			self.push_return_fire_set(ev);
-
-			self.dedent();
-			self.push_line("},");
-		}
 	}
 
 	fn push_return_setcallback(&mut self, ev: &EvDecl) {
@@ -1187,42 +1188,11 @@ impl<'a> ServerOutput<'a> {
 		self.push(")),\n");
 	}
 
-	pub fn push_return_listen(&mut self) {
-		for ev in self
-			.config
-			.evdecls
-			.iter()
-			.filter(|ev_decl| ev_decl.from == EvSource::Client)
-		{
-			self.push_line(&format!("{} = {{", ev.name));
-			self.indent();
-
-			match ev.call {
-				EvCall::SingleSync | EvCall::SingleAsync => self.push_return_setcallback(ev),
-				EvCall::ManySync | EvCall::ManyAsync => self.push_return_on(ev),
-				EvCall::Polling => self.push_iter(ev),
-			}
-
-			self.dedent();
-			self.push_line("},");
-		}
-
-		for fndecl in self.config.fndecls.iter() {
-			self.push_line(&format!("{} = {{", fndecl.name));
-			self.indent();
-
-			self.push_fn_return(fndecl);
-
-			self.dedent();
-			self.push_line("},");
-		}
-	}
-
 	fn push_polling(&mut self) {
 		let filtered_evdecls = self
 			.config
-			.evdecls
-			.iter()
+			.evdecls()
+			.into_iter()
 			.filter(|evdecl| evdecl.from == EvSource::Client && evdecl.call == EvCall::Polling)
 			.collect::<Vec<&EvDecl>>();
 
@@ -1238,7 +1208,7 @@ impl<'a> ServerOutput<'a> {
 					"value_{}{}",
 					index + 1,
 					if let Some(name) = parameter.name {
-						format!("_{}", name)
+						format!("_{name}")
 					} else {
 						String::from("")
 					}
@@ -1329,7 +1299,7 @@ impl<'a> ServerOutput<'a> {
 		self.push_line("table.freeze(polling_queues_unreliable)\n");
 	}
 
-	pub fn push_return(&mut self) {
+	fn push_return(&mut self) {
 		self.push_line("local returns = {");
 		self.indent();
 
@@ -1337,8 +1307,54 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_line(&format!("{send_events} = {send_events},"));
 
-		self.push_return_outgoing();
-		self.push_return_listen();
+		self.config.traverse_namespaces(
+			self,
+			|this, diff| {
+				for _ in 0..diff {
+					this.dedent();
+					this.push_line("},");
+				}
+			},
+			|this, path, entry| {
+				let name = path.last().unwrap();
+				this.push_line(&format!("{name} = {{"));
+				this.indent();
+
+				match entry {
+					NamespaceEntry::EvDecl(evdecl) if evdecl.from == EvSource::Server => {
+						this.push_return_fire(evdecl);
+
+						if !this.config.disable_fire_all {
+							this.push_return_fire_all(evdecl);
+						}
+
+						this.push_return_fire_except(evdecl);
+						this.push_return_fire_list(evdecl);
+						this.push_return_fire_set(evdecl);
+
+						this.dedent();
+						this.push_line("},");
+					}
+					NamespaceEntry::EvDecl(evdecl) => {
+						match evdecl.call {
+							EvCall::SingleSync | EvCall::SingleAsync => this.push_return_setcallback(evdecl),
+							EvCall::ManySync | EvCall::ManyAsync => this.push_return_on(evdecl),
+							EvCall::Polling => this.push_iter(evdecl),
+						}
+
+						this.dedent();
+						this.push_line("},");
+					}
+					NamespaceEntry::FnDecl(fndecl) => {
+						this.push_fn_return(fndecl);
+
+						this.dedent();
+						this.push_line("},");
+					}
+					NamespaceEntry::Ns(..) => {}
+				}
+			},
+		);
 
 		self.dedent();
 		self.push_line("}");
@@ -1457,7 +1473,7 @@ impl<'a> ServerOutput<'a> {
 	pub fn output(mut self) -> String {
 		self.push_file_header("Server");
 
-		if self.config.evdecls.is_empty() && self.config.fndecls.is_empty() {
+		if self.config.namespaces.is_empty() {
 			self.push_line("return {}");
 			return self.buf;
 		};
@@ -1478,24 +1494,9 @@ impl<'a> ServerOutput<'a> {
 
 		self.push_callback_lists();
 
-		if !self.config.fndecls.is_empty()
-			|| self
-				.config
-				.evdecls
-				.iter()
-				.any(|ev| ev.evty == EvType::Reliable && ev.from == EvSource::Client)
-		{
-			self.push_reliable();
-		}
+		self.push_reliable();
 
-		if self
-			.config
-			.evdecls
-			.iter()
-			.any(|ev| matches!(ev.evty, EvType::Unreliable(_)) && ev.from == EvSource::Client)
-		{
-			self.push_unreliable();
-		}
+		self.push_unreliable();
 
 		self.push_polling();
 
@@ -1505,6 +1506,6 @@ impl<'a> ServerOutput<'a> {
 	}
 }
 
-pub fn code(config: &Config) -> String {
+pub fn code<'src>(config: &'src Config<'src>) -> String {
 	ServerOutput::new(config).output()
 }
