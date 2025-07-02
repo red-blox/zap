@@ -144,60 +144,59 @@ impl Des<'_> {
 	}
 
 	fn push_or(&mut self, into: Var, tys: &Vec<Ty<'_>>, optional: bool) {
-		// this pushes rust to its limits
-		let mut tys = tys
-			.iter()
-			.flat_map(|ty| match ty.primitive_ty() {
-				PrimitiveTy::Enum(Enum::Unit(variants)) => variants
-					.into_iter()
-					.map(|variant| {
+		#[allow(clippy::type_complexity)]
+		let mut ty_functions: Vec<Box<dyn FnOnce(&mut Self)>> = Vec::new();
+
+		for ty in tys.iter() {
+			match ty.primitive_ty() {
+				PrimitiveTy::Enum(Enum::Unit(variants)) => {
+					for variant in variants {
 						let into = into.clone();
-						Box::new(move |this: &mut Self| {
+						ty_functions.push(Box::new(move |this: &mut Self| {
 							this.push_assign(into, Expr::Str(variant.to_string()));
-						}) as Box<dyn FnOnce(&mut Self)>
-					})
-					.collect::<Vec<_>>(),
-				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => variants
-					.into_iter()
-					.map(|(variant, data)| {
+						}));
+					}
+				}
+				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
+					for (variant, data) in variants {
 						let into = into.clone();
-						Box::new(move |this: &mut Self| {
+						ty_functions.push(Box::new(move |this: &mut Self| {
 							this.push_assign(into.clone(), Expr::EmptyTable);
 							this.push_assign(
 								into.clone().eindex(Expr::Str(tag.to_string())),
 								Expr::Str(variant.to_string()),
 							);
 							this.push_struct(&data, into);
-						}) as Box<dyn FnOnce(&mut Self)>
-					})
-					.collect::<Vec<_>>(),
+						}));
+					}
+				}
 				PrimitiveTy::Unknown => {
 					let into = into.clone();
-					vec![Box::new(move |this: &mut Self| {
+					ty_functions.push(Box::new(move |this: &mut Self| {
 						this.push_ty(&Ty::Unknown, into);
-					}) as Box<dyn FnOnce(&mut Self)>]
+					}));
 				}
 				PrimitiveTy::None(..) => unreachable!(),
 				_ => {
 					let into = into.clone();
-					vec![Box::new(move |this: &mut Self| {
+					ty_functions.push(Box::new(move |this: &mut Self| {
 						this.push_ty(ty, into);
-					}) as Box<dyn FnOnce(&mut Self)>]
+					}));
 				}
-			})
-			.collect::<Vec<Box<dyn FnOnce(&mut Self)>>>();
+			};
+		}
 
 		if optional {
-			tys.push(Box::new(|this| {
+			ty_functions.push(Box::new(|this| {
 				this.push_assign(into, Expr::Nil);
 			}));
 		}
 
-		let mut tys = tys.into_iter().map(Some).collect::<Vec<_>>();
+		let mut ty_functions = ty_functions.into_iter().map(Some).collect::<Vec<_>>();
 
-		let storage = self.variant_storage(tys.len());
+		let storage = self.variant_storage(ty_functions.len());
 		self.readvariant_storage(storage, |this, i| {
-			tys[i].take().unwrap()(this);
+			ty_functions[i].take().unwrap()(this);
 		});
 	}
 
