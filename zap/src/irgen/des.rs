@@ -208,12 +208,6 @@ impl Des<'_> {
 		)
 	}
 
-	fn readboolean(&mut self) -> Expr {
-		let (bits, var) = self.get_bitpack();
-
-		self.check_bitfield(bits, var)
-	}
-
 	fn push_ty(&mut self, ty: &Ty, into: Var) {
 		let into_expr = Expr::from(into.clone());
 
@@ -376,7 +370,9 @@ impl Des<'_> {
 					return self.push_or(into, tys, true);
 				}
 
-				let expr = self.readboolean();
+				let (bits, var) = self.get_bitpack();
+				let expr = self.check_bitfield(bits, var);
+
 				self.push_stmt(Stmt::If(expr));
 
 				if let Ty::Instance(class) = **ty {
@@ -493,7 +489,9 @@ impl Des<'_> {
 			),
 
 			Ty::Boolean => {
-				let expr = self.readboolean();
+				let (bits, var) = self.get_bitpack();
+				let expr = self.check_bitfield(bits, var);
+
 				self.push_assign(into, expr);
 			}
 
