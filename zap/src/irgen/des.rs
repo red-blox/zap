@@ -145,15 +145,14 @@ impl Des<'_> {
 
 	fn push_or(&mut self, into: Var, tys: &Vec<Ty<'_>>, optional: bool) {
 		#[allow(clippy::type_complexity)]
-		let mut ty_functions: Vec<Box<dyn FnOnce(&mut Self)>> = Vec::new();
+		let mut ty_functions: Vec<Box<dyn FnMut(&mut Self)>> = Vec::new();
 
 		for ty in tys.iter() {
 			match ty.primitive_ty() {
 				PrimitiveTy::Enum(Enum::Unit(variants)) => {
 					for variant in variants {
-						let into = into.clone();
-						ty_functions.push(Box::new(move |this: &mut Self| {
-							this.push_assign(into, Expr::Str(variant.to_string()));
+						ty_functions.push(Box::new(|this: &mut Self| {
+							this.push_assign(into.clone(), Expr::Str(variant.to_string()));
 						}));
 					}
 				}
@@ -166,21 +165,19 @@ impl Des<'_> {
 								into.clone().eindex(Expr::Str(tag.to_string())),
 								Expr::Str(variant.to_string()),
 							);
-							this.push_struct(&data, into);
+							this.push_struct(&data, into.clone());
 						}));
 					}
 				}
 				PrimitiveTy::Unknown => {
-					let into = into.clone();
-					ty_functions.push(Box::new(move |this: &mut Self| {
-						this.push_ty(&Ty::Unknown, into);
+					ty_functions.push(Box::new(|this: &mut Self| {
+						this.push_ty(&Ty::Unknown, into.clone());
 					}));
 				}
 				PrimitiveTy::None(..) => unreachable!(),
 				_ => {
-					let into = into.clone();
-					ty_functions.push(Box::new(move |this: &mut Self| {
-						this.push_ty(ty, into);
+					ty_functions.push(Box::new(|this: &mut Self| {
+						this.push_ty(ty, into.clone());
 					}));
 				}
 			};
@@ -188,15 +185,13 @@ impl Des<'_> {
 
 		if optional {
 			ty_functions.push(Box::new(|this| {
-				this.push_assign(into, Expr::Nil);
+				this.push_assign(into.clone(), Expr::Nil);
 			}));
 		}
 
-		let mut ty_functions = ty_functions.into_iter().map(Some).collect::<Vec<_>>();
-
 		let storage = self.variant_storage(ty_functions.len());
 		self.readvariant_storage(storage, |this, i| {
-			ty_functions[i].take().unwrap()(this);
+			ty_functions[i](this);
 		});
 	}
 
