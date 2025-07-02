@@ -1,8 +1,5 @@
 #![allow(clippy::should_implement_trait)]
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::Rc;
-use std::{fmt::Display, vec};
+use std::{cell::RefCell, collections::HashMap, fmt::Display, iter, rc::Rc};
 
 use crate::config::{NumTy, Range, Ty};
 
@@ -303,7 +300,7 @@ pub trait Gen {
 		} else if amount == 2 {
 			VariantStorageKind::Bit(self.get_bitpack())
 		} else if self.current_scope().remaining_bitpack_budget() as usize >= amount {
-			VariantStorageKind::Bitpack(std::iter::repeat_with(|| self.get_bitpack()).take(amount).collect())
+			VariantStorageKind::Bitpack(iter::repeat_with(|| self.get_bitpack()).take(amount).collect())
 		} else {
 			VariantStorageKind::Full(NumTy::from_f64(0.0, amount as f64 - 1.0), amount)
 		}

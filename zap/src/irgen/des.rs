@@ -82,16 +82,16 @@ impl Des<'_> {
 		}
 	}
 
-	fn readvariant_storage(&mut self, storage: VariantStorageKind, mut cb: impl FnMut(&mut Self, usize)) {
+	fn read_variant_storage(&mut self, storage: VariantStorageKind, mut cb: impl FnMut(&mut Self, usize)) {
 		match storage {
 			VariantStorageKind::Full(numty, amount) => {
 				let (variant_i, variant_expr) = self.add_occurrence("variant");
-				self.push_local(variant_i.clone(), Some(self.readnumty(numty)));
+				self.push_local(variant_i, Some(self.readnumty(numty)));
 				for i in 0..amount {
 					let cond = variant_expr.clone().eq((i as f64).into());
 
 					self.push_stmt(if i == 0 { Stmt::If(cond) } else { Stmt::ElseIf(cond) });
-					cb(self, i)
+					cb(self, i);
 				}
 				self.push_stmt(Stmt::End);
 			}
@@ -100,7 +100,7 @@ impl Des<'_> {
 					let cond = self.check_bitfield(bits, var);
 
 					self.push_stmt(if i == 0 { Stmt::If(cond) } else { Stmt::ElseIf(cond) });
-					cb(self, i)
+					cb(self, i);
 				}
 				self.push_stmt(Stmt::End);
 			}
@@ -123,7 +123,7 @@ impl Des<'_> {
 			Enum::Unit(enumerators) => {
 				let storage = self.variant_storage(enumerators.len());
 
-				self.readvariant_storage(storage, |this, i| {
+				self.read_variant_storage(storage, |this, i| {
 					this.push_assign(into.clone(), Expr::StrOrBool(enumerators[i].to_string()));
 				});
 			}
@@ -131,7 +131,7 @@ impl Des<'_> {
 			Enum::Tagged { tag, variants } => {
 				let storage = self.variant_storage(variants.len());
 
-				self.readvariant_storage(storage, |this, i| {
+				self.read_variant_storage(storage, |this, i| {
 					let (name, struct_ty) = &variants[i];
 					this.push_assign(
 						into.clone().eindex(Expr::Str((*tag).into())),
@@ -147,11 +147,11 @@ impl Des<'_> {
 		#[allow(clippy::type_complexity)]
 		let mut ty_functions: Vec<Box<dyn FnMut(&mut Self)>> = Vec::new();
 
-		for ty in tys.iter() {
+		for ty in tys {
 			match ty.primitive_ty() {
 				PrimitiveTy::Enum(Enum::Unit(variants)) => {
 					for variant in variants {
-						ty_functions.push(Box::new(|this: &mut Self| {
+						ty_functions.push(Box::new(|this| {
 							this.push_assign(into.clone(), Expr::Str(variant.to_string()));
 						}));
 					}
@@ -159,7 +159,7 @@ impl Des<'_> {
 				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
 					for (variant, data) in variants {
 						let into = into.clone();
-						ty_functions.push(Box::new(move |this: &mut Self| {
+						ty_functions.push(Box::new(move |this| {
 							this.push_assign(into.clone(), Expr::EmptyTable);
 							this.push_assign(
 								into.clone().eindex(Expr::Str(tag.to_string())),
@@ -170,13 +170,13 @@ impl Des<'_> {
 					}
 				}
 				PrimitiveTy::Unknown => {
-					ty_functions.push(Box::new(|this: &mut Self| {
+					ty_functions.push(Box::new(|this| {
 						this.push_ty(&Ty::Unknown, into.clone());
 					}));
 				}
 				PrimitiveTy::None(..) => unreachable!(),
 				_ => {
-					ty_functions.push(Box::new(|this: &mut Self| {
+					ty_functions.push(Box::new(|this| {
 						this.push_ty(ty, into.clone());
 					}));
 				}
@@ -190,7 +190,7 @@ impl Des<'_> {
 		}
 
 		let storage = self.variant_storage(ty_functions.len());
-		self.readvariant_storage(storage, |this, i| {
+		self.read_variant_storage(storage, |this, i| {
 			ty_functions[i](this);
 		});
 	}
