@@ -143,6 +143,10 @@ pub enum Report<'src> {
 		span: Span,
 		name: &'src str,
 	},
+
+	AnalyzeNoStringDataKind {
+		span: Span,
+	},
 }
 
 impl Report<'_> {
@@ -178,6 +182,7 @@ impl Report<'_> {
 			Self::AnalyzeOrNestedOptional { .. } => Severity::Error,
 			Self::AnalyzeRecursiveOr { .. } => Severity::Error,
 			Self::AnalyzeConflictingExport { .. } => Severity::Error,
+			Self::AnalyzeNoStringDataKind { .. } => Severity::Warning,
 		}
 	}
 
@@ -216,6 +221,7 @@ impl Report<'_> {
 			Self::AnalyzeOrNestedOptional { .. } => "optional type used in OR".to_string(),
 			Self::AnalyzeRecursiveOr { .. } => "OR used recursively".to_string(),
 			Self::AnalyzeConflictingExport { name, .. } => format!("Zap exports {name} at the top level"),
+			Self::AnalyzeNoStringDataKind { .. } => "string data kind not declared".to_string(),
 		}
 	}
 
@@ -251,6 +257,7 @@ impl Report<'_> {
 			Self::AnalyzeOrNestedOptional { .. } => "3021",
 			Self::AnalyzeRecursiveOr { .. } => "3022",
 			Self::AnalyzeConflictingExport { .. } => "3023",
+			Self::AnalyzeNoStringDataKind { .. } => "3024",
 		}
 	}
 
@@ -389,6 +396,8 @@ impl Report<'_> {
 			],
 
 			Self::AnalyzeConflictingExport { span, .. } => vec![Label::primary((), span.clone())],
+
+			Self::AnalyzeNoStringDataKind { span } => vec![Label::primary((), span.clone())],
 		}
 	}
 
@@ -477,6 +486,10 @@ impl Report<'_> {
 			Self::AnalyzeConflictingExport { .. } => Some(vec![
 				"you will need to rename this declaration".to_string(),
 				"or move it inside a namespace".to_string(),
+			]),
+			Self::AnalyzeNoStringDataKind { .. } => Some(vec![
+				"specify either string.utf8 or string.binary (current behaviour)".to_string(),
+				"always use string.utf8 when dealing with data saved in datastores".to_string(),
 			]),
 		}
 	}

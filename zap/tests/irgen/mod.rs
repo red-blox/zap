@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use bstr::BString;
 use insta::{Settings, assert_debug_snapshot};
 use lune::Runtime;
 use zap::{
@@ -470,4 +471,44 @@ async fn test_bitpacking() {
 	let mut runtime = Runtime::new();
 
 	runtime.run("Zap", output).await.unwrap();
+}
+
+const VALID_UTF8_STR: &str = r#""abcdefg1234ąśłź𒂓""#;
+
+#[tokio::test]
+async fn test_string_kinds() {
+	let (config, reports) = parse(include_str!("../files/string_kinds.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let invalid_utf = [
+		b"\xc3\x28".as_slice(),
+		b"\xa0\xa1".as_slice(),
+		b"\xe2\x28\xa1".as_slice(),
+		b"\xe2\x82\x28".as_slice(),
+		b"\xf0\x28\x8c\xbc".as_slice(),
+		b"\xf0\x90\x28\xbc".as_slice(),
+		b"\xf0\x28\x8c\x28".as_slice(),
+	]
+	.into_iter()
+	.map(|b| format!("{:?}", BString::from(b)))
+	.collect::<Vec<_>>();
+
+	let config = config.unwrap();
+
+	for (valid, bin_values, utf_values) in invalid_utf.iter().flat_map(|data| {
+		[
+			(true, vec![data.as_str()], vec![VALID_UTF8_STR]),
+			(false, vec![VALID_UTF8_STR], vec![data.as_str()]),
+		]
+	}) {
+		let default_values = HashMap::from([("Binary", bin_values), ("Utf8", utf_values)]);
+		let output = TestOutput::new(&config, default_values).output();
+		let mut runtime = Runtime::new();
+
+		if valid != runtime.run("Zap", output).await.is_ok() {
+			unreachable!()
+		}
+	}
 }

@@ -220,8 +220,8 @@ impl Des<'_> {
 				}
 			}
 
-			Ty::Str(range) => {
-				if let Some(len) = range.exact() {
+			Ty::Str(utf8, range) => {
+				if !*utf8 && let Some(len) = range.exact() {
 					self.push_assign(into, self.readstring(len.into()));
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
@@ -238,7 +238,11 @@ impl Des<'_> {
 						self.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_assign(into, self.readstring(len_expr.clone()));
+					self.push_assign(into.clone(), self.readstring(len_expr.clone()));
+
+					if *utf8 {
+						self.push_utf8_check(Expr::Var(into.into()));
+					}
 				}
 			}
 

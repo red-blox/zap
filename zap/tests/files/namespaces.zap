@@ -21,7 +21,7 @@ namespace NS = {
         from: Client,
         type: Reliable,
         call: SingleSync,
-        data: (Color3 | string | unknown)
+        data: (Color3 | string.binary | unknown)
     }
 }
 

@@ -28,3 +28,4 @@ selene-lib = "0.28.0"
 serde_yml = "0.0.12"
 tokio = { version = "1", features = ["full"] }
 toml = "0.8.19"
+bstr = "1.12.0"
