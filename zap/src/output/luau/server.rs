@@ -158,7 +158,7 @@ impl<'src> ServerOutput<'src> {
 			&["value".to_string()],
 			self.config.write_checks,
 			&mut HashMap::new(),
-			&self.config.typescript_enum,
+			self.config.typescript_enum,
 		);
 		self.push_stmts(statements);
 		self.dedent();
@@ -172,7 +172,7 @@ impl<'src> ServerOutput<'src> {
 			&["value".to_string()],
 			true,
 			&mut HashMap::new(),
-			&self.config.typescript_enum,
+			self.config.typescript_enum,
 		);
 		self.push_stmts(statements);
 		self.push_line("return value");
@@ -375,7 +375,7 @@ impl<'src> ServerOutput<'src> {
 				&get_unnamed_values("value", ev.data.len()),
 				true,
 				&mut self.var_occurrences,
-				&self.config.typescript_enum,
+				self.config.typescript_enum,
 			);
 			self.push_stmts(statements);
 		}
@@ -436,7 +436,7 @@ impl<'src> ServerOutput<'src> {
 				&get_unnamed_values("value", fndecl.args.len()),
 				true,
 				&mut self.var_occurrences,
-				&self.config.typescript_enum,
+				self.config.typescript_enum,
 			);
 			self.push_stmts(statements);
 		}
@@ -487,7 +487,7 @@ impl<'src> ServerOutput<'src> {
 					&names,
 					self.config.write_checks,
 					&mut self.var_occurrences,
-					&self.config.typescript_enum,
+					self.config.typescript_enum,
 				);
 				self.push_stmts(statements);
 			}
@@ -514,7 +514,7 @@ impl<'src> ServerOutput<'src> {
 					&names,
 					self.config.write_checks,
 					&mut self.var_occurrences,
-					&self.config.typescript_enum,
+					self.config.typescript_enum,
 				);
 				self.push_stmts(statements);
 			}
@@ -613,7 +613,7 @@ impl<'src> ServerOutput<'src> {
 				&get_unnamed_values("value", ev.data.len()),
 				true,
 				&mut self.var_occurrences,
-				&self.config.typescript_enum,
+				self.config.typescript_enum,
 			);
 			self.push_stmts(statements);
 		}
@@ -769,7 +769,7 @@ impl<'src> ServerOutput<'src> {
 				&get_named_values(value, parameters),
 				self.config.write_checks,
 				&mut self.var_occurrences,
-				&self.config.typescript_enum,
+				self.config.typescript_enum,
 			);
 			self.push_stmts(statements);
 		}
@@ -820,7 +820,7 @@ impl<'src> ServerOutput<'src> {
 				&get_named_values(value, parameters),
 				self.config.write_checks,
 				&mut self.var_occurrences,
-				&self.config.typescript_enum,
+				self.config.typescript_enum,
 			);
 			self.push_stmts(statements);
 		}
@@ -894,7 +894,7 @@ impl<'src> ServerOutput<'src> {
 				&get_named_values(value, parameters),
 				self.config.write_checks,
 				&mut self.var_occurrences,
-				&self.config.typescript_enum,
+				self.config.typescript_enum,
 			);
 			self.push_stmts(statements);
 		}
@@ -973,7 +973,7 @@ impl<'src> ServerOutput<'src> {
 				&get_named_values(value, parameters),
 				self.config.write_checks,
 				&mut self.var_occurrences,
-				&self.config.typescript_enum,
+				self.config.typescript_enum,
 			);
 			self.push_stmts(statements);
 		}
@@ -1044,7 +1044,7 @@ impl<'src> ServerOutput<'src> {
 				&get_named_values(value, parameters),
 				self.config.write_checks,
 				&mut self.var_occurrences,
-				&self.config.typescript_enum,
+				self.config.typescript_enum,
 			);
 			self.push_stmts(statements);
 		}

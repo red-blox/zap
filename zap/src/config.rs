@@ -197,7 +197,7 @@ impl std::fmt::Display for YieldType {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum TypeScriptEnumType {
 	StringLiteral,
 	ConstNumber,

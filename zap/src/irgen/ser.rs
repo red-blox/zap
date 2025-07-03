@@ -11,7 +11,7 @@ struct Ser<'src> {
 	buf: OutputBuffer,
 	var_occurrences: &'src mut HashMap<String, usize>,
 	scopes: Vec<Scope>,
-	typescript_enum_type: &'src TypeScriptEnumType,
+	typescript_enum_type: TypeScriptEnumType,
 }
 
 impl Gen for Ser<'_> {
@@ -712,7 +712,7 @@ pub fn gen<'a, 'src: 'a, I>(
 	names: &[String],
 	checks: bool,
 	var_occurrences: &mut HashMap<String, usize>,
-	typescript_enum_type: &TypeScriptEnumType,
+	typescript_enum_type: TypeScriptEnumType,
 ) -> Vec<Stmt>
 where
 	I: IntoIterator<Item = &'a Ty<'src>>,
