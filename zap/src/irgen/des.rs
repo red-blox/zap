@@ -331,14 +331,18 @@ impl Des<'_> {
 			}
 
 			Ty::Map(key, val) => {
+				let (empty_bits, empty_var) = self.get_bitpack();
 				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
 				self.push_assign(into.clone(), Expr::Table(Default::default()));
 
+				let empty_expr = self.check_bitfield(empty_bits, empty_var);
+				self.push_stmt(Stmt::If(empty_expr.not()));
+
 				self.push_stmt(Stmt::NumFor {
 					var: "_".into(),
 					from: 1.0.into(),
-					to: self.readnumty(length_numty),
+					to: self.readnumty(length_numty).add(1.0.into()),
 				});
 
 				self.new_scope();
@@ -356,17 +360,23 @@ impl Des<'_> {
 				self.end_scope();
 
 				self.push_stmt(Stmt::End);
+
+				self.push_stmt(Stmt::End);
 			}
 
 			Ty::Set(key) => {
+				let (empty_bits, empty_var) = self.get_bitpack();
 				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
 				self.push_assign(into.clone(), Expr::Table(Default::default()));
 
+				let empty_expr = self.check_bitfield(empty_bits, empty_var);
+				self.push_stmt(Stmt::If(empty_expr.not()));
+
 				self.push_stmt(Stmt::NumFor {
 					var: "_".into(),
 					from: 1.0.into(),
-					to: self.readnumty(length_numty),
+					to: self.readnumty(length_numty).add(1.0.into()),
 				});
 
 				self.new_scope();
@@ -379,6 +389,8 @@ impl Des<'_> {
 				self.push_assign(into.clone().eindex(key_expr.clone()), Expr::True);
 
 				self.end_scope();
+
+				self.push_stmt(Stmt::End);
 
 				self.push_stmt(Stmt::End);
 			}
