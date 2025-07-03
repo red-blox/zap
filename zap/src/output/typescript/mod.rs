@@ -1,4 +1,4 @@
-use crate::config::{Config, Enum, Parameter, Ty};
+use crate::config::{Config, Enum, Parameter, Ty, TypeScriptEnumType};
 
 pub mod client;
 pub mod server;
@@ -145,14 +145,21 @@ pub trait Output<'src>: ConfigProvider<'src> {
 			),
 
 			Ty::Enum(enum_ty) => match enum_ty {
-				Enum::Unit(enumerators) => self.push(
-					&enumerators
-						.iter()
-						.map(|v| format!("\"{v}\""))
-						.collect::<Vec<_>>()
-						.join(" | ")
-						.to_string(),
-				),
+				Enum::Unit(enumerators) => match self.get_config().typescript_enum {
+					TypeScriptEnumType::StringLiteral | TypeScriptEnumType::ConstString => self.push(
+						&enumerators
+							.iter()
+							.map(|v| format!("\"{v}\""))
+							.collect::<Vec<_>>()
+							.join(" | "),
+					),
+					TypeScriptEnumType::ConstNumber => self.push(
+						&(0..enumerators.len())
+							.map(|n| n.to_string())
+							.collect::<Vec<_>>()
+							.join(" | "),
+					),
+				},
 
 				Enum::Tagged { tag, variants } => {
 					for (i, (name, struct_ty)) in variants.iter().enumerate() {

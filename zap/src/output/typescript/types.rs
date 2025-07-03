@@ -1,4 +1,4 @@
-use crate::config::{Config, TyDecl};
+use crate::config::{Config, Enum, Ty, TyDecl, TypeScriptEnumType};
 
 use super::{ConfigProvider, Output};
 
@@ -58,9 +58,48 @@ impl<'src> TypesOutput<'src> {
 			self.indent();
 		}
 		self.push_indent();
-		self.push(&format!("export type {} = ", tydecl.name));
-		self.push_ty(ty);
-		self.push(";\n");
+		self.push("export ");
+
+		if let Ty::Enum(Enum::Unit(variants)) = ty {
+			match self.get_config().typescript_enum {
+				TypeScriptEnumType::StringLiteral => self.push(&format!(
+					"type {} = {};\n",
+					tydecl.name,
+					&variants
+						.iter()
+						.map(|v| format!("\"{v}\""))
+						.collect::<Vec<_>>()
+						.join(" | ")
+				)),
+				TypeScriptEnumType::ConstString => {
+					self.push(&format!("const enum {} {{\n", tydecl.name));
+					self.indent();
+
+					for variant in variants {
+						self.push_line(&format!("{variant} = \"{variant}\","));
+					}
+
+					self.dedent();
+					self.push_line("}");
+				}
+				TypeScriptEnumType::ConstNumber => {
+					self.push(&format!("const enum {} {{\n", tydecl.name));
+					self.indent();
+
+					for variant in variants {
+						self.push_line(&format!("{variant},"));
+					}
+
+					self.dedent();
+					self.push_line("}");
+				}
+			}
+		} else {
+			self.push(&format!("type {} = ", tydecl.name));
+			self.push_ty(ty);
+			self.push(";\n");
+		}
+
 		for _ in 0..depth {
 			self.dedent();
 			self.push_line("}");
