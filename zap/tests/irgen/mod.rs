@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use bstr::BString;
 use insta::{Settings, assert_debug_snapshot};
 use lune::Runtime;
 use zap::{
@@ -483,24 +482,21 @@ async fn test_string_kinds() {
 	assert!(reports.is_empty());
 
 	let invalid_utf = [
-		b"\xc3\x28".as_slice(),
-		b"\xa0\xa1".as_slice(),
-		b"\xe2\x28\xa1".as_slice(),
-		b"\xe2\x82\x28".as_slice(),
-		b"\xf0\x28\x8c\xbc".as_slice(),
-		b"\xf0\x90\x28\xbc".as_slice(),
-		b"\xf0\x28\x8c\x28".as_slice(),
-	]
-	.into_iter()
-	.map(|b| format!("{:?}", BString::from(b)))
-	.collect::<Vec<_>>();
+		r#""\xc3\x28""#,
+		r#""\xa0\xa1""#,
+		r#""\xe2\x28\xa1""#,
+		r#""\xe2\x82\x28""#,
+		r#""\xf0\x28\x8c\xbc""#,
+		r#""\xf0\x90\x28\xbc""#,
+		r#""\xf0\x28\x8c\x28""#,
+	];
 
 	let config = config.unwrap();
 
-	for (valid, bin_values, utf_values) in invalid_utf.iter().flat_map(|data| {
+	for (valid, bin_values, utf_values) in invalid_utf.into_iter().flat_map(|data| {
 		[
-			(true, vec![data.as_str()], vec![VALID_UTF8_STR]),
-			(false, vec![VALID_UTF8_STR], vec![data.as_str()]),
+			(true, vec![data], vec![VALID_UTF8_STR]),
+			(false, vec![VALID_UTF8_STR], vec![data]),
 		]
 	}) {
 		let default_values = HashMap::from([("Binary", bin_values), ("Utf8", utf_values)]);
