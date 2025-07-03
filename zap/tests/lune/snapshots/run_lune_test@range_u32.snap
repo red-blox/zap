@@ -1,8 +1,0 @@
----
-source: zap/tests/lune/mod.rs
-expression: result
-input_file: zap/tests/files/range_u32.zap
----
-Ok(
-    0,
-)

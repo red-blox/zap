@@ -1,7 +1,7 @@
 ---
 source: zap/tests/lune/mod.rs
 expression: result
-input_file: zap/tests/files/buffer.zap
+input_file: zap/tests/files/range.zap
 ---
 Ok(
     0,

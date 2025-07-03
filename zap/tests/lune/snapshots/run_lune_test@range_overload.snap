@@ -1,7 +1,7 @@
 ---
 source: zap/tests/lune/mod.rs
 expression: result
-input_file: zap/tests/files/range_with_min_max.zap
+input_file: zap/tests/files/range_overload.zap
 ---
 Ok(
     0,

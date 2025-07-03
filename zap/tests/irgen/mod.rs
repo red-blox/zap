@@ -473,8 +473,8 @@ async fn test_bitpacking() {
 }
 
 #[tokio::test]
-async fn test_range_empty() {
-	let (config, reports) = parse(include_str!("../files/range_empty.zap"));
+async fn test_range_overload() {
+	let (config, reports) = parse(include_str!("../files/range_overload.zap"));
 
 	assert!(config.is_some());
 	assert!(reports.is_empty());
@@ -496,107 +496,36 @@ async fn test_range_empty() {
 }
 
 #[tokio::test]
-async fn test_range_u32() {
-	let (config, reports) = parse(include_str!("../files/range_u32.zap"));
+async fn test_range() {
+	let (config, reports) = parse(include_str!("../files/range.zap"));
 
 	assert!(config.is_some());
 	assert!(reports.is_empty());
 
-	let mut default_value = String::from("{ 0");
+	let empty_default_value = "{ 24, 51, 102, 153, 204, 255 }";
+	let exact_default_value = "{ 12, 24, 36, 48 }";
+	let with_max_default_value = "{ 75, 150, 225 }";
+	let with_min_max_default_value = "{ 75, 150 }";
+	let with_min_u32_default_value = "{ 85, 170, 255 }";
+	let with_min_default_value = "{ 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150 }";
+
+	let mut u32_default_value = String::from("{ 0");
 
 	for _ in 0..u16::MAX {
-		default_value.push_str(", 0");
+		u32_default_value.push_str(", 0");
 	}
 
-	default_value.push_str(" }");
+	u32_default_value.push_str(" }");
 
-	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("Test", vec![&*default_value])]);
-	let output = TestOutput::new(&config.unwrap(), default_values).output();
-	let mut runtime = Runtime::new();
-
-	runtime.run("Zap", output).await.unwrap();
-}
-
-#[tokio::test]
-async fn test_range_exact() {
-	let (config, reports) = parse(include_str!("../files/range_exact.zap"));
-
-	assert!(config.is_some());
-	assert!(reports.is_empty());
-
-	let default_value = "{ 12, 24, 36, 48 }";
-
-	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("Test", vec![default_value])]);
-	let output = TestOutput::new(&config.unwrap(), default_values).output();
-	let mut runtime = Runtime::new();
-
-	runtime.run("Zap", output).await.unwrap();
-}
-
-#[tokio::test]
-async fn test_range_with_min() {
-	let (config, reports) = parse(include_str!("../files/range_with_min.zap"));
-
-	assert!(config.is_some());
-	assert!(reports.is_empty());
-
-	let default_value = "{ 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150 }";
-
-	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("Test", vec![default_value])]);
-	let output = TestOutput::new(&config.unwrap(), default_values).output();
-	let mut runtime = Runtime::new();
-
-	runtime.run("Zap", output).await.unwrap();
-}
-
-#[tokio::test]
-async fn test_range_with_min_u32() {
-	let (config, reports) = parse(include_str!("../files/range_with_min_u32.zap"));
-
-	assert!(config.is_some());
-	assert!(reports.is_empty());
-
-	let mut default_value = String::from("{ 0");
-
-	for _ in 0..u16::MAX {
-		default_value.push_str(", 0");
-	}
-
-	default_value.push_str(" }");
-
-	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("Test", vec![&*default_value])]);
-	let output = TestOutput::new(&config.unwrap(), default_values).output();
-	let mut runtime = Runtime::new();
-
-	runtime.run("Zap", output).await.unwrap();
-}
-
-#[tokio::test]
-async fn test_range_with_max() {
-	let (config, reports) = parse(include_str!("../files/range_with_max.zap"));
-
-	assert!(config.is_some());
-	assert!(reports.is_empty());
-
-	let default_value = "{ 75, 150, 225 }";
-
-	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("Test", vec![default_value])]);
-	let output = TestOutput::new(&config.unwrap(), default_values).output();
-	let mut runtime = Runtime::new();
-
-	runtime.run("Zap", output).await.unwrap();
-}
-
-#[tokio::test]
-async fn test_range_with_min_max() {
-	let (config, reports) = parse(include_str!("../files/range_with_min_max.zap"));
-
-	assert!(config.is_some());
-	assert!(reports.is_empty());
-
-	let default_value = "{ 75, 150 }";
-
-	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("Test", vec![default_value])]);
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([
+		("Empty", vec![empty_default_value]),
+		("Exact", vec![exact_default_value]),
+		("U32", vec![&u32_default_value]),
+		("WithMax", vec![with_max_default_value]),
+		("WithMinMax", vec![with_min_max_default_value]),
+		("WithMinU32", vec![with_min_u32_default_value]),
+		("WithMin", vec![with_min_default_value]),
+	]);
 	let output = TestOutput::new(&config.unwrap(), default_values).output();
 	let mut runtime = Runtime::new();
 
