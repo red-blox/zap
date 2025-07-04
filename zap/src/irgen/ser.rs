@@ -231,7 +231,7 @@ impl Ser<'_> {
 
 					for (offset, variant) in variants.into_iter().enumerate() {
 						let condition = Expr::from(from.clone()).eq(match self.typescript_enum_type {
-							TypeScriptEnumType::ConstNumber => Expr::Num(i as f64),
+							TypeScriptEnumType::ConstNumber => Expr::Num(offset as f64),
 							_ => Expr::StrOrBool(variant.to_string()),
 						});
 
