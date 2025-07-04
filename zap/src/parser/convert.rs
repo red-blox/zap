@@ -908,7 +908,17 @@ impl<'src> Converter<'src> {
 
 			SyntaxTyKind::Struct(struct_ty) => Ty::Struct(self.struct_ty(struct_ty)),
 
-			SyntaxTyKind::Instance(instance_ty) => Ty::Instance(instance_ty.as_ref().map(|ty| ty.name)),
+			SyntaxTyKind::Instance(old, instance_ty) => {
+				if *old {
+					self.report(Report::DeprecationOldInstanceClassSpecifier {
+						span: ty.span(),
+						// old is true only if it's present
+						name: instance_ty.unwrap().name,
+					});
+				}
+
+				Ty::Instance(instance_ty.as_ref().map(|ty| ty.name))
+			}
 
 			SyntaxTyKind::Or(or_tys) => self.or_ty(or_tys, false),
 		}

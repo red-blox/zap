@@ -133,7 +133,8 @@ TyKind: SyntaxTyKind<'input> = {
 
     "enum" <e:Enum> => SyntaxTyKind::Enum(e),
     "struct" <s:Struct> => SyntaxTyKind::Struct(s),
-    "Instance" <c:("(" <Identifier> ")")?> => SyntaxTyKind::Instance(c),
+    "Instance" <c:("." <Identifier>)?> => SyntaxTyKind::Instance(false, c),
+    "Instance" <c:("(" <Identifier> ")")> => SyntaxTyKind::Instance(true, Some(c)),
     
     "(" <ty:Ty> <mut tys:("|" <Ty>)+> ")" => {
         tys.insert(0, ty);

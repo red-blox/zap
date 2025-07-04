@@ -147,6 +147,11 @@ pub enum Report<'src> {
 	DeprecationNoStringDataKind {
 		span: Span,
 	},
+
+	DeprecationOldInstanceClassSpecifier {
+		span: Span,
+		name: &'src str,
+	},
 }
 
 impl Report<'_> {
@@ -184,6 +189,7 @@ impl Report<'_> {
 			Self::AnalyzeConflictingExport { .. } => Severity::Error,
 
 			Self::DeprecationNoStringDataKind { .. } => Severity::Warning,
+			Self::DeprecationOldInstanceClassSpecifier { .. } => Severity::Warning,
 		}
 	}
 
@@ -224,6 +230,7 @@ impl Report<'_> {
 			Self::AnalyzeConflictingExport { name, .. } => format!("Zap exports {name} at the top level"),
 
 			Self::DeprecationNoStringDataKind { .. } => "string data kind not declared".to_string(),
+			Self::DeprecationOldInstanceClassSpecifier { .. } => "old instance class specifier used".to_string(),
 		}
 	}
 
@@ -261,6 +268,7 @@ impl Report<'_> {
 			Self::AnalyzeConflictingExport { .. } => "3023",
 
 			Self::DeprecationNoStringDataKind { .. } => "4001",
+			Self::DeprecationOldInstanceClassSpecifier { .. } => "4002",
 		}
 	}
 
@@ -401,6 +409,8 @@ impl Report<'_> {
 			Self::AnalyzeConflictingExport { span, .. } => vec![Label::primary((), span.clone())],
 
 			Self::DeprecationNoStringDataKind { span } => vec![Label::primary((), span.clone())],
+
+			Self::DeprecationOldInstanceClassSpecifier { span, .. } => vec![Label::primary((), span.clone())],
 		}
 	}
 
@@ -494,6 +504,10 @@ impl Report<'_> {
 				"this is deprecated and will be removed in a future release".to_string(),
 				"specify either string.utf8 or string.binary (current behaviour)".to_string(),
 				"always use string.utf8 when dealing with data saved in datastores".to_string(),
+			]),
+			Self::DeprecationOldInstanceClassSpecifier { name, .. } => Some(vec![
+				"this is deprecated and will be removed in a future release".to_string(),
+				format!("use the new syntax `Instance.{name}` instead"),
 			]),
 		}
 	}
