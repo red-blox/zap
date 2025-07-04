@@ -716,7 +716,7 @@ impl<'src> Converter<'src> {
 
 			SyntaxTyKind::Str(kind, len) => {
 				if kind.is_none() {
-					self.report(Report::AnalyzeNoStringDataKind { span: ty.span() });
+					self.report(Report::DeprecationNoStringDataKind { span: ty.span() });
 				}
 
 				let utf8 = kind.unwrap_or(false);
