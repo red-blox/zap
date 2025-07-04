@@ -231,7 +231,7 @@ The maximum non-nested length of tuples Zap can generate, with anything longer g
 
 ## `typescript_enum` [`0.6.24+`]
 
-This options allows the TypeScript output to generate `const enum` types instead of string literals. 
+This option allows the TypeScript output to generate `const enum` types instead of string literals. 
 
 ### Default
 
@@ -263,7 +263,7 @@ const enum RoundStatus {
 ```
 
 ::: tip WARNING
-Because `const enum` emits numbers by default when compiled, setting `typescript_enum` to `ConstEnum` option **will change** the Luau output to accept numbers instead of strings for an `enum`.
+Because `const enum` emits numbers by default when compiled, setting `typescript_enum` to the `ConstEnum` option **will change** the Luau output to **accept numbers instead of strings** for an `enum`.
 
 If you do not want this behavior use `"StringConstEnum"` or the default of `"StringLiteral"`.
 :::

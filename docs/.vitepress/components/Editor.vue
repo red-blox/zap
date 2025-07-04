@@ -112,7 +112,7 @@ const beforeMount = (monaco: Monaco) => {
 
 	const Options = ["write_checks", "typescript", "typescript_max_tuple_length", "typescript_enum", "manual_event_loop", "remote_scope", "remote_folder", "server_output", "client_output", "casing", "yield_type", "async_lib", "tooling", "tooling_output", "tooling_show_internal_data", "disable_fire_all", "types_output", "call_default"] as const;
 
-	const TypeScriptEnum = ["StringLiteral", "ConstNumber", "ConstString"].map((value) => `"${value}"`)
+	const TypeScriptEnum = ["StringLiteral", "ConstEnum", "StringConstEnum"].map((value) => `"${value}"`)
 	const Casing = ["PascalCase", "camelCase", "snake_case"].map((value) => `"${value}"`);
 	const YieldType = ["yield", "future", "promise"].map((value) => `"${value}"`);
 
