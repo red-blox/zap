@@ -229,6 +229,55 @@ The maximum non-nested length of tuples Zap can generate, with anything longer g
 
 <CodeBlock code="opt typescript_max_tuple_length = 5" />
 
+## `typescript_enum` [`0.6.24+`]
+
+This options allows the TypeScript output to generate `const enum` types instead of string literals. 
+
+### Default
+
+`StringLiteral`
+
+### Example
+
+<CodeBlock code='opt typescript_enum = "ConstEnum"' />
+
+### Options
+
+In the example:
+<CodeBlock code='type RoundStatus = enum { Starting, Playing, Intermission }' />
+
+`"StringLiteral"` will generate the following TypeScript type:
+
+```ts
+type RoundStatus = "Starting" | "Playing" | "Intermission"
+```
+
+`"ConstEnum"` will generate the following TypeScript type:
+
+```ts
+const enum RoundStatus {
+	Starting,
+	Playing,
+	Intermission
+}
+```
+
+::: tip WARNING
+Because `const enum` emits numbers by default when compiled, setting `typescript_enum` to `ConstEnum` option **will change** the Luau output to accept numbers instead of strings for an `enum`.
+
+If you do not want this behavior use `"StringConstEnum"` or the default of `"StringLiteral"`.
+:::
+
+`"StringConstEnum"` will generate the following TypeScript type:
+
+```ts
+const enum RoundStatus {
+	Starting = "Starting",
+	Playing = "Playing",
+	Intermission = "Intermission"
+}
+```
+
 ## `yield_type`
 
 This option changes the way functions yield in zap.
