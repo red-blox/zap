@@ -304,7 +304,7 @@ impl Ser<'_> {
 			}
 
 			Ty::Str(utf8, range) => {
-				if !*utf8 && let Some(len) = range.exact() {
+				if !utf8 && let Some(len) = range.exact() {
 					if self.checks {
 						self.push_assert(
 							from_expr.clone().len().eq(len.into()),

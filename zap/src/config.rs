@@ -324,7 +324,7 @@ impl<'src> Ty<'src> {
 			Self::Num(numty, ..) => (numty.size(), Some(numty.size())),
 
 			Self::Str(utf8, len) => {
-				if !*utf8 && let Some(exact) = len.exact() {
+				if !utf8 && let Some(exact) = len.exact() {
 					(exact as usize, Some(exact as usize))
 				} else {
 					let (len_numty, ..) = len.numty();

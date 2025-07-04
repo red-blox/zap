@@ -221,7 +221,7 @@ impl Des<'_> {
 			}
 
 			Ty::Str(utf8, range) => {
-				if !*utf8 && let Some(len) = range.exact() {
+				if !utf8 && let Some(len) = range.exact() {
 					self.push_assign(into, self.readstring(len.into()));
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
