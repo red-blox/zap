@@ -480,3 +480,17 @@ async fn test_bitpacking() {
 
 	runtime.run("Zap", output).await.unwrap();
 }
+
+#[tokio::test]
+async fn test_typescript_enum() {
+	let (config, reports) = parse(include_str!("../files/typescript_enum.zap"));
+
+	assert!(config.is_some());
+	assert!(reports.is_empty());
+
+	let default_values: HashMap<&str, Vec<&str>> = HashMap::from([("Event", vec!["0", "2"])]);
+	let output = TestOutput::new(&config.unwrap(), default_values).output();
+	let mut runtime = Runtime::new();
+
+	runtime.run("Zap", output).await.unwrap();
+}
