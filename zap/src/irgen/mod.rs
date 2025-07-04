@@ -8,7 +8,7 @@ pub mod ser;
 
 pub trait Gen {
 	fn push_stmt(&mut self, stmt: Stmt);
-	fn gen<'a, 'src: 'a, I>(self, names: &[String], types: I) -> Vec<Stmt>
+	fn generate<'a, 'src: 'a, I>(self, names: &[String], types: I) -> Vec<Stmt>
 	where
 		I: Iterator<Item = &'a Ty<'src>>;
 

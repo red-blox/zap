@@ -1,6 +1,6 @@
 use std::fs;
 
-use insta::{assert_debug_snapshot, glob, Settings};
+use insta::{Settings, assert_debug_snapshot, glob};
 use lune::Runtime;
 
 pub fn run_lune_test(input: &str, no_warnings: bool, insta_settings: Settings) {

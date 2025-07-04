@@ -2,8 +2,8 @@ use std::{cmp::max, collections::HashMap};
 
 use crate::{
 	config::{
-		Config, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, Parameter, TyDecl, YieldType,
-		UNRELIABLE_ORDER_NUMTY,
+		Config, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, Parameter, TyDecl, UNRELIABLE_ORDER_NUMTY,
+		YieldType,
 	},
 	irgen::{des, ser},
 	output::{
@@ -167,7 +167,7 @@ impl<'src> ClientOutput<'src> {
 
 		self.push_line(&format!("function types.write_{tydecl}(value: {tydecl})"));
 		self.indent();
-		let statements = &ser::gen(
+		let statements = &ser::generate(
 			&[ty.clone()],
 			&["value".to_string()],
 			self.config.write_checks,
@@ -181,7 +181,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("function types.read_{tydecl}()"));
 		self.indent();
 		self.push_line("local value;");
-		let statements = &des::gen(
+		let statements = &des::generate(
 			&[ty.clone()],
 			&["value".to_string()],
 			false,
@@ -379,7 +379,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("local {values}"));
 
 		if !ev.data.is_empty() {
-			let statements = &des::gen(
+			let statements = &des::generate(
 				ev.data.iter().map(|parameter| &parameter.ty),
 				&get_unnamed_values("value", ev.data.len()),
 				true,
@@ -484,7 +484,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("local {values}"));
 
 		if let Some(data) = &fndecl.rets {
-			let statements = &des::gen(
+			let statements = &des::generate(
 				data,
 				&get_unnamed_values("value", data.len()),
 				true,
@@ -495,7 +495,9 @@ impl<'src> ClientOutput<'src> {
 		}
 
 		self.push_line(&format!("local thread = reliable_event_queue[{client_id}][call_id]"));
-		self.push_line("-- When using actors it's possible for multiple Zap clients to exist, but only one called the Zap remote function.");
+		self.push_line(
+			"-- When using actors it's possible for multiple Zap clients to exist, but only one called the Zap remote function.",
+		);
 		self.push_line("if thread then");
 		self.indent();
 		match self.config.yield_type {
@@ -607,7 +609,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_line(&format!("local {values}"));
 
 		if !ev.data.is_empty() {
-			let statements = &des::gen(
+			let statements = &des::generate(
 				ev.data.iter().map(|parameter| &parameter.ty),
 				&get_unnamed_values("value", ev.data.len()),
 				self.config.write_checks,
@@ -829,7 +831,7 @@ impl<'src> ClientOutput<'src> {
 		self.push_write_evdecl_event_id(ev);
 
 		if !ev.data.is_empty() {
-			let statements = &ser::gen(
+			let statements = &ser::generate(
 				ev.data.iter().map(|parameter| &parameter.ty),
 				&get_named_values(value, &ev.data),
 				self.config.write_checks,
@@ -1205,7 +1207,9 @@ impl<'src> ClientOutput<'src> {
 						this.indent();
 
 						this.push_line("function_call_id -= 1");
-						this.push_line("error(\"Zap has more than 256 calls awaiting a response, and therefore this packet has been dropped\")");
+						this.push_line(
+							"error(\"Zap has more than 256 calls awaiting a response, and therefore this packet has been dropped\")",
+						);
 
 						this.dedent();
 						this.push_line("end");
@@ -1214,12 +1218,12 @@ impl<'src> ClientOutput<'src> {
 						this.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, function_call_id)");
 
 						if !fndecl.args.is_empty() {
-							let statements = &ser::gen(
+							let statements = &ser::generate(
 								fndecl.args.iter().map(|parameter| &parameter.ty),
 								&get_named_values(value, &fndecl.args),
 								this.config.write_checks,
 								&mut this.var_occurrences,
-								self.config.typescript_enum
+								self.config.typescript_enum,
 							);
 							this.push_stmts(statements);
 						}

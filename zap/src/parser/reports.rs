@@ -402,7 +402,7 @@ impl Report<'_> {
 			Self::ParserExpectedInt { .. } => None,
 
 			Self::AnalyzeEmptyEvDecls => Some(vec![
-				"add an event or function declaration to allow zap to output code".to_string()
+				"add an event or function declaration to allow zap to output code".to_string(),
 			]),
 			Self::AnalyzeMissingEvDeclCall { .. } => {
 				Some(vec!["specify `call` or use the `call_default` option".to_string()])

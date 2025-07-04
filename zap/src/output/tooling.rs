@@ -1,10 +1,10 @@
 use std::{cmp::max, collections::HashMap};
 
 use crate::{
-	config::{Config, EvDecl, EvSource, EvType, FnDecl, NumTy, TyDecl, UNRELIABLE_ORDER_NUMTY},
-	irgen::{des, Stmt},
-	output::get_unnamed_values,
 	Output,
+	config::{Config, EvDecl, EvSource, EvType, FnDecl, NumTy, TyDecl, UNRELIABLE_ORDER_NUMTY},
+	irgen::{Stmt, des},
+	output::get_unnamed_values,
 };
 
 struct ToolingOutput<'src> {
@@ -116,7 +116,7 @@ impl<'src> ToolingOutput<'src> {
 		self.push_line(&format!("function types.read_{tydecl}()"));
 		self.indent();
 		self.push_line("local value;");
-		let statements = &des::gen(
+		let statements = &des::generate(
 			std::iter::once(ty),
 			&get_unnamed_values("value", 1),
 			true,
@@ -155,7 +155,7 @@ impl<'src> ToolingOutput<'src> {
 		if !ev.data.is_empty() {
 			self.push_line(&format!("local {}", values.join(", ")));
 
-			let statements = &des::gen(
+			let statements = &des::generate(
 				ev.data.iter().map(|parameter| &parameter.ty),
 				&values,
 				true,
@@ -245,7 +245,7 @@ impl<'src> ToolingOutput<'src> {
 			if !fn_decl.args.is_empty() {
 				self.push_line(&format!("local {}", values.join(", ")));
 
-				let statements = &des::gen(
+				let statements = &des::generate(
 					fn_decl.args.iter().map(|parameter| &parameter.ty),
 					&values,
 					true,
@@ -278,7 +278,7 @@ impl<'src> ToolingOutput<'src> {
 			if let Some(data) = &fn_decl.rets {
 				self.push_line(&format!("local {}", values.join(", ")));
 
-				let statements = &des::gen(
+				let statements = &des::generate(
 					data,
 					&get_unnamed_values("value", data.len()),
 					true,

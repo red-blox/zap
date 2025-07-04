@@ -2,9 +2,9 @@ mod checker;
 
 use std::{borrow::Cow, fs, sync::LazyLock};
 
-use checker::{initialise_selene, Selene};
-use insta::{assert_debug_snapshot, glob, Settings};
-use selene_lib::{lints::Severity, CheckerDiagnostic};
+use checker::{Selene, initialise_selene};
+use insta::{Settings, assert_debug_snapshot, glob};
+use selene_lib::{CheckerDiagnostic, lints::Severity};
 
 static SELENE: LazyLock<Selene> = LazyLock::new(initialise_selene);
 

@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use full_moon::LuaVersion;
-use selene_lib::{standard_library::StandardLibrary, Checker};
+use selene_lib::{Checker, standard_library::StandardLibrary};
 
 pub struct Selene {
 	pub linter: Checker<toml::Value>,

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use insta::{assert_debug_snapshot, Settings};
+use insta::{Settings, assert_debug_snapshot};
 use lune::Runtime;
 use zap::{
 	config::{Config, Parameter, TyDecl},
@@ -65,7 +65,7 @@ impl<'src> TestOutput<'src> {
 
 		self.push_line(&format!("function types.write_{tydecl}(value: {tydecl})"));
 		self.indent();
-		let statements = &ser::gen(
+		let statements = &ser::generate(
 			&[ty.clone()],
 			&["value".to_string()],
 			self.config.write_checks,
@@ -79,7 +79,7 @@ impl<'src> TestOutput<'src> {
 		self.push_line(&format!("function types.read_{tydecl}()"));
 		self.indent();
 		self.push_line("local value;");
-		let statements = &des::gen(
+		let statements = &des::generate(
 			&[ty.clone()],
 			&["value".to_string()],
 			true,
@@ -122,7 +122,7 @@ impl<'src> TestOutput<'src> {
 			self.push_line(&format!("local {des_name}"));
 		}
 
-		let ser_statements = ser::gen(
+		let ser_statements = ser::generate(
 			parameters.iter().map(|parameter| &parameter.ty),
 			&ser_names,
 			self.config.write_checks,
@@ -137,7 +137,7 @@ impl<'src> TestOutput<'src> {
 		self.push_line("incoming_ipos = 0");
 		self.push_line("load_empty()");
 
-		let des_statements = des::gen(
+		let des_statements = des::generate(
 			parameters.iter().map(|parameter| &parameter.ty),
 			&des_names,
 			self.config.write_checks,

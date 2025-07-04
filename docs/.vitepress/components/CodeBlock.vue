@@ -49,7 +49,7 @@ watch(
 
 const showInPlayground = () => {
 	try {
-		const link = btoa(props.code)
+		const link = encodeURIComponent(btoa(props.code))
 		go(`/playground?code=${link}`)
 	} catch (err) {
 

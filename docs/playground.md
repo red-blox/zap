@@ -4,7 +4,7 @@
 
 <div class="flex">
 	<div class="button plugin-tabs">
-		<button @click="saveURL"><span>📎</span> Save URL</button>
+		<button @click="copyURL"><span>📎</span> Copy URL</button>
 	</div>
 	<div class="button plugin-tabs">
 		<button @click="toggleNoWarnings">{{ noWarnings ? "❌ Zap will Only Error" : "⚠️ Warnings Allowed" }}</button>
@@ -106,16 +106,14 @@ const compiledResult = ref<PlaygroundCode>({
 
 onMounted(() => {
 	const codeParam = new URLSearchParams(window.location.search).get("code")
-	const storedCode = localStorage.getItem("code")
 
-	let codeStr = ""
-
-	if (!codeParam && !!storedCode) {
-		codeStr = storedCode;
-		go(`/playground?code=${storedCode}`);
-	} else if (codeParam) {
-		codeStr = codeParam;
+	if (codeParam) {
+		sessionStorage.setItem("code", decodeURIComponent(codeParam))
+		go("/playground")
+		return;
 	}
+
+	const codeStr = sessionStorage.getItem("code") ?? ""
 
 	try {
 		const result = atob(codeStr)
@@ -151,16 +149,12 @@ watch([code, noWarnings], ([newCode, noWarnings]) => {
 		padding: "20px 0px",
 	};
 
-	localStorage.setItem("code", btoa(newCode))
+	sessionStorage.setItem("code", btoa(newCode))
 })
 
-const saveURL = () => {
-	const result = btoa(code.value)
-
-	localStorage.setItem("code", result)
+const copyURL = () => {
+	const result = encodeURIComponent(btoa(code.value))
 	navigator.clipboard.writeText(`${location.protocol}//${location.host}/playground?code=${result}`)
-
-	go(`/playground?code=${result}`)
 }
 
 const toggleNoWarnings = () => {
@@ -196,6 +190,7 @@ const toggleNoWarnings = () => {
 	display: block;
 	padding: 0px 16px;
 	font-size: 12px;
+	text-wrap: auto;
 }
 .ansi-bold {
 	font-weight: bold
