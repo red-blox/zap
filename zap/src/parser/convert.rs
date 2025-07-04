@@ -735,10 +735,20 @@ impl<'src> Converter<'src> {
 					.unwrap_or_default(),
 			),
 
-			SyntaxTyKind::Str(len) => Ty::Str(
-				len.map(|range| self.checked_range_within(&range, 0.0, u16::MAX as f64))
-					.unwrap_or_default(),
-			),
+			SyntaxTyKind::Str(kind, len) => {
+				if kind.is_none() {
+					self.report(Report::DeprecationNoStringDataKind { span: ty.span() });
+				}
+
+				let utf8 = kind.unwrap_or(false);
+
+				Ty::Str(
+					utf8,
+					len.map(|range| self.checked_range_within(&range, 0.0, u16::MAX as f64))
+						.unwrap_or_default()
+						.mul_max(if utf8 { 4.0 } else { 1.0 }),
+				)
+			}
 
 			SyntaxTyKind::Buf(len) => Ty::Buf(
 				len.map(|range| self.checked_range_within(&range, 0.0, u16::MAX as f64))

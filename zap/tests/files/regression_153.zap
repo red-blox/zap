@@ -1,5 +1,5 @@
 funct MultipleRets = {
     call: Async,
     args: boolean,
-    rets: (string, string, boolean)
+    rets: (string.binary, string.binary, boolean)
 }

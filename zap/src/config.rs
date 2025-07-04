@@ -280,7 +280,7 @@ impl Display for TyDecl<'_> {
 #[derive(Debug, Clone)]
 pub enum Ty<'src> {
 	Num(NumTy, Range),
-	Str(Range),
+	Str(bool, Range),
 	Buf(Range),
 	Vector(Box<Ty<'src>>, Box<Ty<'src>>, Option<Box<Ty<'src>>>),
 	Arr(Box<Ty<'src>>, Range),
@@ -331,8 +331,8 @@ impl<'src> Ty<'src> {
 		match self {
 			Self::Num(numty, ..) => (numty.size(), Some(numty.size())),
 
-			Self::Str(len) => {
-				if let Some(exact) = len.exact() {
+			Self::Str(utf8, len) => {
+				if !utf8 && let Some(exact) = len.exact() {
 					(exact as usize, Some(exact as usize))
 				} else {
 					let (len_numty, ..) = len.numty();
@@ -658,6 +658,13 @@ impl Range {
 		};
 
 		(NumTy::from_f64(min, max), offset)
+	}
+
+	pub fn mul_max(mut self, rhs: f64) -> Self {
+		if let Some(max) = &mut self.max {
+			*max *= rhs;
+		}
+		self
 	}
 }
 

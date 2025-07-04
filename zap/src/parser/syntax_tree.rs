@@ -171,7 +171,7 @@ impl Spanned for Vec<SyntaxTy<'_>> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum SyntaxTyKind<'src> {
 	Num(NumTy, Option<SyntaxRange<'src>>),
-	Str(Option<SyntaxRange<'src>>),
+	Str(Option<bool>, Option<SyntaxRange<'src>>),
 	Buf(Option<SyntaxRange<'src>>),
 	Vector(Box<SyntaxTy<'src>>, Box<SyntaxTy<'src>>, Option<Box<SyntaxTy<'src>>>),
 	Arr(Box<SyntaxTy<'src>>, Option<SyntaxRange<'src>>),

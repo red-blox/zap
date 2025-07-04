@@ -108,7 +108,9 @@ TyKind: SyntaxTyKind<'input> = {
     "u16" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U16, r),
     "u32" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Num(NumTy::U32, r),
 
-    "string" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Str(r),
+    "string" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Str(None, r),
+    "string" "." "utf8" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Str(Some(true), r),
+    "string" "." "binary" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Str(Some(false), r),
     "buffer" <r:("(" <IntRange> ")")?> => SyntaxTyKind::Buf(r),
     "vector" => SyntaxTyKind::Vector(
         Box::new(SyntaxTy { start: 0, end: 0, kind: SyntaxTyKind::Num(NumTy::F32, None)}),
@@ -245,6 +247,8 @@ Identifier: SyntaxIdentifier<'input> = {
     <start:@L> "set" <end:@R> => SyntaxIdentifier { start, name: "set", end },
     <start:@L> "true" <end:@R> => SyntaxIdentifier { start, name: "true", end },
     <start:@L> "false" <end:@R> => SyntaxIdentifier { start, name: "false", end },
+    <start:@L> "utf8" <end:@R> => SyntaxIdentifier { start, name: "utf8", end },
+    <start:@L> "binary" <end:@R> => SyntaxIdentifier { start, name: "binary", end },
 }
 
 KeyIdentifier: SyntaxIdentifier<'input> = {

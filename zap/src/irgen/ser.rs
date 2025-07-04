@@ -311,8 +311,8 @@ impl Ser<'_> {
 				self.push_writenumty(from_expr, *numty)
 			}
 
-			Ty::Str(range) => {
-				if let Some(len) = range.exact() {
+			Ty::Str(utf8, range) => {
+				if !utf8 && let Some(len) = range.exact() {
 					if self.checks {
 						self.push_assert(
 							from_expr.clone().len().eq(len.into()),
@@ -329,6 +329,9 @@ impl Ser<'_> {
 
 					if self.checks {
 						self.push_range_check(len_expr.clone(), *range);
+						if *utf8 {
+							self.push_utf8_check(from_expr.clone());
+						}
 					}
 
 					let mut offset_len_expr = len_expr.clone();

@@ -255,6 +255,15 @@ pub trait Gen {
 		}
 	}
 
+	fn push_utf8_check(&mut self, expr: Expr) {
+		self.push_assert(
+			Var::NameIndex(Var::Name("utf8".into()).into(), "len".to_string())
+				.call(vec![expr])
+				.neq(Expr::Nil),
+			"value is not valid utf-8".into(),
+		);
+	}
+
 	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize>;
 	fn add_occurrence(&mut self, name: &str) -> (String, Expr) {
 		match self.get_var_occurrences().get(name) {

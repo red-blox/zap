@@ -3,7 +3,7 @@ event MyEvent = {
     type: Reliable,
     call: ManyAsync,
     data: struct {
-        foo: string,
+        foo: string.binary,
         bar: u8,
     }
 }
