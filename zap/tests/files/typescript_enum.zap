@@ -6,5 +6,5 @@ event Event = {
     from: Client,
     type: Reliable,
     call: SingleSync,
-    data: (Test, (Test | string))
+    data: (Test, (Test | string.binary))
 }

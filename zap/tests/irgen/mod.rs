@@ -481,7 +481,6 @@ async fn test_bitpacking() {
 	runtime.run("Zap", output).await.unwrap();
 }
 
-
 const VALID_UTF8_STR: &str = r#""abcdefg1234ąśłź𒂓""#;
 
 #[tokio::test]
