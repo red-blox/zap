@@ -1,6 +1,9 @@
 use crate::{
 	config::{Enum, NumTy, PrimitiveTy, Struct, Ty, TypeScriptEnumType},
-	irgen::{BitpackMask, OutputBuffer, Scope, VariantStorageKind},
+	irgen::{
+		BitpackMask, DynamicScope, OutputBuffer, Scopes, VariantStorageKind, readf32, readf64, readnumty, readstring,
+		readu8, readu16, readvector, readvector3,
+	},
 };
 use std::collections::HashMap;
 
@@ -10,26 +13,26 @@ struct Des<'src> {
 	checks: bool,
 	buf: OutputBuffer,
 	var_occurrences: &'src mut HashMap<String, usize>,
-	scopes: Vec<Scope>,
+	scopes: Scopes,
 	typescript_enum_type: TypeScriptEnumType,
 }
 
 impl Gen for Des<'_> {
-	fn push_stmt(&mut self, stmt: Stmt) {
-		self.buf.push(stmt);
+	fn buf(&self) -> &OutputBuffer {
+		&self.buf
 	}
 
 	fn generate<'a, 'src: 'a, I>(mut self, names: &[String], types: I) -> Vec<Stmt>
 	where
 		I: Iterator<Item = &'a Ty<'src>>,
 	{
-		self.new_scope();
+		self.new_dyn_scope();
 
 		for (ty, name) in types.zip(names) {
 			self.push_ty(ty, Var::Name(name.to_string()));
 		}
 
-		self.end_scope();
+		self.end_dyn_scope();
 
 		self.buf.output()
 	}
@@ -38,21 +41,23 @@ impl Gen for Des<'_> {
 		self.var_occurrences
 	}
 
-	fn new_scope(&mut self) {
+	fn scopes(&mut self) -> &mut Scopes {
+		&mut self.scopes
+	}
+}
+
+impl Des<'_> {
+	fn new_dyn_scope(&mut self) {
 		let scope_buf = OutputBuffer::new();
 		self.buf.push(scope_buf.clone());
-		self.scopes.push(Scope {
+		self.scopes.dynamic.push(DynamicScope {
 			bitpack_budget: vec![],
 			buf: scope_buf,
 		});
 	}
 
-	fn current_scope(&mut self) -> &mut Scope {
-		self.scopes.last_mut().unwrap()
-	}
-
-	fn end_scope(&mut self) {
-		let scope = self.scopes.pop().unwrap();
+	fn end_dyn_scope(&mut self) {
+		let scope = self.scopes.dynamic.pop().unwrap();
 
 		for (shift, name) in scope.bitpack_budget {
 			let numty = NumTy::from_f64(0.0, ((1u64 << (shift + 1)) - 1) as f64);
@@ -74,9 +79,7 @@ impl Gen for Des<'_> {
 			));
 		}
 	}
-}
 
-impl Des<'_> {
 	fn push_struct(&mut self, struct_ty: &Struct, into: Var) {
 		for (name, ty) in struct_ty.fields.iter() {
 			self.push_ty(ty, into.clone().eindex(Expr::Str((*name).into())))
@@ -87,31 +90,31 @@ impl Des<'_> {
 		match storage {
 			VariantStorageKind::Full(numty, amount) => {
 				let (variant_i, variant_expr) = self.add_occurrence("variant");
-				self.push_local(variant_i, Some(self.readnumty(numty)));
+				self.buf.push_local(variant_i, Some(readnumty(numty)));
 				for i in 0..amount {
 					let cond = variant_expr.clone().eq((i as f64).into());
 
-					self.push_stmt(if i == 0 { Stmt::If(cond) } else { Stmt::ElseIf(cond) });
+					self.buf.push(if i == 0 { Stmt::If(cond) } else { Stmt::ElseIf(cond) });
 					cb(self, i);
 				}
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 			}
 			VariantStorageKind::Bitpack(variants) => {
 				for (i, (bits, var)) in variants.into_iter().enumerate() {
 					let cond = self.check_bitfield(bits, var);
 
-					self.push_stmt(if i == 0 { Stmt::If(cond) } else { Stmt::ElseIf(cond) });
+					self.buf.push(if i == 0 { Stmt::If(cond) } else { Stmt::ElseIf(cond) });
 					cb(self, i);
 				}
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 			}
 			VariantStorageKind::Bit((bits, var)) => {
 				let cond = self.check_bitfield(bits, var);
-				self.push_stmt(Stmt::If(cond));
+				self.buf.push(Stmt::If(cond));
 				cb(self, 1);
-				self.push_stmt(Stmt::Else);
+				self.buf.push(Stmt::Else);
 				cb(self, 0);
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 			}
 			VariantStorageKind::None => {
 				cb(self, 0);
@@ -130,7 +133,7 @@ impl Des<'_> {
 						_ => Expr::StrOrBool(enumerators[i].to_string()),
 					};
 
-					this.push_assign(into.clone(), condition);
+					this.buf.push_assign(into.clone(), condition);
 				});
 			}
 
@@ -139,7 +142,7 @@ impl Des<'_> {
 
 				self.read_variant_storage(storage, |this, i| {
 					let (name, struct_ty) = &variants[i];
-					this.push_assign(
+					this.buf.push_assign(
 						into.clone(),
 						Expr::Table(Box::new(vec![(
 							Expr::Str(tag.to_string()),
@@ -167,7 +170,7 @@ impl Des<'_> {
 								_ => Expr::StrOrBool(variant.to_string()),
 							};
 
-							this.push_assign(into.clone(), condition);
+							this.buf.push_assign(into.clone(), condition);
 						}));
 					}
 				}
@@ -175,7 +178,7 @@ impl Des<'_> {
 					for (variant, data) in variants {
 						let into = into.clone();
 						ty_functions.push(Box::new(move |this| {
-							this.push_assign(
+							this.buf.push_assign(
 								into.clone(),
 								Expr::Table(Box::new(vec![(
 									Expr::Str(tag.to_string()),
@@ -202,7 +205,7 @@ impl Des<'_> {
 
 		if optional {
 			ty_functions.push(Box::new(|this| {
-				this.push_assign(into.clone(), Expr::Nil);
+				this.buf.push_assign(into.clone(), Expr::Nil);
 			}));
 		}
 
@@ -225,64 +228,64 @@ impl Des<'_> {
 
 		match ty {
 			Ty::Num(numty, range) => {
-				self.push_assign(into, self.readnumty(*numty));
+				self.buf.push_assign(into, readnumty(*numty));
 
 				if self.checks {
-					self.push_range_check(into_expr, *range);
+					self.buf.push_range_check(into_expr, *range);
 				}
 			}
 
 			Ty::Str(utf8, range) => {
 				if !utf8 && let Some(len) = range.exact() {
-					self.push_assign(into, self.readstring(len.into()));
+					self.buf.push_assign(into, readstring(len.into()));
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
-					let mut offset_len_expr = self.readnumty(len_numty);
+					let mut offset_len_expr = readnumty(len_numty);
 					if len_offset != 0.0 {
 						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
 					}
 
-					self.push_local(len_name.clone(), Some(offset_len_expr));
+					self.buf.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
-						self.push_range_check(len_expr.clone(), *range);
+						self.buf.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_assign(into.clone(), self.readstring(len_expr.clone()));
+					self.buf.push_assign(into.clone(), readstring(len_expr.clone()));
 
 					if *utf8 {
-						self.push_utf8_check(Expr::Var(into.into()));
+						self.buf.push_utf8_check(Expr::Var(into.into()));
 					}
 				}
 			}
 
 			Ty::Buf(range) => {
 				if let Some(len) = range.exact() {
-					self.push_read_copy(into, len.into());
+					self.buf.push_read_copy(into, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
-					let mut offset_len_expr = self.readnumty(len_numty);
+					let mut offset_len_expr = readnumty(len_numty);
 					if len_offset != 0.0 {
 						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
 					}
 
-					self.push_local(len_name.clone(), Some(offset_len_expr));
+					self.buf.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
-						self.push_range_check(len_expr.clone(), *range);
+						self.buf.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_read_copy(into, len_expr.clone())
+					self.buf.push_read_copy(into, len_expr.clone())
 				}
 			}
 
 			Ty::Arr(ty, range) => {
 				if let Some(len) = range.exact() {
-					self.push_assign(
+					self.buf.push_assign(
 						into.clone(),
 						Expr::Call(
 							Var::NameIndex(Var::Name("table".into()).into(), "create".into()).into(),
@@ -299,18 +302,18 @@ impl Des<'_> {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
-					let mut offset_len_expr = self.readnumty(len_numty);
+					let mut offset_len_expr = readnumty(len_numty);
 					if len_offset != 0.0 {
 						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
 					}
 
-					self.push_local(len_name.clone(), Some(offset_len_expr));
+					self.buf.push_local(len_name.clone(), Some(offset_len_expr));
 
 					if self.checks {
-						self.push_range_check(len_expr.clone(), *range);
+						self.buf.push_range_check(len_expr.clone(), *range);
 					}
 
-					self.push_assign(
+					self.buf.push_assign(
 						into.clone(),
 						Expr::Call(
 							Var::NameIndex(Var::Name("table".into()).into(), "create".into()).into(),
@@ -319,28 +322,28 @@ impl Des<'_> {
 						),
 					);
 
-					self.push_stmt(Stmt::NumFor {
+					self.buf.push(Stmt::NumFor {
 						var: var_name.clone(),
 						from: 1.0.into(),
 						to: len_expr.clone(),
 					});
 
-					self.new_scope();
+					self.new_dyn_scope();
 
 					let (inner_var_name, _) = self.add_occurrence("val");
 
-					self.push_local(inner_var_name.clone(), None);
+					self.buf.push_local(inner_var_name.clone(), None);
 
 					self.push_ty(ty, Var::Name(inner_var_name.clone()));
 
-					self.push_stmt(Stmt::Assign(
+					self.buf.push(Stmt::Assign(
 						into.clone().eindex(var_expr.clone()),
 						Var::Name(inner_var_name.clone()).into(),
 					));
 
-					self.end_scope();
+					self.end_dyn_scope();
 
-					self.push_stmt(Stmt::End);
+					self.buf.push(Stmt::End);
 				}
 			}
 
@@ -348,65 +351,66 @@ impl Des<'_> {
 				let (empty_bits, empty_var) = self.get_bitpack();
 				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
-				self.push_assign(into.clone(), Expr::Table(Default::default()));
+				self.buf.push_assign(into.clone(), Expr::Table(Default::default()));
 
 				let empty_expr = self.check_bitfield(empty_bits, empty_var);
-				self.push_stmt(Stmt::If(empty_expr.not()));
+				self.buf.push(Stmt::If(empty_expr.not()));
 
-				self.push_stmt(Stmt::NumFor {
+				self.buf.push(Stmt::NumFor {
 					var: "_".into(),
 					from: 1.0.into(),
-					to: self.readnumty(length_numty).add(1.0.into()),
+					to: readnumty(length_numty).add(1.0.into()),
 				});
 
-				self.new_scope();
+				self.new_dyn_scope();
 
 				let (key_name, key_expr) = self.add_occurrence("key");
-				self.push_local(key_name.clone(), None);
+				self.buf.push_local(key_name.clone(), None);
 				let (val_name, val_expr) = self.add_occurrence("val");
-				self.push_local(val_name.clone(), None);
+				self.buf.push_local(val_name.clone(), None);
 
 				self.push_ty(key, Var::Name(key_name.clone()));
 				self.push_ty(val, Var::Name(val_name.clone()));
 
-				self.push_assign(into.clone().eindex(key_expr.clone()), val_expr.clone());
+				self.buf
+					.push_assign(into.clone().eindex(key_expr.clone()), val_expr.clone());
 
-				self.end_scope();
+				self.end_dyn_scope();
 
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 			}
 
 			Ty::Set(key) => {
 				let (empty_bits, empty_var) = self.get_bitpack();
 				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
-				self.push_assign(into.clone(), Expr::Table(Default::default()));
+				self.buf.push_assign(into.clone(), Expr::Table(Default::default()));
 
 				let empty_expr = self.check_bitfield(empty_bits, empty_var);
-				self.push_stmt(Stmt::If(empty_expr.not()));
+				self.buf.push(Stmt::If(empty_expr.not()));
 
-				self.push_stmt(Stmt::NumFor {
+				self.buf.push(Stmt::NumFor {
 					var: "_".into(),
 					from: 1.0.into(),
-					to: self.readnumty(length_numty).add(1.0.into()),
+					to: readnumty(length_numty).add(1.0.into()),
 				});
 
-				self.new_scope();
+				self.new_dyn_scope();
 
 				let (key_name, key_expr) = self.add_occurrence("key");
-				self.push_local(key_name.clone(), None);
+				self.buf.push_local(key_name.clone(), None);
 
 				self.push_ty(key, Var::Name(key_name.clone()));
 
-				self.push_assign(into.clone().eindex(key_expr.clone()), Expr::True);
+				self.buf.push_assign(into.clone().eindex(key_expr.clone()), Expr::True);
 
-				self.end_scope();
+				self.end_dyn_scope();
 
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 			}
 
 			Ty::Opt(ty) => {
@@ -417,11 +421,12 @@ impl Des<'_> {
 				let (bits, var) = self.get_bitpack();
 				let expr = self.check_bitfield(bits, var);
 
-				self.push_stmt(Stmt::If(expr));
+				self.buf.push(Stmt::If(expr));
 
 				if let Ty::Instance(class) = **ty {
-					self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
-					self.push_assign(
+					self.buf
+						.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
+					self.buf.push_assign(
 						into.clone(),
 						Var::from("incoming_inst")
 							.eindex(Var::from("incoming_ipos").into())
@@ -429,7 +434,7 @@ impl Des<'_> {
 					);
 
 					if self.checks && class.is_some() {
-						self.push_assert(
+						self.buf.push_assert(
 							into_expr.clone().eq(Expr::Nil).or(Expr::Call(
 								Box::new(into.clone()),
 								Some("IsA".into()),
@@ -442,13 +447,13 @@ impl Des<'_> {
 					self.push_ty(ty, into.clone())
 				}
 
-				self.push_stmt(Stmt::Else);
-				self.push_assign(into, Expr::Nil);
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::Else);
+				self.buf.push_assign(into, Expr::Nil);
+				self.buf.push(Stmt::End);
 			}
 
 			Ty::Ref(name, ..) => {
-				self.push_assign(
+				self.buf.push_assign(
 					into,
 					Expr::Call(
 						Box::new(Var::from("types").nindex(format!("read_{name}"))),
@@ -461,15 +466,16 @@ impl Des<'_> {
 			Ty::Enum(enum_ty) => self.push_enum(enum_ty, into),
 
 			Ty::Struct(struct_ty) => {
-				self.push_assign(into.clone(), Expr::Table(Default::default()));
+				self.buf.push_assign(into.clone(), Expr::Table(Default::default()));
 				self.push_struct(struct_ty, into)
 			}
 
 			Ty::Or(tys, _) => self.push_or(into, tys, false),
 
 			Ty::Instance(class) => {
-				self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
-				self.push_assign(
+				self.buf
+					.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
+				self.buf.push_assign(
 					into.clone(),
 					Var::from("incoming_inst")
 						.eindex(Var::from("incoming_ipos").into())
@@ -478,10 +484,11 @@ impl Des<'_> {
 
 				// always assert non-optional instances as roblox
 				// will sometimes vaporize them
-				self.push_assert(into_expr.clone().neq(Expr::Nil), "received instance is nil!".into());
+				self.buf
+					.push_assert(into_expr.clone().neq(Expr::Nil), "received instance is nil!".into());
 
 				if self.checks && class.is_some() {
-					self.push_assert(
+					self.buf.push_assert(
 						Expr::Call(
 							Box::new(into),
 							Some("IsA".into()),
@@ -493,8 +500,9 @@ impl Des<'_> {
 			}
 
 			Ty::Unknown => {
-				self.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
-				self.push_assign(
+				self.buf
+					.push_assign(Var::from("incoming_ipos"), Expr::from("incoming_ipos").add(1.0.into()));
+				self.buf.push_assign(
 					into.clone(),
 					Var::from("incoming_inst")
 						.eindex(Var::from("incoming_ipos").into())
@@ -502,30 +510,26 @@ impl Des<'_> {
 				);
 			}
 
-			Ty::BrickColor => self.push_assign(
+			Ty::BrickColor => self.buf.push_assign(
 				into,
-				Expr::Call(
-					Box::new(Var::from("BrickColor").nindex("new")),
-					None,
-					vec![self.readu16()],
-				),
+				Expr::Call(Box::new(Var::from("BrickColor").nindex("new")), None, vec![readu16()]),
 			),
 
-			Ty::DateTimeMillis => self.push_assign(
+			Ty::DateTimeMillis => self.buf.push_assign(
 				into,
 				Expr::Call(
 					Box::new(Var::from("DateTime").nindex("fromUnixTimestampMillis")),
 					None,
-					vec![self.readf64()],
+					vec![readf64()],
 				),
 			),
 
-			Ty::DateTime => self.push_assign(
+			Ty::DateTime => self.buf.push_assign(
 				into,
 				Expr::Call(
 					Box::new(Var::from("DateTime").nindex("fromUnixTimestamp")),
 					None,
-					vec![self.readf64()],
+					vec![readf64()],
 				),
 			),
 
@@ -533,32 +537,28 @@ impl Des<'_> {
 				let (bits, var) = self.get_bitpack();
 				let expr = self.check_bitfield(bits, var);
 
-				self.push_assign(into, expr);
+				self.buf.push_assign(into, expr);
 			}
 
-			Ty::Color3 => self.push_assign(
+			Ty::Color3 => self.buf.push_assign(
 				into,
-				Expr::Color3(
-					Box::new(self.readu8()),
-					Box::new(self.readu8()),
-					Box::new(self.readu8()),
-				),
+				Expr::Color3(Box::new(readu8()), Box::new(readu8()), Box::new(readu8())),
 			),
 
-			Ty::Vector2 => self.push_assign(
+			Ty::Vector2 => self.buf.push_assign(
 				into,
 				Expr::Call(
 					Box::new(Var::from("Vector3").nindex("new")),
 					None,
-					vec![self.readf32(), self.readf32(), "0".into()],
+					vec![readf32(), readf32(), "0".into()],
 				),
 			),
-			Ty::Vector3 => self.push_assign(into, self.readvector3()),
+			Ty::Vector3 => self.buf.push_assign(into, readvector3()),
 			Ty::Vector(x_ty, y_ty, z_ty) => {
 				let x_numty = match **x_ty {
 					Ty::Num(numty, range) => {
 						if self.checks {
-							self.push_range_check(into_expr.clone(), range);
+							self.buf.push_range_check(into_expr.clone(), range);
 						}
 
 						numty
@@ -568,7 +568,7 @@ impl Des<'_> {
 				let y_numty = match **y_ty {
 					Ty::Num(numty, range) => {
 						if self.checks {
-							self.push_range_check(into_expr.clone(), range);
+							self.buf.push_range_check(into_expr.clone(), range);
 						}
 
 						numty
@@ -579,7 +579,7 @@ impl Des<'_> {
 					match **z_ty {
 						Ty::Num(numty, range) => {
 							if self.checks {
-								self.push_range_check(into_expr.clone(), range);
+								self.buf.push_range_check(into_expr.clone(), range);
 							}
 
 							Some(numty)
@@ -590,19 +590,19 @@ impl Des<'_> {
 					None
 				};
 
-				self.push_assign(into, self.readvector(x_numty, y_numty, z_numty));
+				self.buf.push_assign(into, readvector(x_numty, y_numty, z_numty));
 			}
 
 			Ty::AlignedCFrame => {
 				let (axis_alignment_name, axis_alignment_expr) = self.add_occurrence("axis_alignment");
 
-				self.push_local(axis_alignment_name, Some(self.readu8()));
+				self.buf.push_local(axis_alignment_name, Some(readu8()));
 
 				let (pos_name, pos_expr) = self.add_occurrence("pos");
 
-				self.push_local(pos_name.clone(), Some(self.readvector3()));
+				self.buf.push_local(pos_name.clone(), Some(readvector3()));
 
-				self.push_assign(
+				self.buf.push_assign(
 					into,
 					Expr::Mul(
 						Box::new(Expr::Call(
@@ -620,11 +620,11 @@ impl Des<'_> {
 			}
 			Ty::CFrame => {
 				let (pos_name, pos_expr) = self.add_occurrence("pos");
-				self.push_local(pos_name.clone(), Some(self.readvector3()));
+				self.buf.push_local(pos_name.clone(), Some(readvector3()));
 				let (axisangle_name, axisangle_expr) = self.add_occurrence("axisangle");
-				self.push_local(axisangle_name.clone(), Some(self.readvector3()));
+				self.buf.push_local(axisangle_name.clone(), Some(readvector3()));
 				let (angle_name, angle_expr) = self.add_occurrence("angle");
-				self.push_local(
+				self.buf.push_local(
 					angle_name,
 					Some(Var::from(axisangle_name.as_str()).nindex("Magnitude").into()),
 				);
@@ -640,8 +640,9 @@ impl Des<'_> {
 				//		value = CFrame.new(pos)
 				// end
 
-				self.push_stmt(Stmt::If(Expr::Neq(Box::new(angle_expr.clone()), Box::new("0".into()))));
-				self.push_assign(
+				self.buf
+					.push(Stmt::If(Expr::Neq(Box::new(angle_expr.clone()), Box::new("0".into()))));
+				self.buf.push_assign(
 					into.clone(),
 					Expr::Add(
 						Box::new(Expr::Call(
@@ -652,8 +653,8 @@ impl Des<'_> {
 						Box::new(pos_expr.clone()),
 					),
 				);
-				self.push_stmt(Stmt::Else);
-				self.push_assign(
+				self.buf.push(Stmt::Else);
+				self.buf.push_assign(
 					into,
 					Expr::Call(
 						Box::new(Var::from("CFrame").nindex("new")),
@@ -661,7 +662,7 @@ impl Des<'_> {
 						vec![pos_expr.clone()],
 					),
 				);
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 			}
 		}
 	}
@@ -681,7 +682,7 @@ where
 		checks,
 		buf: OutputBuffer::new(),
 		var_occurrences,
-		scopes: vec![],
+		scopes: Default::default(),
 		typescript_enum_type,
 	}
 	.generate(names, types.into_iter())

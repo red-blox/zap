@@ -1,35 +1,38 @@
 use crate::{
 	config::{Enum, NumTy, PrimitiveTy, Struct, Ty, TypeScriptEnumType},
-	irgen::{BitpackMask, OutputBuffer, Scope, VariantStorageKind},
+	irgen::{AllocScope, BitpackMask, DynamicScope, OutputBuffer, Scopes, VariantStorageKind, alloc},
 };
 use std::collections::HashMap;
 
-use super::{Expr, Gen, Stmt, Var};
+use super::{Expr, Gen, GenNumExt, Stmt, Var};
 
 struct Ser<'src> {
 	checks: bool,
 	buf: OutputBuffer,
 	var_occurrences: &'src mut HashMap<String, usize>,
-	scopes: Vec<Scope>,
+	scopes: Scopes,
 	typescript_enum_type: TypeScriptEnumType,
 }
 
 impl Gen for Ser<'_> {
-	fn push_stmt(&mut self, stmt: Stmt) {
-		self.buf.push(stmt);
+	fn buf(&self) -> &OutputBuffer {
+		&self.buf
 	}
 
 	fn generate<'a, 'src: 'a, I>(mut self, names: &[String], types: I) -> Vec<Stmt>
 	where
 		I: Iterator<Item = &'a Ty<'src>>,
 	{
-		self.new_scope();
+		self.new_alloc_scope();
+		self.new_dyn_scope();
 
 		for (ty, name) in types.zip(names) {
 			self.push_ty(ty, Var::Name(name.to_string()));
 		}
 
-		self.end_scope();
+		self.end_dyn_scope();
+		let scope = self.end_alloc_scope();
+		scope.buf.push_alloc((scope.size as f64).into());
 
 		self.buf.output()
 	}
@@ -38,49 +41,42 @@ impl Gen for Ser<'_> {
 		self.var_occurrences
 	}
 
-	fn new_scope(&mut self) {
+	fn scopes(&mut self) -> &mut Scopes {
+		&mut self.scopes
+	}
+}
+
+impl Ser<'_> {
+	fn new_alloc_scope(&mut self) {
 		let scope_buf = OutputBuffer::new();
 		self.buf.push(scope_buf.clone());
-		self.scopes.push(Scope {
+		self.scopes.alloc.push(AllocScope::new(scope_buf));
+	}
+
+	fn end_alloc_scope(&mut self) -> AllocScope {
+		self.scopes.alloc.pop().unwrap()
+	}
+
+	fn new_dyn_scope(&mut self) {
+		let scope_buf = OutputBuffer::new();
+		self.buf.push(scope_buf.clone());
+		self.scopes.dynamic.push(DynamicScope {
 			bitpack_budget: vec![],
 			buf: scope_buf,
 		});
 	}
 
-	fn current_scope(&mut self) -> &mut Scope {
-		self.scopes.last_mut().unwrap()
-	}
-
-	fn end_scope(&mut self) {
-		let scope = self.scopes.pop().unwrap();
+	fn end_dyn_scope(&mut self) {
+		let scope = self.scopes.dynamic.pop().unwrap();
 
 		for (shift, name) in scope.bitpack_budget {
-			let (pos_name, pos_expr) = self.add_occurrence(&format!("{name}_pos"));
 			let numty = NumTy::from_f64(0.0, ((1u64 << (shift + 1)) - 1) as f64);
 
 			scope.buf.push(Stmt::Local(name.clone(), Some(Expr::Num(0.0))));
-			scope.buf.push(Stmt::Local(
-				pos_name,
-				Some(Expr::Call(
-					Var::Name("alloc".into()).into(),
-					None,
-					vec![Expr::Num(numty.size() as f64)],
-				)),
-			));
-			self.buf.push(Stmt::Call(
-				Var::NameIndex(Var::Name("buffer".into()).into(), format!("write{numty}")),
-				None,
-				vec![
-					Expr::Var(Var::Name("outgoing_buff".into()).into()),
-					pos_expr,
-					Expr::Var(Var::Name(name).into()),
-				],
-			));
+			self.push_writenumty(Var::Name(name).into(), numty);
 		}
 	}
-}
 
-impl Ser<'_> {
 	fn push_struct(&mut self, struct_ty: &Struct, from: Var) {
 		for (name, ty) in struct_ty.fields.iter() {
 			self.push_ty(ty, from.clone().eindex(Expr::Str((*name).into())));
@@ -101,7 +97,7 @@ impl Ser<'_> {
 					self.set_bitfield(*bits, var.clone());
 				} else {
 					// make selene happy
-					self.push_stmt(Stmt::Local("_".into(), None));
+					self.buf.push(Stmt::Local("_".into(), None));
 				}
 			}
 			VariantStorageKind::None => {}
@@ -121,17 +117,17 @@ impl Ser<'_> {
 					};
 
 					if i == 0 {
-						self.push_stmt(Stmt::If(from_expr.clone().eq(condition)));
+						self.buf.push(Stmt::If(from_expr.clone().eq(condition)));
 					} else {
-						self.push_stmt(Stmt::ElseIf(from_expr.clone().eq(condition)));
+						self.buf.push(Stmt::ElseIf(from_expr.clone().eq(condition)));
 					}
 
 					self.push_variant_storage(&storage, i);
 				}
 
-				self.push_stmt(Stmt::Else);
-				self.push_stmt(Stmt::Error("Invalid enumerator".into()));
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::Else);
+				self.buf.push(Stmt::Error("Invalid enumerator".into()));
+				self.buf.push(Stmt::End);
 			}
 
 			Enum::Tagged { tag, variants } => {
@@ -140,9 +136,10 @@ impl Ser<'_> {
 
 				for (i, variant) in variants.iter().enumerate() {
 					if i == 0 {
-						self.push_stmt(Stmt::If(tag_expr.clone().eq(Expr::StrOrBool(variant.0.to_string()))));
+						self.buf
+							.push(Stmt::If(tag_expr.clone().eq(Expr::StrOrBool(variant.0.to_string()))));
 					} else {
-						self.push_stmt(Stmt::ElseIf(
+						self.buf.push(Stmt::ElseIf(
 							tag_expr.clone().eq(Expr::StrOrBool(variant.0.to_string())),
 						));
 					}
@@ -151,9 +148,9 @@ impl Ser<'_> {
 					self.push_struct(&variant.1, from.clone());
 				}
 
-				self.push_stmt(Stmt::Else);
-				self.push_stmt(Stmt::Error("Invalid variant".into()));
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::Else);
+				self.buf.push(Stmt::Error("Invalid variant".into()));
+				self.buf.push(Stmt::End);
 			}
 		}
 	}
@@ -161,7 +158,7 @@ impl Ser<'_> {
 	fn push_or(&mut self, from: Var, tys: &Vec<Ty<'_>>, optional: bool) {
 		let (from_ty_name, from_ty_expr) = self.add_occurrence("ty_name");
 
-		self.push_local(
+		self.buf.push_local(
 			from_ty_name,
 			Some(Expr::Call(
 				Box::new(Var::from("typeof")),
@@ -195,10 +192,10 @@ impl Ser<'_> {
 					let condition = from_ty_expr.clone().eq(Expr::Str(name.to_string()));
 
 					if initial_if {
-						self.push_stmt(Stmt::If(condition));
+						self.buf.push(Stmt::If(condition));
 						initial_if = false;
 					} else {
-						self.push_stmt(Stmt::ElseIf(condition));
+						self.buf.push(Stmt::ElseIf(condition));
 					}
 
 					self.push_variant_storage(&storage, i);
@@ -217,10 +214,10 @@ impl Ser<'_> {
 					}
 
 					if initial_if {
-						self.push_stmt(Stmt::If(condition));
+						self.buf.push(Stmt::If(condition));
 						initial_if = false;
 					} else {
-						self.push_stmt(Stmt::ElseIf(condition));
+						self.buf.push(Stmt::ElseIf(condition));
 					}
 
 					self.push_variant_storage(&storage, i);
@@ -236,10 +233,10 @@ impl Ser<'_> {
 						});
 
 						if initial_if {
-							self.push_stmt(Stmt::If(condition));
+							self.buf.push(Stmt::If(condition));
 							initial_if = false;
 						} else {
-							self.push_stmt(Stmt::ElseIf(condition));
+							self.buf.push(Stmt::ElseIf(condition));
 						}
 
 						self.push_variant_storage(&storage, i + offset);
@@ -255,10 +252,10 @@ impl Ser<'_> {
 						);
 
 						if initial_if {
-							self.push_stmt(Stmt::If(condition));
+							self.buf.push(Stmt::If(condition));
 							initial_if = false;
 						} else {
-							self.push_stmt(Stmt::ElseIf(condition));
+							self.buf.push(Stmt::ElseIf(condition));
 						}
 
 						self.push_variant_storage(&storage, i + offset);
@@ -274,22 +271,22 @@ impl Ser<'_> {
 		}
 
 		if optional {
-			self.push_stmt(Stmt::ElseIf(Expr::from(from.clone()).eq(Expr::Nil)));
+			self.buf.push(Stmt::ElseIf(Expr::from(from.clone()).eq(Expr::Nil)));
 			self.push_variant_storage(&storage, i_offset);
 		}
 
-		self.push_stmt(Stmt::Else);
+		self.buf.push(Stmt::Else);
 		if let Some(unknown_i) = unknown_i {
 			self.push_variant_storage(&storage, unknown_i);
 			self.push_ty(&Ty::Unknown, from.clone());
 		} else {
-			self.push_stmt(Stmt::Error("Invalid type".into()));
+			self.buf.push(Stmt::Error("Invalid type".into()));
 		}
-		self.push_stmt(Stmt::End);
+		self.buf.push(Stmt::End);
 	}
 
 	fn set_bitfield(&mut self, bits: BitpackMask, var: Var) {
-		self.push_assign(
+		self.buf.push_assign(
 			var.clone(),
 			Expr::Call(
 				Var::NameIndex(Var::Name("bit32".into()).into(), "bor".into()).into(),
@@ -305,7 +302,7 @@ impl Ser<'_> {
 		match ty {
 			Ty::Num(numty, range) => {
 				if self.checks {
-					self.push_range_check(from_expr.clone(), *range);
+					self.buf.push_range_check(from_expr.clone(), *range);
 				}
 
 				self.push_writenumty(from_expr, *numty)
@@ -314,23 +311,23 @@ impl Ser<'_> {
 			Ty::Str(utf8, range) => {
 				if !utf8 && let Some(len) = range.exact() {
 					if self.checks {
-						self.push_assert(
+						self.buf.push_assert(
 							from_expr.clone().len().eq(len.into()),
 							format!("length is not equal to {len}!"),
 						);
 					}
 
-					self.push_writestring(from_expr, len.into());
+					self.push_writestring(from_expr, range, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
-					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
+					self.buf.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
 					if self.checks {
-						self.push_range_check(len_expr.clone(), *range);
+						self.buf.push_range_check(len_expr.clone(), *range);
 						if *utf8 {
-							self.push_utf8_check(from_expr.clone());
+							self.buf.push_utf8_check(from_expr.clone());
 						}
 					}
 
@@ -340,14 +337,14 @@ impl Ser<'_> {
 					}
 
 					self.push_writenumty(offset_len_expr, len_numty);
-					self.push_writestring(from_expr, len_expr.clone());
+					self.push_writestring(from_expr, range, len_expr.clone());
 				}
 			}
 
 			Ty::Buf(range) => {
 				if let Some(len) = range.exact() {
 					if self.checks {
-						self.push_assert(
+						self.buf.push_assert(
 							Var::from("buffer")
 								.nindex("len")
 								.call(vec![from_expr.clone()])
@@ -356,18 +353,18 @@ impl Ser<'_> {
 						);
 					}
 
-					self.push_write_copy(from_expr, len.into());
+					self.push_write_copy(from_expr, range, len.into());
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
-					self.push_local(
+					self.buf.push_local(
 						len_name.clone(),
 						Some(Var::from("buffer").nindex("len").call(vec![from_expr.clone()])),
 					);
 
 					if self.checks {
-						self.push_range_check(len_expr.clone(), *range);
+						self.buf.push_range_check(len_expr.clone(), *range);
 					}
 
 					let mut offset_len_expr = len_expr.clone();
@@ -376,14 +373,14 @@ impl Ser<'_> {
 					}
 
 					self.push_writenumty(offset_len_expr, len_numty);
-					self.push_write_copy(from_expr, len_name.as_str().into())
+					self.push_write_copy(from_expr, range, len_name.as_str().into())
 				}
 			}
 
 			Ty::Arr(ty, range) => {
 				if let Some(len) = range.exact() {
 					if self.checks {
-						self.push_assert(
+						self.buf.push_assert(
 							from_expr.clone().len().eq(len.into()),
 							format!("length is not equal to {len}!"),
 						);
@@ -397,10 +394,10 @@ impl Ser<'_> {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
-					self.push_local(len_name.clone(), Some(from_expr.clone().len()));
+					self.buf.push_local(len_name.clone(), Some(from_expr.clone().len()));
 
 					if self.checks {
-						self.push_range_check(len_expr.clone(), *range);
+						self.buf.push_range_check(len_expr.clone(), *range);
 					}
 
 					let mut offset_len_expr = len_expr.clone();
@@ -410,26 +407,26 @@ impl Ser<'_> {
 
 					self.push_writenumty(offset_len_expr, len_numty);
 
-					self.push_stmt(Stmt::NumFor {
+					self.buf.push(Stmt::NumFor {
 						var: var_name.clone(),
 						from: 1.0.into(),
 						to: len_expr.clone(),
 					});
 
-					self.new_scope();
+					self.new_dyn_scope();
 
 					let (inner_var_name, _) = self.add_occurrence("val");
 
-					self.push_stmt(Stmt::Local(
+					self.buf.push(Stmt::Local(
 						inner_var_name.clone(),
 						Some(from.clone().eindex(var_expr.clone()).into()),
 					));
 
 					self.push_ty(ty, Var::Name(inner_var_name));
 
-					self.end_scope();
+					self.end_dyn_scope();
 
-					self.push_stmt(Stmt::End);
+					self.buf.push(Stmt::End);
 				}
 			}
 
@@ -440,41 +437,45 @@ impl Ser<'_> {
 
 				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
-				self.push_local(len_pos_name.clone(), None);
-				self.push_local(len_name.clone(), Some(0.0.into()));
+				self.buf.push_local(len_pos_name.clone(), None);
+				self.buf.push_local(len_name.clone(), Some(0.0.into()));
 
 				let (key_name, _) = self.add_occurrence("k");
 				let (val_name, _) = self.add_occurrence("v");
 
-				self.push_stmt(Stmt::GenFor {
+				self.buf.push(Stmt::GenFor {
 					key: key_name.clone(),
 					val: val_name.clone(),
 					obj: from_expr,
 				});
 
-				self.push_stmt(Stmt::If(len_expr.clone().eq(0.0.into())));
+				self.buf.push(Stmt::If(len_expr.clone().eq(0.0.into())));
 
-				self.push_assign(
+				self.buf.push_assign(
 					Var::Name(len_pos_name.clone()),
 					Var::from("alloc").call(vec![(length_numty.size() as f64).into()]),
 				);
 
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 
-				self.new_scope();
+				self.new_alloc_scope();
+				self.new_dyn_scope();
 
-				self.push_assign(Var::Name(len_name.clone()), len_expr.clone().add(1.0.into()));
+				self.buf
+					.push_assign(Var::Name(len_name.clone()), len_expr.clone().add(1.0.into()));
 
 				self.push_ty(key, key_name.as_str().into());
 				self.push_ty(val, val_name.as_str().into());
 
-				self.end_scope();
+				self.end_dyn_scope();
+				let alloc = self.end_alloc_scope();
+				alloc.buf.push_alloc((alloc.size as f64).into());
 
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 
-				self.push_stmt(Stmt::If(len_pos_expr.clone()));
+				self.buf.push(Stmt::If(len_pos_expr.clone()));
 
-				self.push_stmt(Stmt::Call(
+				self.buf.push(Stmt::Call(
 					Var::from("buffer").nindex(format!("write{length_numty}")),
 					None,
 					vec![
@@ -484,11 +485,11 @@ impl Ser<'_> {
 					],
 				));
 
-				self.push_stmt(Stmt::Else);
+				self.buf.push(Stmt::Else);
 
 				self.set_bitfield(empty_bits, empty_var);
 
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 			}
 
 			Ty::Set(key) => {
@@ -498,39 +499,43 @@ impl Ser<'_> {
 
 				let length_numty = key.variants().map(|(numty, ..)| numty).unwrap_or(NumTy::U16);
 
-				self.push_local(len_pos_name.clone(), None);
-				self.push_local(len_name.clone(), Some(0.0.into()));
+				self.buf.push_local(len_pos_name.clone(), None);
+				self.buf.push_local(len_name.clone(), Some(0.0.into()));
 
 				let (key_name, _) = self.add_occurrence("k");
 				let (val_name, _) = self.add_occurrence("_");
 
-				self.push_stmt(Stmt::GenFor {
+				self.buf.push(Stmt::GenFor {
 					key: key_name.clone(),
 					val: val_name.clone(),
 					obj: from_expr,
 				});
 
-				self.push_stmt(Stmt::If(len_expr.clone().eq(0.0.into())));
+				self.new_alloc_scope();
+				self.new_dyn_scope();
 
-				self.push_assign(
-					Var::Name(len_pos_name.clone()),
-					Var::from("alloc").call(vec![(length_numty.size() as f64).into()]),
-				);
+				self.buf.push(Stmt::If(len_expr.clone().eq(0.0.into())));
 
-				self.push_stmt(Stmt::End);
+				let size = length_numty.size();
+				self.scopes.alloc().max.add(size);
+				self.buf
+					.push_assign(Var::Name(len_pos_name.clone()), alloc((size as f64).into()));
 
-				self.new_scope();
+				self.buf.push(Stmt::End);
 
-				self.push_assign(Var::Name(len_name.clone()), len_expr.clone().add(1.0.into()));
+				self.buf
+					.push_assign(Var::Name(len_name.clone()), len_expr.clone().add(1.0.into()));
 				self.push_ty(key, key_name.as_str().into());
 
-				self.end_scope();
+				self.end_dyn_scope();
+				let alloc = self.end_alloc_scope();
+				alloc.buf.push_alloc((alloc.size as f64).into());
 
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 
-				self.push_stmt(Stmt::If(len_pos_expr.clone()));
+				self.buf.push(Stmt::If(len_pos_expr.clone()));
 
-				self.push_stmt(Stmt::Call(
+				self.buf.push(Stmt::Call(
 					Var::from("buffer").nindex(format!("write{length_numty}")),
 					None,
 					vec![
@@ -540,11 +545,11 @@ impl Ser<'_> {
 					],
 				));
 
-				self.push_stmt(Stmt::Else);
+				self.buf.push(Stmt::Else);
 
 				self.set_bitfield(empty_bits, empty_var);
 
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 			}
 
 			Ty::Opt(ty) => {
@@ -552,14 +557,14 @@ impl Ser<'_> {
 					return self.push_or(from, tys, true);
 				}
 
-				self.push_stmt(Stmt::If(from_expr.clone().neq(Expr::Nil)));
+				self.buf.push(Stmt::If(from_expr.clone().neq(Expr::Nil)));
 				let (bits, var) = self.get_bitpack();
 				self.set_bitfield(bits, var);
 				self.push_ty(ty, from);
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 			}
 
-			Ty::Ref(name, ..) => self.push_stmt(Stmt::Call(
+			Ty::Ref(name, ..) => self.buf.push(Stmt::Call(
 				Var::from("types").nindex(format!("write_{name}")),
 				None,
 				vec![from_expr],
@@ -572,7 +577,7 @@ impl Ser<'_> {
 
 			Ty::Instance(class) => {
 				if self.checks && class.is_some() {
-					self.push_assert(
+					self.buf.push_assert(
 						Expr::Call(
 							Box::new(from),
 							Some("IsA".into()),
@@ -582,14 +587,14 @@ impl Ser<'_> {
 					);
 				}
 
-				self.push_stmt(Stmt::Call(
+				self.buf.push(Stmt::Call(
 					Var::from("table").nindex("insert"),
 					None,
 					vec!["outgoing_inst".into(), from_expr],
 				))
 			}
 
-			Ty::Unknown => self.push_stmt(Stmt::Call(
+			Ty::Unknown => self.buf.push(Stmt::Call(
 				Var::from("table").nindex("insert"),
 				None,
 				vec!["outgoing_inst".into(), from_expr],
@@ -628,7 +633,7 @@ impl Ser<'_> {
 				match **x_ty {
 					Ty::Num(numty, range) => {
 						if self.checks {
-							self.push_range_check(from_expr.clone(), range);
+							self.buf.push_range_check(from_expr.clone(), range);
 						}
 
 						self.push_writenumty(from.clone().nindex("x").into(), numty)
@@ -639,7 +644,7 @@ impl Ser<'_> {
 				match **y_ty {
 					Ty::Num(numty, range) => {
 						if self.checks {
-							self.push_range_check(from_expr.clone(), range);
+							self.buf.push_range_check(from_expr.clone(), range);
 						}
 
 						self.push_writenumty(from.clone().nindex("y").into(), numty)
@@ -651,7 +656,7 @@ impl Ser<'_> {
 					match **z_ty {
 						Ty::Num(numty, range) => {
 							if self.checks {
-								self.push_range_check(from_expr.clone(), range);
+								self.buf.push_range_check(from_expr.clone(), range);
 							}
 
 							self.push_writenumty(from.clone().nindex("z").into(), numty)
@@ -664,7 +669,7 @@ impl Ser<'_> {
 			Ty::AlignedCFrame => {
 				let (axis_alignment_name, axis_alignment_expr) = self.add_occurrence("axis_alignment");
 
-				self.push_local(
+				self.buf.push_local(
 					axis_alignment_name.clone(),
 					Some(Expr::Call(
 						Box::new(Var::from("table").nindex("find")),
@@ -673,7 +678,8 @@ impl Ser<'_> {
 					)),
 				);
 
-				self.push_assert(axis_alignment_expr.clone(), "CFrame not aligned to an axis!".into());
+				self.buf
+					.push_assert(axis_alignment_expr.clone(), "CFrame not aligned to an axis!".into());
 
 				self.push_writeu8(axis_alignment_expr.clone());
 
@@ -684,14 +690,14 @@ impl Ser<'_> {
 				// local axis, angle = Value:ToAxisAngle()
 				let (axis_name, axis_expr) = self.add_occurrence("axis");
 				let (angle_name, angle_expr) = self.add_occurrence("angle");
-				self.push_stmt(Stmt::LocalTuple(
+				self.buf.push(Stmt::LocalTuple(
 					vec![axis_name.clone(), angle_name.clone()],
 					Some(Expr::Call(from.clone().into(), Some("ToAxisAngle".into()), vec![])),
 				));
 
 				// axis = axis * angle
 				// store the angle into the axis, as it is a unit vector, so the magnitude can be used to encode a number
-				self.push_stmt(Stmt::Assign(
+				self.buf.push(Stmt::Assign(
 					Var::Name(axis_name.clone()),
 					Expr::Mul(Box::new(axis_expr), Box::new(angle_expr)),
 				));
@@ -701,10 +707,10 @@ impl Ser<'_> {
 			}
 
 			Ty::Boolean => {
-				self.push_stmt(Stmt::If(from_expr));
+				self.buf.push(Stmt::If(from_expr));
 				let (bits, var) = self.get_bitpack();
 				self.set_bitfield(bits, var);
-				self.push_stmt(Stmt::End);
+				self.buf.push(Stmt::End);
 			}
 		}
 	}
@@ -724,7 +730,7 @@ where
 		checks,
 		buf: OutputBuffer::new(),
 		var_occurrences,
-		scopes: vec![],
+		scopes: Default::default(),
 		typescript_enum_type,
 	}
 	.generate(names, types.into_iter())

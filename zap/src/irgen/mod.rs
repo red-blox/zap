@@ -7,262 +7,10 @@ pub mod des;
 pub mod ser;
 
 pub trait Gen {
-	fn push_stmt(&mut self, stmt: Stmt);
+	fn buf(&self) -> &OutputBuffer;
 	fn generate<'a, 'src: 'a, I>(self, names: &[String], types: I) -> Vec<Stmt>
 	where
 		I: Iterator<Item = &'a Ty<'src>>;
-
-	fn push_local(&mut self, name: String, expr: Option<Expr>) {
-		self.push_stmt(Stmt::Local(name, expr))
-	}
-
-	fn push_assign(&mut self, var: Var, expr: Expr) {
-		self.push_stmt(Stmt::Assign(var, expr))
-	}
-
-	fn push_assert(&mut self, expr: Expr, msg: String) {
-		self.push_stmt(Stmt::Assert(expr, msg))
-	}
-
-	fn push_alloc(&mut self, expr: Expr) {
-		self.push_stmt(Stmt::Call(Var::from("alloc"), None, vec![expr]));
-	}
-
-	fn push_writef32(&mut self, expr: Expr) {
-		self.push_alloc(4.0.into());
-
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("writef32"),
-			None,
-			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
-		));
-	}
-
-	fn push_writef64(&mut self, expr: Expr) {
-		self.push_alloc(8.0.into());
-
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("writef64"),
-			None,
-			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
-		));
-	}
-
-	fn push_writeu8(&mut self, expr: Expr) {
-		self.push_alloc(1.0.into());
-
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("writeu8"),
-			None,
-			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
-		));
-	}
-
-	fn push_writeu16(&mut self, expr: Expr) {
-		self.push_alloc(2.0.into());
-
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("writeu16"),
-			None,
-			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
-		));
-	}
-
-	fn push_writeu32(&mut self, expr: Expr) {
-		self.push_alloc(4.0.into());
-
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("writeu32"),
-			None,
-			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
-		));
-	}
-
-	fn push_writei8(&mut self, expr: Expr) {
-		self.push_alloc(1.0.into());
-
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("writei8"),
-			None,
-			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
-		));
-	}
-
-	fn push_writei16(&mut self, expr: Expr) {
-		self.push_alloc(2.0.into());
-
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("writei16"),
-			None,
-			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
-		));
-	}
-
-	fn push_writei32(&mut self, expr: Expr) {
-		self.push_alloc(4.0.into());
-
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("writei32"),
-			None,
-			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr],
-		));
-	}
-
-	fn push_writenumty(&mut self, expr: Expr, numty: NumTy) {
-		match numty {
-			NumTy::F32 => self.push_writef32(expr),
-			NumTy::F64 => self.push_writef64(expr),
-			NumTy::U8 => self.push_writeu8(expr),
-			NumTy::U16 => self.push_writeu16(expr),
-			NumTy::U32 => self.push_writeu32(expr),
-			NumTy::I8 => self.push_writei8(expr),
-			NumTy::I16 => self.push_writei16(expr),
-			NumTy::I32 => self.push_writei32(expr),
-		}
-	}
-
-	fn push_writestring(&mut self, expr: Expr, count: Expr) {
-		self.push_alloc(count.clone());
-
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("writestring"),
-			None,
-			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr, count],
-		));
-	}
-
-	fn readf32(&self) -> Expr {
-		Var::from("buffer")
-			.nindex("readf32")
-			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![4.0.into()])])
-	}
-
-	fn readf64(&self) -> Expr {
-		Var::from("buffer")
-			.nindex("readf64")
-			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![8.0.into()])])
-	}
-
-	fn readu8(&self) -> Expr {
-		Var::from("buffer")
-			.nindex("readu8")
-			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![1.0.into()])])
-	}
-
-	fn readu16(&self) -> Expr {
-		Var::from("buffer")
-			.nindex("readu16")
-			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![2.0.into()])])
-	}
-
-	fn readu32(&self) -> Expr {
-		Var::from("buffer")
-			.nindex("readu32")
-			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![4.0.into()])])
-	}
-
-	fn readi8(&self) -> Expr {
-		Var::from("buffer")
-			.nindex("readi8")
-			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![1.0.into()])])
-	}
-
-	fn readi16(&self) -> Expr {
-		Var::from("buffer")
-			.nindex("readi16")
-			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![2.0.into()])])
-	}
-
-	fn readi32(&self) -> Expr {
-		Var::from("buffer")
-			.nindex("readi32")
-			.call(vec!["incoming_buff".into(), Var::from("read").call(vec![4.0.into()])])
-	}
-
-	fn readnumty(&self, numty: NumTy) -> Expr {
-		match numty {
-			NumTy::F32 => self.readf32(),
-			NumTy::F64 => self.readf64(),
-			NumTy::U8 => self.readu8(),
-			NumTy::U16 => self.readu16(),
-			NumTy::U32 => self.readu32(),
-			NumTy::I8 => self.readi8(),
-			NumTy::I16 => self.readi16(),
-			NumTy::I32 => self.readi32(),
-		}
-	}
-
-	fn readstring(&self, count: Expr) -> Expr {
-		Var::from("buffer").nindex("readstring").call(vec![
-			"incoming_buff".into(),
-			Var::from("read").call(vec![count.clone()]),
-			count,
-		])
-	}
-
-	fn readvector3(&self) -> Expr {
-		Expr::Vector3(
-			Box::new(self.readf32()),
-			Box::new(self.readf32()),
-			Box::new(self.readf32()),
-		)
-	}
-
-	fn readvector(&self, x_numty: NumTy, y_numty: NumTy, z_numty: Option<NumTy>) -> Expr {
-		Expr::Vector(
-			Box::new(self.readnumty(x_numty)),
-			Box::new(self.readnumty(y_numty)),
-			z_numty.map(|z_numty| Box::new(self.readnumty(z_numty))),
-		)
-	}
-
-	fn push_write_copy(&mut self, expr: Expr, count: Expr) {
-		self.push_alloc(count.clone());
-
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("copy"),
-			None,
-			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr, 0.0.into(), count],
-		));
-	}
-
-	fn push_read_copy(&mut self, into: Var, count: Expr) {
-		self.push_assign(
-			into.clone(),
-			Var::from("buffer").nindex("create").call(vec![count.clone()]),
-		);
-
-		self.push_stmt(Stmt::Call(
-			Var::from("buffer").nindex("copy"),
-			None,
-			vec![
-				into.into(),
-				0.0.into(),
-				"incoming_buff".into(),
-				Var::from("read").call(vec![count.clone()]),
-				count,
-			],
-		));
-	}
-
-	fn push_range_check(&mut self, expr: Expr, range: Range) {
-		if let Some(min) = range.min() {
-			self.push_assert(expr.clone().gte(min.into()), format!("value is less than {min}!"))
-		}
-
-		if let Some(max) = range.max() {
-			self.push_assert(expr.clone().lte(max.into()), format!("value is more than {max}!"))
-		}
-	}
-
-	fn push_utf8_check(&mut self, expr: Expr) {
-		self.push_assert(
-			Var::NameIndex(Var::Name("utf8".into()).into(), "len".to_string())
-				.call(vec![expr])
-				.neq(Expr::Nil),
-			"value is not valid utf-8".into(),
-		);
-	}
 
 	fn get_var_occurrences(&mut self) -> &mut HashMap<String, usize>;
 	fn add_occurrence(&mut self, name: &str) -> (String, Expr) {
@@ -281,23 +29,21 @@ pub trait Gen {
 		}
 	}
 
-	fn new_scope(&mut self);
-	fn current_scope(&mut self) -> &mut Scope;
-	fn end_scope(&mut self);
+	fn scopes(&mut self) -> &mut Scopes;
 
 	fn get_bitpack(&mut self) -> (BitpackMask, Var) {
-		let scope = self.current_scope();
-
-		let existing = scope
+		if let Some(existing) = self
+			.scopes()
+			.dynamic()
 			.bitpack_budget
 			.last_mut()
-			.filter(|(shift, _)| *shift < (BitpackMask::BITS as u8 - 1));
-		if let Some(existing) = existing {
+			.filter(|(shift, _)| *shift < (BitpackMask::BITS as u8 - 1))
+		{
 			existing.0 += 1;
 			(1 << existing.0, Var::Name(existing.1.clone()))
 		} else {
 			let (name, _) = self.add_occurrence("bool");
-			self.current_scope().bitpack_budget.push((0, name.clone()));
+			self.scopes().dynamic().bitpack_budget.push((0, name.clone()));
 			(1, Var::Name(name))
 		}
 	}
@@ -308,11 +54,23 @@ pub trait Gen {
 			// 0 is variant 1, 1 is variant 2
 		} else if amount == 2 {
 			VariantStorageKind::Bit(self.get_bitpack())
-		} else if self.current_scope().remaining_bitpack_budget() as usize >= amount {
+		} else if self.scopes().dynamic().remaining_bitpack_budget() as usize >= amount {
 			VariantStorageKind::Bitpack(iter::repeat_with(|| self.get_bitpack()).take(amount).collect())
 		} else {
 			VariantStorageKind::Full(NumTy::from_f64(0.0, amount as f64 - 1.0), amount)
 		}
+	}
+
+	fn push_writestring(&mut self, expr: Expr, range: &Range, count: Expr) {
+		self.buf().clone().push_writestring(self.scopes(), expr, range, count);
+	}
+
+	fn push_write_copy(&mut self, expr: Expr, range: &Range, count: Expr) {
+		self.buf().clone().push_write_copy(self.scopes(), expr, range, count);
+	}
+
+	fn alloc_dynamic(&mut self, range: &Range, count: Expr) -> Expr {
+		self.buf().clone().alloc_dynamic(self.scopes(), range, count)
 	}
 }
 
@@ -335,6 +93,10 @@ impl From<OutputBuffer> for OutputEntry {
 	fn from(value: OutputBuffer) -> Self {
 		OutputEntry(OutputEntryKind::Buffer(value))
 	}
+}
+
+pub fn alloc(expr: Expr) -> Expr {
+	Var::from("alloc").call(vec![expr])
 }
 
 #[derive(Debug, Default, Clone)]
@@ -361,22 +123,261 @@ impl OutputBuffer {
 
 		output
 	}
+
+	pub fn push_alloc(&self, expr: Expr) {
+		self.push(Stmt::Call(Var::from("alloc"), None, vec![expr]));
+	}
+
+	pub fn alloc_dynamic(&self, scopes: &mut Scopes, range: &Range, count: Expr) -> Expr {
+		let scope = scopes.alloc();
+
+		if let Some(exact) = range.exact() {
+			scope.size += exact as usize;
+		} else {
+			if let Some(min) = range.min() {
+				scope.size += min as usize;
+			}
+
+			if let Some(max) = range.max() {
+				scope.max.add(max as usize);
+			}
+		}
+
+		alloc(count)
+	}
+
+	pub fn push_local(&mut self, name: String, expr: Option<Expr>) {
+		self.push(Stmt::Local(name, expr))
+	}
+
+	pub fn push_assign(&mut self, var: Var, expr: Expr) {
+		self.push(Stmt::Assign(var, expr))
+	}
+
+	pub fn push_assert(&mut self, expr: Expr, msg: String) {
+		self.push(Stmt::Assert(expr, msg))
+	}
+
+	pub fn push_writestring(&mut self, scopes: &mut Scopes, expr: Expr, range: &Range, count: Expr) {
+		self.alloc_dynamic(scopes, range, count.clone());
+
+		self.push(Stmt::Call(
+			Var::from("buffer").nindex("writestring"),
+			None,
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr, count],
+		));
+	}
+
+	pub fn push_write_copy(&mut self, scopes: &mut Scopes, expr: Expr, range: &Range, count: Expr) {
+		self.alloc_dynamic(scopes, range, count.clone());
+
+		self.push(Stmt::Call(
+			Var::from("buffer").nindex("copy"),
+			None,
+			vec!["outgoing_buff".into(), "outgoing_apos".into(), expr, 0.0.into(), count],
+		));
+	}
+
+	pub fn push_read_copy(&mut self, into: Var, count: Expr) {
+		self.push_assign(
+			into.clone(),
+			Var::from("buffer").nindex("create").call(vec![count.clone()]),
+		);
+
+		self.push(Stmt::Call(
+			Var::from("buffer").nindex("copy"),
+			None,
+			vec![
+				into.into(),
+				0.0.into(),
+				"incoming_buff".into(),
+				Var::from("read").call(vec![count.clone()]),
+				count,
+			],
+		));
+	}
+
+	pub fn push_range_check(&mut self, expr: Expr, range: Range) {
+		if let Some(min) = range.min() {
+			self.push_assert(expr.clone().gte(min.into()), format!("value is less than {min}!"))
+		}
+
+		if let Some(max) = range.max() {
+			self.push_assert(expr.clone().lte(max.into()), format!("value is more than {max}!"))
+		}
+	}
+
+	pub fn push_utf8_check(&mut self, expr: Expr) {
+		self.push_assert(
+			Var::NameIndex(Var::Name("utf8".into()).into(), "len".to_string())
+				.call(vec![expr])
+				.neq(Expr::Nil),
+			"value is not valid utf-8".into(),
+		);
+	}
+}
+
+macro_rules! numbers {
+	($($ty:ident),+) => {
+		paste::paste! {
+			impl OutputBuffer {
+				$(
+					fn [<push_write $ty>](&mut self, scopes: &mut Scopes, expr: Expr) {
+						let offset = scopes.alloc().alloc(NumTy::[<$ty:upper>].size()) as f64;
+						self.push(Stmt::Call(
+							Var::from("buffer").nindex(concat!("write", stringify!($ty))),
+							None,
+							vec![
+								"outgoing_buff".into(),
+								Expr::Var(Var::Name("outgoing_apos".into()).into()).add(offset.into()),
+								expr,
+							],
+						));
+					}
+				)+
+
+				// fn push_writenumty(&mut self, scopes: &mut Scopes, expr: Expr, numty: NumTy) {
+				// 	match numty {
+				// 		$(
+				// 			NumTy::[<$ty:upper>] => self.[<push_write $ty>](scopes, expr)
+				// 		),+
+				// 	}
+				// }
+			}
+
+			$(
+				fn [<read $ty>]() -> Expr {
+					Var::from("buffer")
+						.nindex(concat!("read", stringify!($ty)))
+						.call(vec!["incoming_buff".into(), Var::from("read").call(vec![(NumTy::[<$ty:upper>].size() as f64).into()])])
+				}
+			)+
+
+			pub fn readnumty(numty: NumTy) -> Expr {
+				match numty {
+					$(
+						NumTy::[<$ty:upper>] => [<read $ty>]()
+					),+
+				}
+			}
+
+			pub trait GenNumExt: Gen {
+				$(
+					fn [<push_write $ty>](&mut self, expr: Expr) {
+						self.buf().clone().[<push_write $ty>](&mut self.scopes(), expr);
+					}
+				)+
+
+				fn push_writenumty(&mut self, expr: Expr, numty: NumTy) {
+					match numty {
+						$(
+							NumTy::[<$ty:upper>] => self.buf().clone().[<push_write $ty>](&mut self.scopes(), expr)
+						),+
+					}
+				}
+			}
+
+			impl<T: Gen> GenNumExt for T {}
+		}
+	};
+}
+
+numbers!(f32, f64, u8, u16, u32, i8, i16, i32);
+
+pub fn readstring(count: Expr) -> Expr {
+	Var::from("buffer").nindex("readstring").call(vec![
+		"incoming_buff".into(),
+		Var::from("read").call(vec![count.clone()]),
+		count,
+	])
+}
+
+pub fn readvector3() -> Expr {
+	Expr::Vector3(Box::new(readf32()), Box::new(readf32()), Box::new(readf32()))
+}
+
+pub fn readvector(x_numty: NumTy, y_numty: NumTy, z_numty: Option<NumTy>) -> Expr {
+	Expr::Vector(
+		Box::new(readnumty(x_numty)),
+		Box::new(readnumty(y_numty)),
+		z_numty.map(|z_numty| Box::new(readnumty(z_numty))),
+	)
 }
 
 pub type BitpackMask = u16;
 
 #[derive(Debug)]
-pub struct Scope {
+pub struct DynamicScope {
 	pub bitpack_budget: Vec<(u8, String)>,
 	pub buf: OutputBuffer,
 }
 
-impl Scope {
+impl DynamicScope {
 	pub fn remaining_bitpack_budget(&self) -> u8 {
 		self.bitpack_budget
 			.last()
 			.map(|(shift, _)| BitpackMask::BITS as u8 - (shift + 1))
 			.unwrap_or(BitpackMask::BITS as u8)
+	}
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum AllocMax {
+	Unbounded,
+	Unknown,
+	Max(usize),
+}
+
+impl AllocMax {
+	pub fn add(&mut self, max: usize) {
+		match self {
+			AllocMax::Unbounded => {}
+			AllocMax::Unknown => *self = AllocMax::Max(max),
+			AllocMax::Max(present) => *present += max,
+		}
+	}
+}
+
+#[derive(Debug)]
+#[must_use]
+pub struct AllocScope {
+	pub size: usize,
+	pub multiplier: usize,
+	pub max: AllocMax,
+	pub buf: OutputBuffer,
+}
+
+impl AllocScope {
+	pub fn new(buf: OutputBuffer) -> Self {
+		Self {
+			size: 0,
+			multiplier: 1,
+			max: AllocMax::Unknown,
+			buf,
+		}
+	}
+
+	#[must_use]
+	pub fn alloc(&mut self, size: usize) -> usize {
+		let offset = self.size;
+		self.size += size;
+		offset
+	}
+}
+
+#[derive(Debug, Default)]
+pub struct Scopes {
+	pub dynamic: Vec<DynamicScope>,
+	pub alloc: Vec<AllocScope>,
+}
+
+impl Scopes {
+	pub fn dynamic(&mut self) -> &mut DynamicScope {
+		self.dynamic.last_mut().unwrap()
+	}
+
+	pub fn alloc(&mut self) -> &mut AllocScope {
+		self.alloc.last_mut().unwrap()
 	}
 }
 
@@ -539,6 +540,10 @@ impl Expr {
 
 	pub fn sub(self, other: Self) -> Self {
 		Self::Sub(Box::new(self), Box::new(other))
+	}
+
+	pub fn mul(self, other: Self) -> Self {
+		Self::Mul(Box::new(self), Box::new(other))
 	}
 }
 

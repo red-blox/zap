@@ -4408,6 +4408,7 @@ dependencies = [
  "lalrpop-util",
  "lune",
  "num-traits",
+ "paste",
  "selene-lib",
  "serde_yml",
  "tokio",

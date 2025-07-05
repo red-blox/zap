@@ -8,7 +8,7 @@ use std::{
 
 use crate::config::{
 	Casing, Config, Enum, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, NonPrimitiveTy, NumTy, Parameter,
-	PrimitiveTy, Range, Struct, Ty, TyDecl, TypeScriptEnumType, UNRELIABLE_ORDER_NUMTY, YieldType,
+	PrimitiveTy, Range, Struct, Ty, TyDecl, TypeScriptEnumType, YieldType,
 };
 
 use super::{
@@ -595,39 +595,16 @@ impl<'src> Converter<'src> {
 				.collect::<Vec<_>>()
 		});
 
-		if data.is_some() && matches!(evty, EvType::Unreliable(_)) {
-			let start_size = match evty {
-				EvType::Unreliable(true) => UNRELIABLE_ORDER_NUMTY.size(),
-				_ => 0,
-			};
-			let mut min = start_size;
-			let mut max = Some(start_size);
+		// if let Some(data) = &data
+		// 	&& matches!(evty, EvType::Unreliable(_))
+		// {
+		// 	let start_size = match evty {
+		// 		EvType::Unreliable(true) => UNRELIABLE_ORDER_NUMTY.size(),
+		// 		_ => 0,
+		// 	};
 
-			for parameter in data.as_ref().unwrap() {
-				let (ty_min, ty_max) = parameter.ty.size(&mut HashSet::new());
-
-				min += ty_min;
-
-				if let (Some(ty_max), Some(max)) = (ty_max, max.as_mut()) {
-					*max += ty_max;
-				} else {
-					max = None;
-				}
-			}
-
-			if min > MAX_UNRELIABLE_SIZE {
-				self.report(Report::AnalyzeOversizeUnreliable {
-					ev_span: evdecl.span(),
-					ty_span: evdecl.data.as_ref().unwrap().span(),
-					size: min,
-				});
-			} else if max.is_none_or(|max| max >= MAX_UNRELIABLE_SIZE) {
-				self.report(Report::AnalyzePotentiallyOversizeUnreliable {
-					ev_span: evdecl.span(),
-					ty_span: evdecl.data.as_ref().unwrap().span(),
-				});
-			}
-		}
+		// 	crate::irgen::ser::generate(data.iter().map(|param| &param.ty), data.iter().map(|param| param.name))
+		// }
 
 		EvDecl {
 			name,
@@ -637,6 +614,7 @@ impl<'src> Converter<'src> {
 			data: data.unwrap_or_default(),
 			id,
 			path: self.path.clone(),
+			serde: None,
 		}
 	}
 
