@@ -320,22 +320,6 @@ pub enum PrimitiveTy<'src> {
 }
 
 impl<'src> Ty<'src> {
-	pub fn size_known(&self) -> bool {
-		match self {
-			Ty::Struct(data) => data.fields.iter().all(|(_, ty)| ty.size_known()),
-			Ty::Enum(Enum::Tagged { variants, .. }) => variants
-				.iter()
-				.flat_map(|(_, data)| data.fields.iter())
-				.all(|(_, ty)| ty.size_known()),
-			Ty::Or(tys, _) => tys.iter().all(|ty| ty.size_known()),
-			Ty::Opt(ty) => ty.size_known(),
-			// recursive
-			Ty::Ref(..) => false,
-			Ty::Map(..) | Ty::Set(..) => false,
-			_ => true,
-		}
-	}
-
 	pub fn variants(&self) -> Option<(NumTy, usize)> {
 		match self {
 			Ty::Enum(Enum::Unit(variants)) => Some(variants.len()),
