@@ -69,8 +69,8 @@ pub trait Gen {
 		self.buf().clone().push_write_copy(self.scopes(), expr, range, count);
 	}
 
-	fn alloc_dynamic(&mut self, range: &Range, count: Expr) -> Expr {
-		self.buf().clone().alloc_dynamic(self.scopes(), range, count)
+	fn alloc_dynamic(&mut self, range: &Range, count: Expr) {
+		self.buf().clone().alloc_dynamic(self.scopes(), range, count);
 	}
 }
 
@@ -128,7 +128,7 @@ impl OutputBuffer {
 		self.push(Stmt::Call(Var::from("alloc"), None, vec![expr]));
 	}
 
-	pub fn alloc_dynamic(&self, scopes: &mut Scopes, range: &Range, count: Expr) -> Expr {
+	pub fn alloc_dynamic(&self, scopes: &mut Scopes, range: &Range, mut count: Expr) {
 		let scope = scopes.alloc();
 
 		if let Some(exact) = range.exact() {
@@ -136,14 +136,15 @@ impl OutputBuffer {
 		} else {
 			if let Some(min) = range.min() {
 				scope.size += min as usize;
+				count = count.sub(min.into());
 			}
 
 			if let Some(max) = range.max() {
 				scope.max.add(max as usize);
 			}
-		}
 
-		alloc(count)
+			self.push_alloc(count);
+		}
 	}
 
 	pub fn push_local(&mut self, name: String, expr: Option<Expr>) {
@@ -223,13 +224,14 @@ macro_rules! numbers {
 			impl OutputBuffer {
 				$(
 					fn [<push_write $ty>](&mut self, scopes: &mut Scopes, expr: Expr) {
-						let offset = scopes.alloc().alloc(NumTy::[<$ty:upper>].size()) as f64;
+						let scope = scopes.alloc();
+						let offset = scope.alloc(NumTy::[<$ty:upper>].size()) as f64;
 						self.push(Stmt::Call(
 							Var::from("buffer").nindex(concat!("write", stringify!($ty))),
 							None,
 							vec![
 								"outgoing_buff".into(),
-								Expr::Var(Var::Name("outgoing_apos".into()).into()).add(offset.into()),
+								Expr::Var(Var::Name(scope.cursor_var.clone()).into()).add(offset.into()),
 								expr,
 							],
 						));
@@ -345,15 +347,17 @@ pub struct AllocScope {
 	pub multiplier: usize,
 	pub max: AllocMax,
 	pub buf: OutputBuffer,
+	pub cursor_var: String,
 }
 
 impl AllocScope {
-	pub fn new(buf: OutputBuffer) -> Self {
+	pub fn new(buf: OutputBuffer, cursor_var: String) -> Self {
 		Self {
 			size: 0,
 			multiplier: 1,
 			max: AllocMax::Unknown,
 			buf,
+			cursor_var,
 		}
 	}
 

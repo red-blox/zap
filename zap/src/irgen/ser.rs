@@ -31,8 +31,7 @@ impl Gen for Ser<'_> {
 		}
 
 		self.end_dyn_scope();
-		let scope = self.end_alloc_scope();
-		scope.buf.push_alloc((scope.size as f64).into());
+		self.end_alloc_scope(None);
 
 		self.buf.output()
 	}
@@ -50,11 +49,21 @@ impl Ser<'_> {
 	fn new_alloc_scope(&mut self) {
 		let scope_buf = OutputBuffer::new();
 		self.buf.push(scope_buf.clone());
-		self.scopes.alloc.push(AllocScope::new(scope_buf));
+		let cursor_name = self.add_occurrence("cursor").0;
+		self.scopes.alloc.push(AllocScope::new(scope_buf, cursor_name));
 	}
 
-	fn end_alloc_scope(&mut self) -> AllocScope {
-		self.scopes.alloc.pop().unwrap()
+	fn end_alloc_scope(&mut self, expr: Option<Expr>) {
+		let mut scope = self.scopes.alloc.pop().unwrap();
+		let size_expr = Expr::Num(scope.size as f64);
+		scope.buf.push_local(
+			scope.cursor_var,
+			Some(alloc(if let Some(expr) = expr {
+				size_expr.mul(expr)
+			} else {
+				size_expr
+			})),
+		);
 	}
 
 	fn new_dyn_scope(&mut self) {
@@ -407,6 +416,8 @@ impl Ser<'_> {
 
 					self.push_writenumty(offset_len_expr, len_numty);
 
+					self.new_alloc_scope();
+
 					self.buf.push(Stmt::NumFor {
 						var: var_name.clone(),
 						from: 1.0.into(),
@@ -425,6 +436,8 @@ impl Ser<'_> {
 					self.push_ty(ty, Var::Name(inner_var_name));
 
 					self.end_dyn_scope();
+
+					self.end_alloc_scope(Some(len_expr));
 
 					self.buf.push(Stmt::End);
 				}
@@ -468,8 +481,7 @@ impl Ser<'_> {
 				self.push_ty(val, val_name.as_str().into());
 
 				self.end_dyn_scope();
-				let alloc = self.end_alloc_scope();
-				alloc.buf.push_alloc((alloc.size as f64).into());
+				self.end_alloc_scope(None);
 
 				self.buf.push(Stmt::End);
 
@@ -528,8 +540,7 @@ impl Ser<'_> {
 				self.push_ty(key, key_name.as_str().into());
 
 				self.end_dyn_scope();
-				let alloc = self.end_alloc_scope();
-				alloc.buf.push_alloc((alloc.size as f64).into());
+				self.end_alloc_scope(None);
 
 				self.buf.push(Stmt::End);
 
@@ -558,9 +569,15 @@ impl Ser<'_> {
 				}
 
 				self.buf.push(Stmt::If(from_expr.clone().neq(Expr::Nil)));
+
+				self.new_alloc_scope();
+
 				let (bits, var) = self.get_bitpack();
 				self.set_bitfield(bits, var);
 				self.push_ty(ty, from);
+
+				self.end_alloc_scope(None);
+
 				self.buf.push(Stmt::End);
 			}
 
