@@ -80,7 +80,8 @@ impl Ser<'_> {
 			let numty = NumTy::from_f64(0.0, ((1u64 << (shift + 1)) - 1) as f64);
 
 			scope.buf.push(Stmt::Local(name.clone(), Some(Expr::Num(0.0))));
-			self.push_writenumty(Var::Name(name).into(), numty);
+			self.push_writenumty_raw(Var::Name(name).into(), numty, true);
+			self.scopes.alloc().offset_by(numty.size());
 		}
 	}
 
@@ -446,17 +447,9 @@ impl Ser<'_> {
 
 					self.end_dyn_scope();
 
-					self.end_alloc_scope_complex(
-						|expr| {
-							expr.mul(len_expr.clone()).add(
-								len_expr
-									.gt(0.0.into())
-									.and((len_numty.size() as f64).into())
-									.or(0.0.into()),
-							)
-						},
-						len_numty.size(),
-					);
+					let scope = self.scopes.alloc();
+					scope.offset_expr(var_expr.clone().sub(1.0.into()).mul((scope.size as f64).into()));
+					self.end_alloc_scope_complex(|expr| expr.mul(len_expr), 0);
 
 					self.buf.push(Stmt::End);
 				}

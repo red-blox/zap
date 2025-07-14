@@ -74,18 +74,23 @@ pub trait Gen {
 	}
 }
 
-#[derive(Debug)]
 enum OutputEntryKind {
 	Stmt(Stmt),
+	LazyStmt(Box<dyn FnOnce() -> Stmt>),
 	Buffer(OutputBuffer),
 }
 
-#[derive(Debug)]
 pub struct OutputEntry(OutputEntryKind);
 
 impl From<Stmt> for OutputEntry {
 	fn from(value: Stmt) -> Self {
 		OutputEntry(OutputEntryKind::Stmt(value))
+	}
+}
+
+impl<F: FnOnce() -> Stmt + 'static> From<F> for OutputEntry {
+	fn from(value: F) -> Self {
+		OutputEntry(OutputEntryKind::LazyStmt(Box::new(value)))
 	}
 }
 
@@ -99,7 +104,7 @@ pub fn alloc(expr: Expr) -> Expr {
 	Var::from("alloc").call(vec![expr])
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub struct OutputBuffer(Rc<RefCell<Vec<OutputEntry>>>);
 
 impl OutputBuffer {
@@ -117,6 +122,7 @@ impl OutputBuffer {
 		for entry in self.0.take() {
 			match entry.0 {
 				OutputEntryKind::Stmt(stmt) => output.push(stmt),
+				OutputEntryKind::LazyStmt(make) => output.push(make()),
 				OutputEntryKind::Buffer(buf) => output.extend(buf.output()),
 			}
 		}
@@ -223,18 +229,38 @@ macro_rules! numbers {
 		paste::paste! {
 			impl OutputBuffer {
 				$(
-					fn [<push_write $ty>](&mut self, scopes: &mut Scopes, expr: Expr) {
+					fn [<push_write $ty _raw>](&mut self, scopes: &mut Scopes, expr: Expr, immediate: bool) {
 						let scope = scopes.alloc();
-						let offset = scope.alloc(NumTy::[<$ty:upper>].size()) as f64;
-						self.push(Stmt::Call(
-							Var::from("buffer").nindex(concat!("write", stringify!($ty))),
-							None,
-							vec![
-								"outgoing_buff".into(),
-								Expr::Var(Var::Name(scope.cursor_var.clone()).into()).add(offset.into()),
-								expr,
-							],
-						));
+						let (offset, dyn_offset) = scope.alloc(NumTy::[<$ty:upper>].size());
+						let cursor_var = scope.cursor_var.clone();
+
+						let make = move || {
+							let dyn_offset = (*dyn_offset.borrow()).clone();
+							let mut offset_expr = Expr::Num((if immediate { 0 } else { offset } + dyn_offset.offset) as f64);
+							if let Some(expr) = dyn_offset.expr {
+								offset_expr = offset_expr.add(expr);
+							}
+
+							Stmt::Call(
+								Var::from("buffer").nindex(concat!("write", stringify!($ty))),
+								None,
+								vec![
+									"outgoing_buff".into(),
+									Expr::Var(Var::Name(cursor_var).into()).add(offset_expr),
+									expr,
+								],
+							)
+						};
+
+						if immediate {
+							self.push(make());
+						} else {
+							self.push(make);
+						}
+					}
+
+					fn [<push_write $ty>](&mut self, scopes: &mut Scopes, expr: Expr) {
+						self.[<push_write $ty _raw>](scopes, expr, false);
 					}
 				)+
 
@@ -265,10 +291,22 @@ macro_rules! numbers {
 
 			pub trait GenNumExt: Gen {
 				$(
+					fn [<push_write $ty _raw>](&mut self, expr: Expr, immediate: bool) {
+						self.buf().clone().[<push_write $ty _raw>](&mut self.scopes(), expr, immediate);
+					}
+
 					fn [<push_write $ty>](&mut self, expr: Expr) {
 						self.buf().clone().[<push_write $ty>](&mut self.scopes(), expr);
 					}
 				)+
+
+				fn push_writenumty_raw(&mut self, expr: Expr, numty: NumTy, immediate: bool) {
+					match numty {
+						$(
+							NumTy::[<$ty:upper>] => self.buf().clone().[<push_write $ty _raw>](&mut self.scopes(), expr, immediate)
+						),+
+					}
+				}
 
 				fn push_writenumty(&mut self, expr: Expr, numty: NumTy) {
 					match numty {
@@ -308,7 +346,6 @@ pub fn readvector(x_numty: NumTy, y_numty: NumTy, z_numty: Option<NumTy>) -> Exp
 
 pub type BitpackMask = u16;
 
-#[derive(Debug)]
 pub struct DynamicScope {
 	pub bitpack_budget: Vec<(u8, String)>,
 	pub buf: OutputBuffer,
@@ -340,7 +377,12 @@ impl AllocMax {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
+pub struct LazyAllocData {
+	pub offset: usize,
+	pub expr: Option<Expr>,
+}
+
 #[must_use]
 pub struct AllocScope {
 	pub size: usize,
@@ -348,7 +390,7 @@ pub struct AllocScope {
 	pub max: AllocMax,
 	pub buf: OutputBuffer,
 	pub cursor_var: String,
-	pub offset: Rc<RefCell<usize>>,
+	pub offset: Rc<RefCell<LazyAllocData>>,
 }
 
 impl AllocScope {
@@ -359,23 +401,27 @@ impl AllocScope {
 			max: AllocMax::Unknown,
 			buf,
 			cursor_var,
-			offset: Rc::new(RefCell::new(0)),
+			offset: Rc::new(RefCell::new(LazyAllocData::default())),
 		}
 	}
 
 	#[must_use]
-	pub fn alloc(&mut self, size: usize) -> usize {
+	pub fn alloc(&mut self, size: usize) -> (usize, Rc<RefCell<LazyAllocData>>) {
 		let offset = self.size;
 		self.size += size;
-		offset
+		(offset, self.offset.clone())
 	}
 
 	pub fn offset_by(&self, offset: usize) {
-		*self.offset.borrow_mut() += offset;
+		self.offset.borrow_mut().offset += offset;
+	}
+
+	pub fn offset_expr(&self, expr: Expr) {
+		self.offset.borrow_mut().expr = Some(expr);
 	}
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Scopes {
 	pub dynamic: Vec<DynamicScope>,
 	pub alloc: Vec<AllocScope>,
@@ -651,9 +697,9 @@ impl Display for Expr {
 			Self::Lt(lhs, rhs) => write!(f, "{lhs} < {rhs}"),
 			Self::Eq(lhs, rhs) => write!(f, "{lhs} == {rhs}"),
 
-			Self::Add(lhs, rhs) => write!(f, "{lhs} + {rhs}"),
-			Self::Sub(lhs, rhs) => write!(f, "{lhs} - {rhs}"),
-			Self::Mul(lhs, rhs) => write!(f, "{lhs} * {rhs}"),
+			Self::Add(lhs, rhs) => write!(f, "({lhs} + {rhs})"),
+			Self::Sub(lhs, rhs) => write!(f, "({lhs} - {rhs})"),
+			Self::Mul(lhs, rhs) => write!(f, "({lhs} * {rhs})"),
 		}
 	}
 }
