@@ -31,7 +31,7 @@ impl Gen for Ser<'_> {
 		}
 
 		self.end_dyn_scope();
-		self.end_alloc_scope(None);
+		self.end_alloc_scope();
 
 		self.buf.output()
 	}
@@ -53,17 +53,15 @@ impl Ser<'_> {
 		self.scopes.alloc.push(AllocScope::new(scope_buf, cursor_name));
 	}
 
-	fn end_alloc_scope(&mut self, expr: Option<Expr>) {
+	fn end_alloc_scope(&mut self) {
+		self.end_alloc_scope_complex(|e| e, 0);
+	}
+
+	fn end_alloc_scope_complex(&mut self, cb: impl FnOnce(Expr) -> Expr, offset: usize) {
 		let mut scope = self.scopes.alloc.pop().unwrap();
+		scope.offset_by(offset);
 		let size_expr = Expr::Num(scope.size as f64);
-		scope.buf.push_local(
-			scope.cursor_var,
-			Some(alloc(if let Some(expr) = expr {
-				size_expr.mul(expr)
-			} else {
-				size_expr
-			})),
-		);
+		scope.buf.push_local(scope.cursor_var, Some(alloc(cb(size_expr))));
 	}
 
 	fn new_dyn_scope(&mut self) {
@@ -154,7 +152,10 @@ impl Ser<'_> {
 					}
 
 					self.push_variant_storage(&storage, i);
+
+					self.new_alloc_scope();
 					self.push_struct(&variant.1, from.clone());
+					self.end_alloc_scope();
 				}
 
 				self.buf.push(Stmt::Else);
@@ -208,7 +209,9 @@ impl Ser<'_> {
 					}
 
 					self.push_variant_storage(&storage, i);
+					self.new_alloc_scope();
 					self.push_ty(ty, from.clone());
+					self.end_alloc_scope();
 				}
 				PrimitiveTy::Instance(class) => {
 					i_offset += 1;
@@ -230,7 +233,9 @@ impl Ser<'_> {
 					}
 
 					self.push_variant_storage(&storage, i);
+					self.new_alloc_scope();
 					self.push_ty(ty, from.clone());
+					self.end_alloc_scope();
 				}
 				PrimitiveTy::Enum(Enum::Unit(variants)) => {
 					i_offset += variants.len();
@@ -268,7 +273,9 @@ impl Ser<'_> {
 						}
 
 						self.push_variant_storage(&storage, i + offset);
+						self.new_alloc_scope();
 						self.push_struct(&data, from.clone());
+						self.end_alloc_scope();
 					}
 				}
 				PrimitiveTy::Unknown => {
@@ -287,7 +294,9 @@ impl Ser<'_> {
 		self.buf.push(Stmt::Else);
 		if let Some(unknown_i) = unknown_i {
 			self.push_variant_storage(&storage, unknown_i);
+			self.new_alloc_scope();
 			self.push_ty(&Ty::Unknown, from.clone());
+			self.end_alloc_scope();
 		} else {
 			self.buf.push(Stmt::Error("Invalid type".into()));
 		}
@@ -437,7 +446,17 @@ impl Ser<'_> {
 
 					self.end_dyn_scope();
 
-					self.end_alloc_scope(Some(len_expr));
+					self.end_alloc_scope_complex(
+						|expr| {
+							expr.mul(len_expr.clone()).add(
+								len_expr
+									.gt(0.0.into())
+									.and((len_numty.size() as f64).into())
+									.or(0.0.into()),
+							)
+						},
+						len_numty.size(),
+					);
 
 					self.buf.push(Stmt::End);
 				}
@@ -466,22 +485,22 @@ impl Ser<'_> {
 
 				self.buf.push_assign(
 					Var::Name(len_pos_name.clone()),
-					Var::from("alloc").call(vec![(length_numty.size() as f64).into()]),
+					alloc((length_numty.size() as f64).into()),
 				);
 
 				self.buf.push(Stmt::End);
 
-				self.new_alloc_scope();
-				self.new_dyn_scope();
-
 				self.buf
 					.push_assign(Var::Name(len_name.clone()), len_expr.clone().add(1.0.into()));
+
+				self.new_alloc_scope();
+				self.new_dyn_scope();
 
 				self.push_ty(key, key_name.as_str().into());
 				self.push_ty(val, val_name.as_str().into());
 
 				self.end_dyn_scope();
-				self.end_alloc_scope(None);
+				self.end_alloc_scope();
 
 				self.buf.push(Stmt::End);
 
@@ -523,9 +542,6 @@ impl Ser<'_> {
 					obj: from_expr,
 				});
 
-				self.new_alloc_scope();
-				self.new_dyn_scope();
-
 				self.buf.push(Stmt::If(len_expr.clone().eq(0.0.into())));
 
 				let size = length_numty.size();
@@ -535,12 +551,15 @@ impl Ser<'_> {
 
 				self.buf.push(Stmt::End);
 
+				self.new_alloc_scope();
+				self.new_dyn_scope();
+
 				self.buf
 					.push_assign(Var::Name(len_name.clone()), len_expr.clone().add(1.0.into()));
 				self.push_ty(key, key_name.as_str().into());
 
 				self.end_dyn_scope();
-				self.end_alloc_scope(None);
+				self.end_alloc_scope();
 
 				self.buf.push(Stmt::End);
 
@@ -576,7 +595,7 @@ impl Ser<'_> {
 				self.set_bitfield(bits, var);
 				self.push_ty(ty, from);
 
-				self.end_alloc_scope(None);
+				self.end_alloc_scope();
 
 				self.buf.push(Stmt::End);
 			}

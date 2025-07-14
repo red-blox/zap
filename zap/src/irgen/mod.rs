@@ -348,6 +348,7 @@ pub struct AllocScope {
 	pub max: AllocMax,
 	pub buf: OutputBuffer,
 	pub cursor_var: String,
+	pub offset: Rc<RefCell<usize>>,
 }
 
 impl AllocScope {
@@ -358,6 +359,7 @@ impl AllocScope {
 			max: AllocMax::Unknown,
 			buf,
 			cursor_var,
+			offset: Rc::new(RefCell::new(0)),
 		}
 	}
 
@@ -366,6 +368,10 @@ impl AllocScope {
 		let offset = self.size;
 		self.size += size;
 		offset
+	}
+
+	pub fn offset_by(&self, offset: usize) {
+		*self.offset.borrow_mut() += offset;
 	}
 }
 
