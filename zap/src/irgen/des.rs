@@ -1,8 +1,7 @@
 use crate::{
 	config::{Enum, NumTy, PrimitiveTy, Struct, Ty, TypeScriptEnumType},
 	irgen::{
-		BitpackMask, DynamicScope, OutputBuffer, Scopes, VariantStorageKind, readf32, readf64, readnumty, readstring,
-		readu8, readu16, readvector, readvector3,
+		AllocScope, BitpackMask, DynamicScope, GenNumExt, OutputBuffer, Scopes, VariantStorageKind, alloc, readstring,
 	},
 };
 use std::collections::HashMap;
@@ -47,6 +46,24 @@ impl Gen for Des<'_> {
 }
 
 impl Des<'_> {
+	fn new_alloc_scope(&mut self) {
+		let scope_buf = OutputBuffer::new();
+		self.buf.push(scope_buf.clone());
+		let cursor_name = self.add_occurrence("cursor").0;
+		self.scopes.alloc.push(AllocScope::new(scope_buf, cursor_name));
+	}
+
+	fn end_alloc_scope(&mut self) {
+		self.end_alloc_scope_complex(|e| e, 0);
+	}
+
+	fn end_alloc_scope_complex(&mut self, cb: impl FnOnce(Expr) -> Expr, offset: usize) {
+		let scope = self.scopes.alloc.pop().unwrap();
+		scope.offset_by(offset);
+		let size_expr = Expr::Num(scope.size as f64);
+		scope.buf.push_local(scope.cursor_var, Some(alloc(cb(size_expr))));
+	}
+
 	fn new_dyn_scope(&mut self) {
 		let scope_buf = OutputBuffer::new();
 		self.buf.push(scope_buf.clone());
@@ -90,7 +107,8 @@ impl Des<'_> {
 		match storage {
 			VariantStorageKind::Full(numty, amount) => {
 				let (variant_i, variant_expr) = self.add_occurrence("variant");
-				self.buf.push_local(variant_i, Some(readnumty(numty)));
+				let expr = self.readnumty(numty);
+				self.buf.push_local(variant_i, Some(expr));
 				for i in 0..amount {
 					let cond = variant_expr.clone().eq((i as f64).into());
 
@@ -228,7 +246,8 @@ impl Des<'_> {
 
 		match ty {
 			Ty::Num(numty, range) => {
-				self.buf.push_assign(into, readnumty(*numty));
+				let expr = self.readnumty(*numty);
+				self.buf.push_assign(into, expr);
 
 				if self.checks {
 					self.buf.push_range_check(into_expr, *range);
@@ -242,7 +261,7 @@ impl Des<'_> {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
-					let mut offset_len_expr = readnumty(len_numty);
+					let mut offset_len_expr = self.readnumty(len_numty);
 					if len_offset != 0.0 {
 						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
 					}
@@ -268,7 +287,7 @@ impl Des<'_> {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
-					let mut offset_len_expr = readnumty(len_numty);
+					let mut offset_len_expr = self.readnumty(len_numty);
 					if len_offset != 0.0 {
 						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
 					}
@@ -302,7 +321,7 @@ impl Des<'_> {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
 
-					let mut offset_len_expr = readnumty(len_numty);
+					let mut offset_len_expr = self.readnumty(len_numty);
 					if len_offset != 0.0 {
 						offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
 					}
@@ -356,10 +375,12 @@ impl Des<'_> {
 				let empty_expr = self.check_bitfield(empty_bits, empty_var);
 				self.buf.push(Stmt::If(empty_expr.not()));
 
+				let offset_len_expr = self.readnumty(length_numty).add(1.0.into());
+
 				self.buf.push(Stmt::NumFor {
 					var: "_".into(),
 					from: 1.0.into(),
-					to: readnumty(length_numty).add(1.0.into()),
+					to: offset_len_expr,
 				});
 
 				self.new_dyn_scope();
@@ -391,10 +412,12 @@ impl Des<'_> {
 				let empty_expr = self.check_bitfield(empty_bits, empty_var);
 				self.buf.push(Stmt::If(empty_expr.not()));
 
+				let offset_len_expr = self.readnumty(length_numty).add(1.0.into());
+
 				self.buf.push(Stmt::NumFor {
 					var: "_".into(),
 					from: 1.0.into(),
-					to: readnumty(length_numty).add(1.0.into()),
+					to: offset_len_expr,
 				});
 
 				self.new_dyn_scope();
@@ -510,28 +533,38 @@ impl Des<'_> {
 				);
 			}
 
-			Ty::BrickColor => self.buf.push_assign(
-				into,
-				Expr::Call(Box::new(Var::from("BrickColor").nindex("new")), None, vec![readu16()]),
-			),
+			Ty::BrickColor => {
+				let expr = self.readu16();
 
-			Ty::DateTimeMillis => self.buf.push_assign(
-				into,
-				Expr::Call(
-					Box::new(Var::from("DateTime").nindex("fromUnixTimestampMillis")),
-					None,
-					vec![readf64()],
-				),
-			),
+				self.buf.push_assign(
+					into,
+					Expr::Call(Box::new(Var::from("BrickColor").nindex("new")), None, vec![expr]),
+				)
+			}
 
-			Ty::DateTime => self.buf.push_assign(
-				into,
-				Expr::Call(
-					Box::new(Var::from("DateTime").nindex("fromUnixTimestamp")),
-					None,
-					vec![readf64()],
-				),
-			),
+			Ty::DateTimeMillis => {
+				let expr = self.readf64();
+				self.buf.push_assign(
+					into,
+					Expr::Call(
+						Box::new(Var::from("DateTime").nindex("fromUnixTimestampMillis")),
+						None,
+						vec![expr],
+					),
+				)
+			}
+
+			Ty::DateTime => {
+				let expr = self.readf64();
+				self.buf.push_assign(
+					into,
+					Expr::Call(
+						Box::new(Var::from("DateTime").nindex("fromUnixTimestamp")),
+						None,
+						vec![expr],
+					),
+				)
+			}
 
 			Ty::Boolean => {
 				let (bits, var) = self.get_bitpack();
@@ -540,20 +573,32 @@ impl Des<'_> {
 				self.buf.push_assign(into, expr);
 			}
 
-			Ty::Color3 => self.buf.push_assign(
-				into,
-				Expr::Color3(Box::new(readu8()), Box::new(readu8()), Box::new(readu8())),
-			),
+			Ty::Color3 => {
+				let r = self.readu8();
+				let g = self.readu8();
+				let b = self.readu8();
 
-			Ty::Vector2 => self.buf.push_assign(
-				into,
-				Expr::Call(
-					Box::new(Var::from("Vector3").nindex("new")),
-					None,
-					vec![readf32(), readf32(), "0".into()],
-				),
-			),
-			Ty::Vector3 => self.buf.push_assign(into, readvector3()),
+				self.buf
+					.push_assign(into, Expr::Color3(Box::new(r), Box::new(g), Box::new(b)))
+			}
+
+			Ty::Vector2 => {
+				let x = self.readf32();
+				let y = self.readf32();
+
+				self.buf.push_assign(
+					into,
+					Expr::Call(
+						Box::new(Var::from("Vector3").nindex("new")),
+						None,
+						vec![x, y, "0".into()],
+					),
+				)
+			}
+			Ty::Vector3 => {
+				let expr = self.readvector3();
+				self.buf.push_assign(into, expr)
+			}
 			Ty::Vector(x_ty, y_ty, z_ty) => {
 				let x_numty = match **x_ty {
 					Ty::Num(numty, range) => {
@@ -590,17 +635,19 @@ impl Des<'_> {
 					None
 				};
 
-				self.buf.push_assign(into, readvector(x_numty, y_numty, z_numty));
+				let expr = self.readvector(x_numty, y_numty, z_numty);
+				self.buf.push_assign(into, expr);
 			}
 
 			Ty::AlignedCFrame => {
 				let (axis_alignment_name, axis_alignment_expr) = self.add_occurrence("axis_alignment");
-
-				self.buf.push_local(axis_alignment_name, Some(readu8()));
+				let align_expr = self.readu8();
+				self.buf.push_local(axis_alignment_name, Some(align_expr));
 
 				let (pos_name, pos_expr) = self.add_occurrence("pos");
 
-				self.buf.push_local(pos_name.clone(), Some(readvector3()));
+				let pos_vec = self.readvector3();
+				self.buf.push_local(pos_name.clone(), Some(pos_vec));
 
 				self.buf.push_assign(
 					into,
@@ -620,9 +667,11 @@ impl Des<'_> {
 			}
 			Ty::CFrame => {
 				let (pos_name, pos_expr) = self.add_occurrence("pos");
-				self.buf.push_local(pos_name.clone(), Some(readvector3()));
+				let pos_vec = self.readvector3();
+				self.buf.push_local(pos_name.clone(), Some(pos_vec));
 				let (axisangle_name, axisangle_expr) = self.add_occurrence("axisangle");
-				self.buf.push_local(axisangle_name.clone(), Some(readvector3()));
+				let axis_expr = self.readvector3();
+				self.buf.push_local(axisangle_name.clone(), Some(axis_expr));
 				let (angle_name, angle_expr) = self.add_occurrence("angle");
 				self.buf.push_local(
 					angle_name,

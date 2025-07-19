@@ -58,7 +58,7 @@ impl Ser<'_> {
 	}
 
 	fn end_alloc_scope_complex(&mut self, cb: impl FnOnce(Expr) -> Expr, offset: usize) {
-		let mut scope = self.scopes.alloc.pop().unwrap();
+		let scope = self.scopes.alloc.pop().unwrap();
 		scope.offset_by(offset);
 		let size_expr = Expr::Num(scope.size as f64);
 		scope.buf.push_local(scope.cursor_var, Some(alloc(cb(size_expr))));

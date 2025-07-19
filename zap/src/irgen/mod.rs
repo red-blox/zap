@@ -72,6 +72,14 @@ pub trait Gen {
 	fn alloc_dynamic(&mut self, range: &Range, count: Expr) {
 		self.buf().clone().alloc_dynamic(self.scopes(), range, count);
 	}
+
+	fn readvector3(&mut self) -> Expr {
+		readvector3(self.scopes())
+	}
+
+	fn readvector(&mut self, x_numty: NumTy, y_numty: NumTy, z_numty: Option<NumTy>) -> Expr {
+		readvector(self.scopes(), x_numty, y_numty, z_numty)
+	}
 }
 
 enum OutputEntryKind {
@@ -153,15 +161,15 @@ impl OutputBuffer {
 		}
 	}
 
-	pub fn push_local(&mut self, name: String, expr: Option<Expr>) {
+	pub fn push_local(&self, name: String, expr: Option<Expr>) {
 		self.push(Stmt::Local(name, expr))
 	}
 
-	pub fn push_assign(&mut self, var: Var, expr: Expr) {
+	pub fn push_assign(&self, var: Var, expr: Expr) {
 		self.push(Stmt::Assign(var, expr))
 	}
 
-	pub fn push_assert(&mut self, expr: Expr, msg: String) {
+	pub fn push_assert(&self, expr: Expr, msg: String) {
 		self.push(Stmt::Assert(expr, msg))
 	}
 
@@ -204,7 +212,7 @@ impl OutputBuffer {
 		));
 	}
 
-	pub fn push_range_check(&mut self, expr: Expr, range: Range) {
+	pub fn push_range_check(&self, expr: Expr, range: Range) {
 		if let Some(min) = range.min() {
 			self.push_assert(expr.clone().gte(min.into()), format!("value is less than {min}!"))
 		}
@@ -214,7 +222,7 @@ impl OutputBuffer {
 		}
 	}
 
-	pub fn push_utf8_check(&mut self, expr: Expr) {
+	pub fn push_utf8_check(&self, expr: Expr) {
 		self.push_assert(
 			Var::NameIndex(Var::Name("utf8".into()).into(), "len".to_string())
 				.call(vec![expr])
@@ -274,17 +282,17 @@ macro_rules! numbers {
 			}
 
 			$(
-				fn [<read $ty>]() -> Expr {
+				pub fn [<read $ty>](scopes: &mut Scopes) -> Expr {
 					Var::from("buffer")
 						.nindex(concat!("read", stringify!($ty)))
 						.call(vec!["incoming_buff".into(), Var::from("read").call(vec![(NumTy::[<$ty:upper>].size() as f64).into()])])
 				}
 			)+
 
-			pub fn readnumty(numty: NumTy) -> Expr {
+			pub fn readnumty(scopes: &mut Scopes, numty: NumTy) -> Expr {
 				match numty {
 					$(
-						NumTy::[<$ty:upper>] => [<read $ty>]()
+						NumTy::[<$ty:upper>] => [<read $ty>](scopes)
 					),+
 				}
 			}
@@ -297,6 +305,10 @@ macro_rules! numbers {
 
 					fn [<push_write $ty>](&mut self, expr: Expr) {
 						self.buf().clone().[<push_write $ty>](&mut self.scopes(), expr);
+					}
+
+					fn [<read $ty>](&mut self) -> Expr {
+						[<read $ty>](&mut self.scopes())
 					}
 				)+
 
@@ -312,6 +324,14 @@ macro_rules! numbers {
 					match numty {
 						$(
 							NumTy::[<$ty:upper>] => self.buf().clone().[<push_write $ty>](&mut self.scopes(), expr)
+						),+
+					}
+				}
+
+				fn readnumty(&mut self, numty: NumTy) -> Expr {
+					match numty {
+						$(
+							NumTy::[<$ty:upper>] => [<read $ty>](&mut self.scopes())
 						),+
 					}
 				}
@@ -332,15 +352,19 @@ pub fn readstring(count: Expr) -> Expr {
 	])
 }
 
-pub fn readvector3() -> Expr {
-	Expr::Vector3(Box::new(readf32()), Box::new(readf32()), Box::new(readf32()))
+pub fn readvector3(scopes: &mut Scopes) -> Expr {
+	Expr::Vector3(
+		Box::new(readf32(scopes)),
+		Box::new(readf32(scopes)),
+		Box::new(readf32(scopes)),
+	)
 }
 
-pub fn readvector(x_numty: NumTy, y_numty: NumTy, z_numty: Option<NumTy>) -> Expr {
+pub fn readvector(scopes: &mut Scopes, x_numty: NumTy, y_numty: NumTy, z_numty: Option<NumTy>) -> Expr {
 	Expr::Vector(
-		Box::new(readnumty(x_numty)),
-		Box::new(readnumty(y_numty)),
-		z_numty.map(|z_numty| Box::new(readnumty(z_numty))),
+		Box::new(readnumty(scopes, x_numty)),
+		Box::new(readnumty(scopes, y_numty)),
+		z_numty.map(|z_numty| Box::new(readnumty(scopes, z_numty))),
 	)
 }
 
