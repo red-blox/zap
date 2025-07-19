@@ -295,9 +295,7 @@ impl Ser<'_> {
 		self.buf.push(Stmt::Else);
 		if let Some(unknown_i) = unknown_i {
 			self.push_variant_storage(&storage, unknown_i);
-			self.new_alloc_scope();
 			self.push_ty(&Ty::Unknown, from.clone());
-			self.end_alloc_scope();
 		} else {
 			self.buf.push(Stmt::Error("Invalid type".into()));
 		}
@@ -447,11 +445,11 @@ impl Ser<'_> {
 
 					self.end_dyn_scope();
 
+					self.buf.push(Stmt::End);
+
 					let scope = self.scopes.alloc();
 					scope.offset_expr(var_expr.clone().sub(1.0.into()).mul((scope.size as f64).into()));
 					self.end_alloc_scope_complex(|expr| expr.mul(len_expr), 0);
-
-					self.buf.push(Stmt::End);
 				}
 			}
 

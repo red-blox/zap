@@ -73,11 +73,16 @@ pub trait Gen {
 		self.buf().clone().alloc_dynamic(self.scopes(), range, count);
 	}
 
-	fn readvector3(&mut self) -> Expr {
+	fn readvector3(&mut self) -> impl FnOnce() -> Expr + 'static + use<Self> {
 		readvector3(self.scopes())
 	}
 
-	fn readvector(&mut self, x_numty: NumTy, y_numty: NumTy, z_numty: Option<NumTy>) -> Expr {
+	fn readvector(
+		&mut self,
+		x_numty: NumTy,
+		y_numty: NumTy,
+		z_numty: Option<NumTy>,
+	) -> impl FnOnce() -> Expr + 'static + use<Self> {
 		readvector(self.scopes(), x_numty, y_numty, z_numty)
 	}
 }
@@ -110,6 +115,10 @@ impl From<OutputBuffer> for OutputEntry {
 
 pub fn alloc(expr: Expr) -> Expr {
 	Var::from("alloc").call(vec![expr])
+}
+
+pub fn read(expr: Expr) -> Expr {
+	Var::from("read").call(vec![expr])
 }
 
 #[derive(Default, Clone)]
@@ -206,7 +215,7 @@ impl OutputBuffer {
 				into.into(),
 				0.0.into(),
 				"incoming_buff".into(),
-				Var::from("read").call(vec![count.clone()]),
+				read(count.clone()),
 				count,
 			],
 		));
@@ -282,19 +291,49 @@ macro_rules! numbers {
 			}
 
 			$(
-				pub fn [<read $ty>](scopes: &mut Scopes) -> Expr {
-					Var::from("buffer")
-						.nindex(concat!("read", stringify!($ty)))
-						.call(vec!["incoming_buff".into(), Var::from("read").call(vec![(NumTy::[<$ty:upper>].size() as f64).into()])])
+				pub fn [<read $ty _raw>](scopes: &mut Scopes, immediate: bool) -> impl FnOnce() -> Expr + 'static + use<> {
+					let scope = scopes.alloc();
+					let (offset, dyn_offset) = scope.alloc(NumTy::[<$ty:upper>].size());
+					let cursor_var = scope.cursor_var.clone();
+
+					let make = move || {
+						let dyn_offset = (*dyn_offset.borrow()).clone();
+						let mut offset_expr = Expr::Num((if immediate { 0 } else { offset } + dyn_offset.offset) as f64);
+						if let Some(expr) = dyn_offset.expr {
+							offset_expr = offset_expr.add(expr);
+						}
+
+						Var::from("buffer")
+							.nindex(concat!("read", stringify!($ty)))
+							.call(vec!["incoming_buff".into(), Expr::Var(Var::Name(cursor_var).into()).add(offset_expr)])
+					};
+
+					let (value, make) = if immediate { (Some(make()), None) } else { (None, Some(make)) };
+
+					move || {
+						match (value, make) {
+							(Some(val), _) => val,
+							(_, Some(make)) => make(),
+							_ => unreachable!()
+						}
+					}
+				}
+
+				pub fn [<read $ty>](scopes: &mut Scopes) -> impl FnOnce() -> Expr + 'static + use<> {
+					[<read $ty _raw>](scopes, false)
 				}
 			)+
 
-			pub fn readnumty(scopes: &mut Scopes, numty: NumTy) -> Expr {
+			pub fn readnumty_raw(scopes: &mut Scopes, numty: NumTy, immediate: bool) -> Box<dyn FnOnce() -> Expr + 'static> {
 				match numty {
 					$(
-						NumTy::[<$ty:upper>] => [<read $ty>](scopes)
+						NumTy::[<$ty:upper>] => Box::new([<read $ty _raw>](scopes, immediate))
 					),+
 				}
+			}
+
+			pub fn readnumty(scopes: &mut Scopes, numty: NumTy) -> Box<dyn FnOnce() -> Expr + 'static> {
+				readnumty_raw(scopes, numty, false)
 			}
 
 			pub trait GenNumExt: Gen {
@@ -307,8 +346,12 @@ macro_rules! numbers {
 						self.buf().clone().[<push_write $ty>](&mut self.scopes(), expr);
 					}
 
-					fn [<read $ty>](&mut self) -> Expr {
-						[<read $ty>](&mut self.scopes())
+					fn [<read $ty _raw>](&mut self, immediate: bool) -> impl FnOnce() -> Expr + 'static + use<Self> {
+						[<read $ty _raw>](self.scopes(), immediate)
+					}
+
+					fn [<read $ty>](&mut self) -> impl FnOnce() -> Expr + 'static + use<Self> {
+						self.[<read $ty _raw>](false)
 					}
 				)+
 
@@ -328,12 +371,16 @@ macro_rules! numbers {
 					}
 				}
 
-				fn readnumty(&mut self, numty: NumTy) -> Expr {
+				fn readnumty_raw(&mut self, numty: NumTy, immediate: bool) -> Box<dyn FnOnce() -> Expr + 'static> {
 					match numty {
 						$(
-							NumTy::[<$ty:upper>] => [<read $ty>](&mut self.scopes())
+							NumTy::[<$ty:upper>] => Box::new([<read $ty _raw>](&mut self.scopes(), immediate))
 						),+
 					}
+				}
+
+				fn readnumty(&mut self, numty: NumTy) -> Box<dyn FnOnce() -> Expr + 'static> {
+					self.readnumty_raw(numty, false)
 				}
 			}
 
@@ -345,27 +392,30 @@ macro_rules! numbers {
 numbers!(f32, f64, u8, u16, u32, i8, i16, i32);
 
 pub fn readstring(count: Expr) -> Expr {
-	Var::from("buffer").nindex("readstring").call(vec![
-		"incoming_buff".into(),
-		Var::from("read").call(vec![count.clone()]),
-		count,
-	])
+	Var::from("buffer")
+		.nindex("readstring")
+		.call(vec!["incoming_buff".into(), read(count.clone()), count])
 }
 
-pub fn readvector3(scopes: &mut Scopes) -> Expr {
-	Expr::Vector3(
-		Box::new(readf32(scopes)),
-		Box::new(readf32(scopes)),
-		Box::new(readf32(scopes)),
-	)
+pub fn readvector3(scopes: &mut Scopes) -> impl FnOnce() -> Expr + 'static + use<> {
+	let x = readf32(scopes);
+	let y = readf32(scopes);
+	let z = readf32(scopes);
+
+	move || Expr::Vector3(Box::new(x()), Box::new(y()), Box::new(z()))
 }
 
-pub fn readvector(scopes: &mut Scopes, x_numty: NumTy, y_numty: NumTy, z_numty: Option<NumTy>) -> Expr {
-	Expr::Vector(
-		Box::new(readnumty(scopes, x_numty)),
-		Box::new(readnumty(scopes, y_numty)),
-		z_numty.map(|z_numty| Box::new(readnumty(scopes, z_numty))),
-	)
+pub fn readvector(
+	scopes: &mut Scopes,
+	x_numty: NumTy,
+	y_numty: NumTy,
+	z_numty: Option<NumTy>,
+) -> impl FnOnce() -> Expr + 'static + use<> {
+	let x = readnumty(scopes, x_numty);
+	let y = readnumty(scopes, y_numty);
+	let z = z_numty.map(|z_numty| readnumty(scopes, z_numty));
+
+	move || Expr::Vector(Box::new(x()), Box::new(y()), z.map(|z| Box::new(z())))
 }
 
 pub type BitpackMask = u16;
