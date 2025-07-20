@@ -108,9 +108,9 @@ impl Des<'_> {
 			VariantStorageKind::Bit((bits, var)) => {
 				let cond = self.check_bitfield(bits, var);
 				self.push_stmt(Stmt::If(cond));
-				cb(self, 1);
-				self.push_stmt(Stmt::Else);
 				cb(self, 0);
+				self.push_stmt(Stmt::Else);
+				cb(self, 1);
 				self.push_stmt(Stmt::End);
 			}
 			VariantStorageKind::None => {

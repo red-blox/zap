@@ -480,6 +480,10 @@ async fn test_bitpacking() {
 				r#"{ bools = { false, true, true, false, false, false, false, true, true, false, false, false, true, false }, enum = "there" }"#,
 			],
 		),
+		(
+			"Event5",
+			vec![r#"{ type = "a", value = true }"#, r#"{ type = "b", value = true }"#],
+		),
 	]);
 	let output = TestOutput::new(&config.unwrap(), default_values).output();
 	let mut runtime = Runtime::new();

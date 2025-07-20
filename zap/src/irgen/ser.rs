@@ -97,7 +97,7 @@ impl Ser<'_> {
 				self.set_bitfield(*bits, var.clone());
 			}
 			VariantStorageKind::Bit((bits, var)) => {
-				if i != 0 {
+				if i == 0 {
 					self.set_bitfield(*bits, var.clone());
 				} else {
 					// make selene happy
