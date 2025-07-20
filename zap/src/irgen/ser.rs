@@ -1,6 +1,6 @@
 use crate::{
 	config::{Enum, NumTy, PrimitiveTy, Struct, Ty, TypeScriptEnumType},
-	irgen::{AllocScope, BitpackMask, DynamicScope, OutputBuffer, Scopes, VariantStorageKind, alloc},
+	irgen::{AllocScope, BitpackMask, DynamicScope, Either, OutputBuffer, Scopes, VariantStorageKind, alloc},
 };
 use std::collections::HashMap;
 
@@ -91,10 +91,16 @@ impl Ser<'_> {
 		}
 	}
 
-	fn push_variant_storage(&mut self, storage: &VariantStorageKind, i: usize) {
+	fn push_variant_storage(&mut self, storage: &VariantStorageKind, i: usize, var: &mut Either<OutputBuffer, Var>) {
 		match storage {
-			VariantStorageKind::Full(numty, _) => {
-				self.push_writenumty((i as f64).into(), *numty);
+			VariantStorageKind::Full(..) => {
+				if let Either::Left(buf) = var {
+					let name = self.add_occurrence("discriminator").0;
+
+					buf.push_local(name.clone(), None);
+					*var = Either::Right(Var::Name(name));
+				}
+				self.buf.push_assign(var.clone().right(), (i as f64).into());
 			}
 			VariantStorageKind::Bitpack(variants) => {
 				let (bits, var) = &variants[i];
@@ -117,6 +123,7 @@ impl Ser<'_> {
 			Enum::Unit(enumerators) => {
 				let from_expr = Expr::from(from.clone());
 				let storage = self.variant_storage(enumerators.len());
+				let mut var = Either::Left(self.buf.insert());
 
 				for (i, enumerator) in enumerators.iter().enumerate() {
 					let condition = match self.typescript_enum_type {
@@ -130,17 +137,24 @@ impl Ser<'_> {
 						self.buf.push(Stmt::ElseIf(from_expr.clone().eq(condition)));
 					}
 
-					self.push_variant_storage(&storage, i);
+					self.push_variant_storage(&storage, i, &mut var);
 				}
 
 				self.buf.push(Stmt::Else);
 				self.buf.push(Stmt::Error("Invalid enumerator".into()));
 				self.buf.push(Stmt::End);
+
+				if let VariantStorageKind::Full(numty, ..) = storage
+					&& let Either::Right(var) = var
+				{
+					self.push_writenumty(var.into(), numty);
+				}
 			}
 
 			Enum::Tagged { tag, variants } => {
 				let tag_expr = Expr::from(from.clone().eindex(Expr::Str((*tag).into())));
 				let storage = self.variant_storage(variants.len());
+				let mut var = Either::Left(self.buf.insert());
 
 				for (i, variant) in variants.iter().enumerate() {
 					if i == 0 {
@@ -152,7 +166,7 @@ impl Ser<'_> {
 						));
 					}
 
-					self.push_variant_storage(&storage, i);
+					self.push_variant_storage(&storage, i, &mut var);
 
 					self.new_alloc_scope();
 					self.push_struct(&variant.1, from.clone());
@@ -162,6 +176,12 @@ impl Ser<'_> {
 				self.buf.push(Stmt::Else);
 				self.buf.push(Stmt::Error("Invalid variant".into()));
 				self.buf.push(Stmt::End);
+
+				if let VariantStorageKind::Full(numty, ..) = storage
+					&& let Either::Right(var) = var
+				{
+					self.push_writenumty(var.into(), numty);
+				}
 			}
 		}
 	}
@@ -192,6 +212,7 @@ impl Ser<'_> {
 		let mut unknown_i = None;
 		let mut initial_if = true;
 		let mut i_offset = 0usize;
+		let mut var = Either::Left(self.buf.insert());
 
 		for ty in tys {
 			let i = i_offset;
@@ -209,7 +230,7 @@ impl Ser<'_> {
 						self.buf.push(Stmt::ElseIf(condition));
 					}
 
-					self.push_variant_storage(&storage, i);
+					self.push_variant_storage(&storage, i, &mut var);
 					self.new_alloc_scope();
 					self.push_ty(ty, from.clone());
 					self.end_alloc_scope();
@@ -233,7 +254,7 @@ impl Ser<'_> {
 						self.buf.push(Stmt::ElseIf(condition));
 					}
 
-					self.push_variant_storage(&storage, i);
+					self.push_variant_storage(&storage, i, &mut var);
 					self.new_alloc_scope();
 					self.push_ty(ty, from.clone());
 					self.end_alloc_scope();
@@ -254,7 +275,7 @@ impl Ser<'_> {
 							self.buf.push(Stmt::ElseIf(condition));
 						}
 
-						self.push_variant_storage(&storage, i + offset);
+						self.push_variant_storage(&storage, i + offset, &mut var);
 					}
 				}
 				PrimitiveTy::Enum(Enum::Tagged { tag, variants }) => {
@@ -273,7 +294,7 @@ impl Ser<'_> {
 							self.buf.push(Stmt::ElseIf(condition));
 						}
 
-						self.push_variant_storage(&storage, i + offset);
+						self.push_variant_storage(&storage, i + offset, &mut var);
 						self.new_alloc_scope();
 						self.push_struct(&data, from.clone());
 						self.end_alloc_scope();
@@ -289,17 +310,23 @@ impl Ser<'_> {
 
 		if optional {
 			self.buf.push(Stmt::ElseIf(Expr::from(from.clone()).eq(Expr::Nil)));
-			self.push_variant_storage(&storage, i_offset);
+			self.push_variant_storage(&storage, i_offset, &mut var);
 		}
 
 		self.buf.push(Stmt::Else);
 		if let Some(unknown_i) = unknown_i {
-			self.push_variant_storage(&storage, unknown_i);
+			self.push_variant_storage(&storage, unknown_i, &mut var);
 			self.push_ty(&Ty::Unknown, from.clone());
 		} else {
 			self.buf.push(Stmt::Error("Invalid type".into()));
 		}
 		self.buf.push(Stmt::End);
+
+		if let VariantStorageKind::Full(numty, ..) = storage
+			&& let Either::Right(var) = var
+		{
+			self.push_writenumty(var.into(), numty);
+		}
 	}
 
 	fn set_bitfield(&mut self, bits: BitpackMask, var: Var) {

@@ -133,6 +133,12 @@ impl OutputBuffer {
 		self.0.borrow_mut().push(item.into());
 	}
 
+	pub fn insert(&self) -> OutputBuffer {
+		let buf = OutputBuffer::new();
+		self.push(buf.clone());
+		buf
+	}
+
 	pub fn output(self) -> Vec<Stmt> {
 		let mut output = vec![];
 
@@ -774,6 +780,28 @@ impl Display for Expr {
 			Self::Add(lhs, rhs) => write!(f, "({lhs} + {rhs})"),
 			Self::Sub(lhs, rhs) => write!(f, "({lhs} - {rhs})"),
 			Self::Mul(lhs, rhs) => write!(f, "({lhs} * {rhs})"),
+		}
+	}
+}
+
+#[derive(Debug, Clone)]
+pub enum Either<L, R> {
+	Left(L),
+	Right(R),
+}
+
+impl<L, R> Either<L, R> {
+	pub fn left(self) -> L {
+		match self {
+			Either::Left(l) => l,
+			_ => unreachable!(),
+		}
+	}
+
+	pub fn right(self) -> R {
+		match self {
+			Self::Right(r) => r,
+			_ => unreachable!(),
 		}
 	}
 }

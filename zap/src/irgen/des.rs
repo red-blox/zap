@@ -157,7 +157,9 @@ impl Des<'_> {
 							Expr::StrOrBool(name.to_string()),
 						)])),
 					);
+					this.new_alloc_scope();
 					this.push_struct(struct_ty, into.clone());
+					this.end_alloc_scope();
 				});
 			}
 		}
@@ -387,6 +389,8 @@ impl Des<'_> {
 				let empty_expr = self.check_bitfield(empty_bits, empty_var);
 				self.buf.push(Stmt::If(empty_expr.not()));
 
+				self.new_alloc_scope();
+
 				let offset_len_expr = self.readnumty(length_numty);
 
 				self.buf.push(move || Stmt::NumFor {
@@ -414,6 +418,8 @@ impl Des<'_> {
 
 				self.buf.push(Stmt::End);
 
+				self.end_alloc_scope();
+
 				self.buf.push(Stmt::End);
 			}
 
@@ -425,6 +431,8 @@ impl Des<'_> {
 
 				let empty_expr = self.check_bitfield(empty_bits, empty_var);
 				self.buf.push(Stmt::If(empty_expr.not()));
+
+				self.new_alloc_scope();
 
 				let offset_len_expr = self.readnumty(length_numty);
 
@@ -448,6 +456,8 @@ impl Des<'_> {
 				self.end_alloc_scope();
 
 				self.buf.push(Stmt::End);
+
+				self.end_alloc_scope();
 
 				self.buf.push(Stmt::End);
 			}
