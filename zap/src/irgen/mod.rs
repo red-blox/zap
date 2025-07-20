@@ -314,13 +314,12 @@ macro_rules! numbers {
 							.call(vec!["incoming_buff".into(), Expr::Var(Var::Name(cursor_var).into()).add(offset_expr)])
 					};
 
-					let (value, make) = if immediate { (Some(make()), None) } else { (None, Some(make)) };
+					let value = if immediate { Either::Left(make()) } else { Either::Right(make) };
 
 					move || {
-						match (value, make) {
-							(Some(val), _) => val,
-							(_, Some(make)) => make(),
-							_ => unreachable!()
+						match value {
+							Either::Left(val) => val,
+							Either::Right(make) => make(),
 						}
 					}
 				}
