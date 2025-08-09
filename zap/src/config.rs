@@ -273,7 +273,7 @@ impl Display for TyDecl<'_> {
 			return write!(f, "{}", self.name);
 		}
 
-		write!(f, "__ZAP_NAMESPACE__{}_{}", self.path.join("_"), self.name)
+		write!(f, "{}_{}", self.path.join("_"), self.name)
 	}
 }
 
@@ -332,8 +332,17 @@ impl<'src> Ty<'src> {
 			Self::Num(numty, ..) => (numty.size(), Some(numty.size())),
 
 			Self::Str(utf8, len) => {
-				if !utf8 && let Some(exact) = len.exact() {
-					(exact as usize, Some(exact as usize))
+				if !utf8 {
+					if let Some(exact) = len.exact() {
+						(exact as usize, Some(exact as usize))
+					} else {
+						let (len_numty, ..) = len.numty();
+
+						(
+							len.min().map(|min| min as usize).unwrap_or(0) + len_numty.size(),
+							len.max().map(|max| max as usize + len_numty.size()),
+						)
+					}
 				} else {
 					let (len_numty, ..) = len.numty();
 

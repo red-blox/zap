@@ -312,15 +312,37 @@ impl Ser<'_> {
 			}
 
 			Ty::Str(utf8, range) => {
-				if !utf8 && let Some(len) = range.exact() {
-					if self.checks {
-						self.push_assert(
-							from_expr.clone().len().eq(len.into()),
-							format!("length is not equal to {len}!"),
-						);
-					}
+				if !utf8 {
+					if let Some(len) = range.exact() {
+						if self.checks {
+							self.push_assert(
+								from_expr.clone().len().eq(len.into()),
+								format!("length is not equal to {len}!"),
+							);
+						}
 
-					self.push_writestring(from_expr, len.into());
+						self.push_writestring(from_expr, len.into());
+					} else {
+						let (len_name, len_expr) = self.add_occurrence("len");
+						let (len_numty, len_offset) = range.numty();
+
+						self.push_local(len_name.clone(), Some(from_expr.clone().len()));
+
+						if self.checks {
+							self.push_range_check(len_expr.clone(), *range);
+							if *utf8 {
+								self.push_utf8_check(from_expr.clone());
+							}
+						}
+
+						let mut offset_len_expr = len_expr.clone();
+						if len_offset != 0.0 {
+							offset_len_expr = offset_len_expr.sub(Expr::Num(len_offset))
+						}
+
+						self.push_writenumty(offset_len_expr, len_numty);
+						self.push_writestring(from_expr, len_expr.clone());
+					}
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();

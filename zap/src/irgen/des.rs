@@ -233,8 +233,30 @@ impl Des<'_> {
 			}
 
 			Ty::Str(utf8, range) => {
-				if !utf8 && let Some(len) = range.exact() {
-					self.push_assign(into, self.readstring(len.into()));
+				if !utf8 {
+					if let Some(len) = range.exact() {
+						self.push_assign(into, self.readstring(len.into()));
+					} else {
+						let (len_name, len_expr) = self.add_occurrence("len");
+						let (len_numty, len_offset) = range.numty();
+
+						let mut offset_len_expr = self.readnumty(len_numty);
+						if len_offset != 0.0 {
+							offset_len_expr = offset_len_expr.add(Expr::Num(len_offset))
+						}
+
+						self.push_local(len_name.clone(), Some(offset_len_expr));
+
+						if self.checks {
+							self.push_range_check(len_expr.clone(), *range);
+						}
+
+						self.push_assign(into.clone(), self.readstring(len_expr.clone()));
+
+						if *utf8 {
+							self.push_utf8_check(Expr::Var(into.into()));
+						}
+					}
 				} else {
 					let (len_name, len_expr) = self.add_occurrence("len");
 					let (len_numty, len_offset) = range.numty();
