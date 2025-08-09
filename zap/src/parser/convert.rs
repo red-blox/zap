@@ -87,30 +87,49 @@ impl<'src> Converter<'src> {
 			}
 		}
 
+		// First pass: collect ALL type declarations from all namespaces
+		for (decls, path) in nsdecls.iter().rev() {
+			let current_tydecls = decls.iter().filter_map(|decl| match decl {
+				SyntaxDecl::Ty(tydecl) => Some(tydecl),
+				_ => None,
+			});
+
+			for tydecl in current_tydecls {
+				let key = path
+					.iter()
+					.copied()
+					.chain(std::iter::once(tydecl.name.name))
+					.collect::<Vec<_>>()
+					.join(".");
+				self.tydecls.insert(key, tydecl.clone());
+			}
+		}
+		
+		// Also collect global types
+		let global_tydecls = config.decls.iter().filter_map(|decl| match decl {
+			SyntaxDecl::Ty(tydecl) => Some(tydecl),
+			_ => None,
+		});
+
+		for tydecl in global_tydecls {
+			let key = tydecl.name.name.to_string();
+			self.tydecls.insert(key, tydecl.clone());
+		}
+		
+		// Second pass: process type declarations (now all types are available for resolution)
 		for (decls, path) in nsdecls
 			.into_iter()
 			// reverse so namespaces higher can use types from namespaces lower
 			.rev()
 			.chain(std::iter::once((&config.decls, vec![])))
 		{
-			self.path = path;
+			self.path = path.clone();
+			
 
 			let current_tydecls = decls.iter().filter_map(|decl| match decl {
 				SyntaxDecl::Ty(tydecl) => Some(tydecl),
 				_ => None,
 			});
-
-			for tydecl in current_tydecls.clone() {
-				self.tydecls.insert(
-					self.path
-						.iter()
-						.copied()
-						.chain(std::iter::once(tydecl.name.name))
-						.collect::<Vec<_>>()
-						.join("."),
-					tydecl.clone(),
-				);
-			}
 
 			for tydecl in current_tydecls {
 				let tydecl = self.tydecl(tydecl);
@@ -874,15 +893,7 @@ impl<'src> Converter<'src> {
 				"unknown" => Ty::Opt(Box::new(Ty::Unknown)),
 
 				_ => {
-					let path = self
-						.path
-						.iter()
-						.copied()
-						.chain(std::iter::once(ref_ty.name))
-						.collect::<Vec<_>>()
-						.join(".");
-
-					let Some(tydecl) = self.tydecls.get(&path).cloned() else {
+					let Some(tydecl) = self.resolve_type_reference(ref_ty.name) else {
 						self.report(Report::AnalyzeUnknownTypeRef {
 							span: ref_ty.span(),
 							name: Cow::Borrowed(ref_ty.name),
@@ -1100,23 +1111,17 @@ impl<'src> Converter<'src> {
 			}
 
 			SyntaxTyKind::Ref(ref_ty) => {
-				let key = self
-					.path
-					.iter()
-					.copied()
-					.chain(std::iter::once(ref_ty.name))
-					.collect::<Vec<_>>()
-					.join(".");
+				let Some((key, tydecl)) = self.resolve_type_reference_with_path(ref_ty.name) else {
+					return TyRecursionKind::None;
+				};
 
 				if key == target_path {
 					TyRecursionKind::Unbounded(*ref_ty)
 				} else if searched.contains(&key) {
 					TyRecursionKind::None
-				} else if let Some(tydecl) = self.tydecls.get(&key) {
+				} else {
 					searched.insert(key);
 					self.ty_recursion_kind(target_path, &tydecl.ty, searched)
-				} else {
-					TyRecursionKind::None
 				}
 			}
 
@@ -1288,6 +1293,54 @@ impl<'src> Converter<'src> {
 	fn num(&self, num: &SyntaxNumLit<'src>) -> f64 {
 		// unwrapping here is safe because the parser already validated the number earlier
 		num.value.parse().unwrap()
+	}
+
+	fn resolve_type_reference(&self, type_name: &str) -> Option<SyntaxTyDecl<'src>> {
+		// First try current namespace path (local scope takes precedence)
+		let namespaced_path = self
+			.path
+			.iter()
+			.copied()
+			.chain(std::iter::once(type_name))
+			.collect::<Vec<_>>()
+			.join(".");
+		
+		if let Some(tydecl) = self.tydecls.get(&namespaced_path) {
+			return Some(tydecl.clone());
+		}
+		
+		// If not found and we're in a namespace, try global scope as fallback
+		if !self.path.is_empty() {
+			if let Some(tydecl) = self.tydecls.get(type_name) {
+				return Some(tydecl.clone());
+			}
+		}
+		
+		None
+	}
+
+	fn resolve_type_reference_with_path(&self, type_name: &str) -> Option<(String, SyntaxTyDecl<'src>)> {
+		// First try current namespace path
+		let namespaced_path = self
+			.path
+			.iter()
+			.copied()
+			.chain(std::iter::once(type_name))
+			.collect::<Vec<_>>()
+			.join(".");
+		
+		if let Some(tydecl) = self.tydecls.get(&namespaced_path) {
+			return Some((namespaced_path, tydecl.clone()));
+		}
+		
+		// If not found and we're in a namespace, try global scope
+		if !self.path.is_empty() {
+			if let Some(tydecl) = self.tydecls.get(type_name) {
+				return Some((type_name.to_string(), tydecl.clone()));
+			}
+		}
+		
+		None
 	}
 }
 
