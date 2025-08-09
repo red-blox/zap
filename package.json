@@ -1,12 +1,4 @@
 {
-  "type": "module",
-  "scripts": {
-    "predocs:dev": "bun wasm:build",
-    "docs:dev": "vitepress dev docs",
-    "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs",
-    "wasm:build": "wasm-pack build zap -d package"
-  },
   "devDependencies": {
     "@guolao/vue-monaco-editor": "1.5.5",
     "ansi-to-vue3": "0.1.2",
@@ -15,5 +7,13 @@
     "vitepress": "1.6.3",
     "vitepress-plugin-tabs": "0.7.0",
     "vue": "3.5.13"
-  }
+  },
+  "scripts": {
+    "predocs:dev": "bun wasm:build",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
+    "wasm:build": "wasm-pack build zap -d package"
+  },
+  "type": "module"
 }
