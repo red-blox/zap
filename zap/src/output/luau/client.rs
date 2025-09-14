@@ -1340,6 +1340,8 @@ impl<'src> ClientOutput<'src> {
 	pub fn output(mut self) -> String {
 		self.push_file_header("Client");
 
+		self.push_remote_scope_validation();
+
 		if self.config.namespaces.is_empty() {
 			self.push_line("return {}");
 			return self.buf;
