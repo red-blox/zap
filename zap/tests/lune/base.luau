@@ -74,6 +74,9 @@ local server = luau.load(serverCode, {
 	environment = environment
 })()
 
+-- ignore remote_scope validation
+_G.__ZAP = {}
+
 local client = luau.load(clientCode, {
 	debugName = "Client",
 	codegenEnabled = false,
