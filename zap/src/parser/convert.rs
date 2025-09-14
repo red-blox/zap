@@ -595,7 +595,9 @@ impl<'src> Converter<'src> {
 				.collect::<Vec<_>>()
 		});
 
-		if data.is_some() && matches!(evty, EvType::Unreliable(_)) {
+		if let Some(parameters) = &data
+			&& matches!(evty, EvType::Unreliable(_))
+		{
 			let start_size = match evty {
 				EvType::Unreliable(true) => UNRELIABLE_ORDER_NUMTY.size(),
 				_ => 0,
@@ -603,7 +605,7 @@ impl<'src> Converter<'src> {
 			let mut min = start_size;
 			let mut max = Some(start_size);
 
-			for parameter in data.as_ref().unwrap() {
+			for parameter in parameters {
 				let (ty_min, ty_max) = parameter.ty.size(&mut HashSet::new());
 
 				min += ty_min;
@@ -1015,16 +1017,16 @@ impl<'src> Converter<'src> {
 			}
 
 			let ty = self.ty(syntax_ty);
-			if let Some(curr_tydecl) = &self.current_tydecl {
-				if let Ty::Ref(tydecl) = &ty {
-					if tydecl.path == self.path && tydecl.name == curr_tydecl.name.name {
-						self.report(Report::AnalyzeRecursiveOr {
-							decl_span: curr_tydecl.name.span(),
-							usage_span: syntax_ty.span(),
-						});
-						continue;
-					}
-				}
+			if let Some(curr_tydecl) = &self.current_tydecl
+				&& let Ty::Ref(tydecl) = &ty
+				&& tydecl.path == self.path
+				&& tydecl.name == curr_tydecl.name.name
+			{
+				self.report(Report::AnalyzeRecursiveOr {
+					decl_span: curr_tydecl.name.span(),
+					usage_span: syntax_ty.span(),
+				});
+				continue;
 			}
 
 			let prev_spans: Vec<_> = match ty.primitive_ty() {

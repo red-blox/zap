@@ -429,10 +429,10 @@ impl<'src> Ty<'src> {
 					}
 
 					if let Some(ty_max) = ty_max {
-						if let Some(current_max) = max {
-							if ty_max > current_max {
-								max = Some(ty_max);
-							}
+						if let Some(current_max) = max
+							&& ty_max > current_max
+						{
+							max = Some(ty_max);
 						}
 					} else {
 						max = None;
@@ -574,10 +574,10 @@ impl Enum<'_> {
 					}
 
 					if let Some(ty_max) = ty_max {
-						if let Some(current_max) = max {
-							if ty_max > current_max {
-								max = Some(ty_max);
-							}
+						if let Some(current_max) = max
+							&& ty_max > current_max
+						{
+							max = Some(ty_max);
 						}
 					} else {
 						max = None;

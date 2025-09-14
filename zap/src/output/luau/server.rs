@@ -1,4 +1,4 @@
-use std::{cmp::max, collections::HashMap};
+use std::{cmp::max, collections::HashMap, slice};
 
 use crate::{
 	config::{
@@ -160,7 +160,7 @@ impl<'src> ServerOutput<'src> {
 		self.push_line(&format!("function types.write_{tydecl}(value: {tydecl})"));
 		self.indent();
 		let statements = &ser::generate(
-			&[ty.clone()],
+			slice::from_ref(ty),
 			&["value".to_string()],
 			self.config.write_checks,
 			&mut HashMap::new(),
@@ -174,7 +174,7 @@ impl<'src> ServerOutput<'src> {
 		self.indent();
 		self.push_line("local value;");
 		let statements = &des::generate(
-			&[ty.clone()],
+			slice::from_ref(ty),
 			&["value".to_string()],
 			true,
 			&mut HashMap::new(),

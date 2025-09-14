@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, slice};
 
 use insta::{Settings, assert_debug_snapshot};
 use lune::Runtime;
@@ -72,7 +72,7 @@ impl<'src> TestOutput<'src> {
 		self.push_line(&format!("function types.write_{tydecl}(value: {tydecl})"));
 		self.indent();
 		let statements = &ser::generate(
-			&[ty.clone()],
+			slice::from_ref(ty),
 			&["value".to_string()],
 			self.config.write_checks,
 			&mut HashMap::new(),
@@ -86,7 +86,7 @@ impl<'src> TestOutput<'src> {
 		self.indent();
 		self.push_line("local value;");
 		let statements = &des::generate(
-			&[ty.clone()],
+			slice::from_ref(ty),
 			&["value".to_string()],
 			true,
 			&mut HashMap::new(),
