@@ -233,7 +233,7 @@ pub trait Output<'src>: ConfigProvider<'src> {
 		self.push_line("_G.__ZAP = {}");
 
 		self.dedent();
-		self.push_line(&format!("else if _G.__ZAP[\"{scope}\"] ~= nil then"));
+		self.push_line(&format!("elseif _G.__ZAP[\"{scope}\"] ~= nil then"));
 		self.indent();
 
 		self.push_line(&format!("error(`There is already an instance of Zap with the same remote_scope of {scope} and the version of {{_G.__ZAP[\"{scope}\"]}}. Change the remote_scope or remote_folder option of both Zap instances`)"));
