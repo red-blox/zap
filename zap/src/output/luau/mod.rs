@@ -225,23 +225,33 @@ pub trait Output<'src>: ConfigProvider<'src> {
 
 	fn push_remote_scope_validation(&mut self) {
 		let scope = self.get_config().remote_scope;
+		let folder = self.get_config().remote_folder;
 
 		self.push("\n");
 		self.push_line("if not _G.__ZAP then");
 		self.indent();
 
-		self.push_line("_G.__ZAP = {}");
+		self.push_line(&format!("_G.__ZAP = {{ [\"{folder}\"] = {{}} }}"));
 
 		self.dedent();
-		self.push_line(&format!("elseif _G.__ZAP[\"{scope}\"] ~= nil then"));
+		self.push_line(&format!("elseif not _G.__ZAP[\"{folder}\"] then"));
 		self.indent();
 
-		self.push_line(&format!("error(`There is already an instance of Zap with the same remote_scope of {scope} and the version of {{_G.__ZAP[\"{scope}\"]}}. Change the remote_scope or remote_folder option of both Zap instances`)"));
+		self.push_line(&format!("_G.__ZAP[\"{folder}\"] = {{}}"));
 
 		self.dedent();
-		self.push_line("end");
+		self.push_line(&format!("elseif _G.__ZAP[\"{folder}\"][\"{scope}\"] ~= nil then"));
+		self.indent();
 
-		self.push_line(&format!("_G.__ZAP[\"{scope}\"] = \"{}\"", env!("CARGO_PKG_VERSION")));
+		self.push_line(&format!("error(`There is already an instance of Zap with the same remote_scope of {scope}, remote_folder of {folder} and the version of {{_G.__ZAP[\"{folder}\"][\"{scope}\"]}}. Change the remote_scope or remote_folder option of both Zap instances`)"));
+
+		self.dedent();
+		self.push_line("end\n");
+
+		self.push_line(&format!(
+			"_G.__ZAP[\"{folder}\"][\"{scope}\"] = \"{}\"",
+			env!("CARGO_PKG_VERSION")
+		));
 		self.push("\n");
 	}
 }
