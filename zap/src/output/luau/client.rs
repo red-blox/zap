@@ -1203,8 +1203,6 @@ impl<'src> ClientOutput<'src> {
 						this.push("\n");
 						this.indent();
 
-						this.push_write_event_id(fndecl.server_id);
-
 						this.push_line("function_call_id += 1");
 
 						this.push_line("function_call_id %= 256");
@@ -1219,6 +1217,8 @@ impl<'src> ClientOutput<'src> {
 
 						this.dedent();
 						this.push_line("end");
+
+						this.push_write_event_id(fndecl.server_id);
 
 						this.push_line("alloc(1)");
 						this.push_line("buffer.writeu8(outgoing_buff, outgoing_apos, function_call_id)");
