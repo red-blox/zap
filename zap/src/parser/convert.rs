@@ -160,7 +160,7 @@ impl<'src> Converter<'src> {
 				_ => None,
 			}) {
 				let id = match evdecl.from {
-					EvSource::Server => match evdecl.evty {
+					EvSource::Server => match evdecl.evty.unwrap_or_default() {
 						EvType::Reliable => {
 							let current_id = client_reliable_id;
 							client_reliable_id += 1;
@@ -172,7 +172,7 @@ impl<'src> Converter<'src> {
 							current_id
 						}
 					},
-					EvSource::Client => match evdecl.evty {
+					EvSource::Client => match evdecl.evty.unwrap_or_default() {
 						EvType::Reliable => {
 							let current_id = server_reliable_id;
 							server_reliable_id += 1;
@@ -572,7 +572,7 @@ impl<'src> Converter<'src> {
 
 		let name = evdecl.name.name;
 		let from = evdecl.from;
-		let evty = evdecl.evty;
+		let evty = evdecl.evty.unwrap_or_default();
 		let call = if let Some(call) = evdecl.call {
 			call
 		} else if let Some(default) = self.call_default_opt(&self.config.opts.clone()) {

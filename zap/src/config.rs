@@ -250,6 +250,12 @@ pub enum EvType {
 	Unreliable(bool),
 }
 
+impl Default for EvType {
+    fn default() -> Self {
+        EvType::Reliable
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EvCall {
 	SingleSync,
