@@ -224,7 +224,7 @@ impl<'src> ToolingOutput<'src> {
 		// push_line is not used here as indent was pushed above
 		// and we don't want to push it twice, especially after
 		// the if/elseif
-		self.push(&format!("id == {id} then"));
+		self.push(&format!("id == {id} then -- {}", fn_decl.name));
 		self.push("\n");
 
 		self.indent();
@@ -545,7 +545,7 @@ impl<'src> ToolingOutput<'src> {
 			// push_line is not used here as indent was pushed above
 			// and we don't want to push it twice, especially after
 			// the if/elseif
-			self.push(&format!("id == {} then", ev.id));
+			self.push(&format!("id == {} then -- {}", ev.id, ev.name));
 			self.push("\n");
 
 			self.indent();
@@ -592,8 +592,9 @@ impl<'src> ToolingOutput<'src> {
 			}
 
 			self.push(&format!(
-				"isServer and remote_instance == unreliable[{}] then\n",
-				ev_decl.id + 1
+				"isServer and remote_instance == unreliable[{}] then -- {}\n",
+				ev_decl.id + 1,
+				ev_decl.name
 			));
 			self.indent();
 

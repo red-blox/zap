@@ -366,7 +366,7 @@ impl<'src> ServerOutput<'src> {
 		// push_line is not used here as indent was pushed above
 		// and we don't want to push it twice, especially after
 		// the if/elseif
-		self.push(&format!("id == {id} then"));
+		self.push(&format!("id == {id} then -- {}", ev.name));
 		self.push("\n");
 
 		self.indent();
@@ -425,7 +425,7 @@ impl<'src> ServerOutput<'src> {
 			self.push("elseif ");
 		}
 
-		self.push(&format!("id == {server_id} then"));
+		self.push(&format!("id == {server_id} then -- {}", fndecl.name));
 		self.push("\n");
 
 		self.indent();
@@ -579,8 +579,9 @@ impl<'src> ServerOutput<'src> {
 		let id = ev.id;
 
 		self.push_line(&format!(
-			"unreliable[{}].OnServerEvent:Connect(function(player, buff, inst)",
-			id + 1
+			"unreliable[{}].OnServerEvent:Connect(function(player, buff, inst) -- {}",
+			id + 1,
+			ev.name
 		));
 		self.indent();
 		self.push_line("incoming_buff = buff");

@@ -375,7 +375,7 @@ impl<'src> ClientOutput<'src> {
 		// push_line is not used here as indent was pushed above
 		// and we don't want to push it twice, especially after
 		// the if/elseif
-		self.push(&format!("id == {id} then"));
+		self.push(&format!("id == {id} then -- {}", ev.name));
 		self.push("\n");
 
 		self.indent();
@@ -478,7 +478,7 @@ impl<'src> ClientOutput<'src> {
 		// push_line is not used here as indent was pushed above
 		// and we don't want to push it twice, especially after
 		// the if/elseif
-		self.push(&format!("id == {client_id} then"));
+		self.push(&format!("id == {client_id} then -- {}", fndecl.name));
 		self.push("\n");
 
 		self.indent();
@@ -584,8 +584,9 @@ impl<'src> ClientOutput<'src> {
 		let id = ev.id;
 
 		self.push_line(&format!(
-			"unreliable[{}].OnClientEvent:Connect(function(buff, inst)",
-			id + 1
+			"unreliable[{}].OnClientEvent:Connect(function(buff, inst) -- {}",
+			id + 1,
+			ev.name
 		));
 		self.indent();
 		self.push_line("incoming_buff = buff");
