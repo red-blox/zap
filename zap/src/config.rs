@@ -244,16 +244,11 @@ pub enum EvSource {
 	Client,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum EvType {
+	#[default]
 	Reliable,
 	Unreliable(bool),
-}
-
-impl Default for EvType {
-    fn default() -> Self {
-        EvType::Reliable
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
