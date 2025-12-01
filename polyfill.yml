@@ -37,6 +37,11 @@ globals:
     - type: any
     - required: false
       type: '...'
+  debug.profilebegin:
+    args:
+      - type: string
+  debug.profileend:
+    args: []
 structs:
   DataModel:
     GetService:

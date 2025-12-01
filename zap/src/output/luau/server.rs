@@ -199,6 +199,11 @@ impl<'src> ServerOutput<'src> {
 
 		self.push_line(&format!("local function {send_events}()"));
 		self.indent();
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profilebegin(\"Zap Send Events\")");
+		}
+
 		self.push_line("for player, outgoing in player_map do");
 		self.indent();
 		self.push_line("if outgoing.used > 0 then");
@@ -216,6 +221,11 @@ impl<'src> ServerOutput<'src> {
 		self.push_line("end");
 		self.dedent();
 		self.push_line("end");
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
+		}
+
 		self.dedent();
 		self.push_line("end\n");
 
@@ -227,6 +237,11 @@ impl<'src> ServerOutput<'src> {
 	fn push_reliable_header(&mut self) {
 		self.push_line("reliable.OnServerEvent:Connect(function(player, buff, inst)");
 		self.indent();
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profilebegin(\"Zap Reliable OnServerEvent\")");
+		}
+
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
@@ -371,6 +386,10 @@ impl<'src> ServerOutput<'src> {
 
 		self.indent();
 
+		if self.config.include_profile_labels {
+			self.push_line(&format!("debug.profilebegin(\"{} Deserialize\")", ev.display_path()));
+		}
+
 		let values = self.get_values(&ev.data);
 
 		self.push_line(&format!("local {values}"));
@@ -386,6 +405,10 @@ impl<'src> ServerOutput<'src> {
 			self.push_stmts(statements);
 		}
 
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
+		}
+
 		match ev.call {
 			EvCall::SingleSync | EvCall::SingleAsync => self.push_line(&format!("if reliable_events[{id}] then")),
 			EvCall::ManySync | EvCall::ManyAsync => self.push_line(&format!("for _, cb in reliable_events[{id}] do")),
@@ -394,12 +417,20 @@ impl<'src> ServerOutput<'src> {
 
 		self.indent();
 
+		if self.config.include_profile_labels && ev.call != EvCall::Polling {
+			self.push_line(&format!("debug.profilebegin(\"{} Callback\")", ev.display_path()));
+		}
+
 		match ev.call {
 			EvCall::SingleSync => self.push_line(&format!("reliable_events[{id}](player, {values})")),
 			EvCall::SingleAsync => self.push_line(&format!("task.spawn(reliable_events[{id}], player, {values})")),
 			EvCall::ManySync => self.push_line(&format!("cb(player, {values})")),
 			EvCall::ManyAsync => self.push_line(&format!("task.spawn(cb, player, {values})")),
 			EvCall::Polling => (),
+		}
+
+		if self.config.include_profile_labels && ev.call != EvCall::Polling {
+			self.push_line("debug.profileend()");
 		}
 
 		self.dedent();
@@ -430,6 +461,13 @@ impl<'src> ServerOutput<'src> {
 
 		self.indent();
 
+		if self.config.include_profile_labels {
+			self.push_line(&format!(
+				"debug.profilebegin(\"{} Deserialize\")",
+				fndecl.display_path()
+			));
+		}
+
 		self.push_line("local call_id = buffer.readu8(buff, read(1))");
 
 		let values = self.get_values(&fndecl.args);
@@ -445,6 +483,10 @@ impl<'src> ServerOutput<'src> {
 				self.config.typescript_enum,
 			);
 			self.push_stmts(statements);
+		}
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
 		}
 
 		self.push_line(&format!("if reliable_events[{server_id}] then"));
@@ -542,6 +584,11 @@ impl<'src> ServerOutput<'src> {
 		self.push_line("end");
 		self.dedent();
 		self.push_line("end");
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
+		}
+
 		self.dedent();
 		self.push_line("end)");
 	}
@@ -584,6 +631,14 @@ impl<'src> ServerOutput<'src> {
 			ev.name
 		));
 		self.indent();
+
+		if self.config.include_profile_labels {
+			self.push_line(&format!(
+				"debug.profilebegin(\"Zap {} OnServerEvent\")",
+				ev.display_path()
+			));
+		}
+
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
@@ -636,6 +691,10 @@ impl<'src> ServerOutput<'src> {
 
 			self.indent();
 
+			if self.config.include_profile_labels {
+				self.push_line(&format!("debug.profilebegin(\"{} Callback\")", ev.display_path()));
+			}
+
 			match ev.call {
 				EvCall::SingleSync => self.push_line(&format!("unreliable_events[{id}](player, {values})")),
 				EvCall::SingleAsync => {
@@ -646,8 +705,16 @@ impl<'src> ServerOutput<'src> {
 				EvCall::Polling => (),
 			}
 
+			if self.config.include_profile_labels {
+				self.push_line("debug.profileend()");
+			}
+
 			self.dedent();
 			self.push_line("end");
+		}
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
 		}
 
 		self.dedent();
@@ -763,6 +830,10 @@ impl<'src> ServerOutput<'src> {
 		self.push(")\n");
 		self.indent();
 
+		if self.config.include_profile_labels {
+			self.push_line(&format!("debug.profilebegin(\"{} Fire\")", ev.display_path()));
+		}
+
 		match ev.evty {
 			EvType::Reliable => self.push_line(&format!("load_player({player})")),
 			EvType::Unreliable(_) => self.push_line("load_empty()"),
@@ -797,6 +868,10 @@ impl<'src> ServerOutput<'src> {
 			}
 		}
 
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
+		}
+
 		self.dedent();
 		self.push_line("end,");
 	}
@@ -816,6 +891,10 @@ impl<'src> ServerOutput<'src> {
 
 		self.push(")\n");
 		self.indent();
+
+		if self.config.include_profile_labels {
+			self.push_line(&format!("debug.profilebegin(\"{} FireAll\")", ev.display_path()));
+		}
 
 		self.push_line("load_empty()");
 
@@ -869,6 +948,10 @@ impl<'src> ServerOutput<'src> {
 			}
 		}
 
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
+		}
+
 		self.dedent();
 		self.push_line("end,");
 	}
@@ -890,6 +973,10 @@ impl<'src> ServerOutput<'src> {
 
 		self.push(")\n");
 		self.indent();
+
+		if self.config.include_profile_labels {
+			self.push_line(&format!("debug.profilebegin(\"{} FireExcept\")", ev.display_path()));
+		}
 
 		self.push_line("load_empty()");
 
@@ -948,6 +1035,10 @@ impl<'src> ServerOutput<'src> {
 			}
 		}
 
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
+		}
+
 		self.dedent();
 		self.push_line("end,");
 	}
@@ -969,6 +1060,10 @@ impl<'src> ServerOutput<'src> {
 
 		self.push(")\n");
 		self.indent();
+
+		if self.config.include_profile_labels {
+			self.push_line(&format!("debug.profilebegin(\"{} FireList\")", ev.display_path()));
+		}
 
 		self.push_line("load_empty()");
 
@@ -1017,6 +1112,10 @@ impl<'src> ServerOutput<'src> {
 				self.dedent();
 				self.push_line("end");
 			}
+		}
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
 		}
 
 		self.dedent();
@@ -1041,6 +1140,10 @@ impl<'src> ServerOutput<'src> {
 		self.push(")\n");
 		self.indent();
 
+		if self.config.include_profile_labels {
+			self.push_line(&format!("debug.profilebegin(\"{} FireSet\")", ev.display_path()));
+		}
+
 		self.push_line("load_empty()");
 
 		self.push_write_evdecl_event_id(ev);
@@ -1088,6 +1191,10 @@ impl<'src> ServerOutput<'src> {
 				self.dedent();
 				self.push_line("end");
 			}
+		}
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
 		}
 
 		self.dedent();

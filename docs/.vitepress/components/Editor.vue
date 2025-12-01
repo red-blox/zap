@@ -2,13 +2,13 @@
 	<MonacoEditor
 		:value="props.modelValue"
 		@update:value="(val: string) => $emit('update:modelValue', val)"
-		:language="lang ?? 'zapConfig'"  
+		:language="lang ?? 'zapConfig'"
 		:theme="`${props.isCodeBlock ? 'codeblock' : 'tab'}-${isDark ? 'dark' : 'light'}`"
 		@beforeMount="beforeMount"
 		@mount="(editor) => $emit('mounted', editor)"
 		:options="EDITOR_OPTIONS"
-	/>	
-</template>	
+	/>
+</template>
 
 <script setup lang="ts">
 import MonacoEditor from "@guolao/vue-monaco-editor";
@@ -110,7 +110,7 @@ const beforeMount = (monaco: Monaco) => {
 
 	const Calls = ["SingleSync", "SingleAsync", "ManySync", "ManyAsync", "Polling"] as const;
 
-	const Options = ["write_checks", "typescript", "typescript_max_tuple_length", "typescript_enum", "manual_event_loop", "remote_scope", "remote_folder", "server_output", "client_output", "casing", "yield_type", "async_lib", "tooling", "tooling_output", "tooling_show_internal_data", "disable_fire_all", "types_output", "call_default"] as const;
+	const Options = ["write_checks", "typescript", "typescript_max_tuple_length", "typescript_enum", "manual_event_loop", "include_profile_labels", "remote_scope", "remote_folder", "server_output", "client_output", "casing", "yield_type", "async_lib", "tooling", "tooling_output", "tooling_show_internal_data", "disable_fire_all", "types_output", "call_default"] as const;
 
 	const TypeScriptEnum = ["StringLiteral", "ConstEnum", "StringConstEnum"].map((value) => `"${value}"`)
 	const Casing = ["PascalCase", "camelCase", "snake_case"].map((value) => `"${value}"`);
@@ -167,6 +167,7 @@ const beforeMount = (monaco: Monaco) => {
 
 		write_checks: Operators,
 		manual_event_loop: Operators,
+		include_profile_labels: Operators,
 
 		remote_scope: [],
 		remote_folder: [],

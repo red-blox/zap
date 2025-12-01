@@ -217,6 +217,23 @@ Note that Zap uses `RunService.Heartbeat` and a 61 hz rate by default.
 
 <CodeBlock code="opt manual_event_loop = true" />
 
+## `include_profile_labels`
+
+When enabled, microprofiler lables are added to the generated file to diagnose performance issues.
+
+### Default
+
+`false`
+
+### Options
+
+- `true`
+- `false`
+
+### Example
+
+<CodeBlock code="opt include_profile_labels = true" />
+
 ## `typescript_max_tuple_length`
 
 The maximum non-nested length of tuples Zap can generate, with anything longer generating an array.

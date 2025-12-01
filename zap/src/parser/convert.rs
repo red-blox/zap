@@ -210,6 +210,7 @@ impl<'src> Converter<'src> {
 
 		let (write_checks, ..) = self.boolean_opt("write_checks", true, &config.opts);
 		let (manual_event_loop, ..) = self.boolean_opt("manual_event_loop", false, &config.opts);
+		let (include_profile_labels, ..) = self.boolean_opt("include_profile_labels", false, &config.opts);
 
 		let (remote_scope, ..) = self.str_opt("remote_scope", "ZAP", &config.opts);
 		let (remote_folder, ..) = self.str_opt("remote_folder", "ZAP", &config.opts);
@@ -238,6 +239,7 @@ impl<'src> Converter<'src> {
 
 			write_checks,
 			manual_event_loop,
+			include_profile_labels,
 
 			remote_scope,
 			remote_folder,

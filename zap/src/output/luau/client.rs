@@ -123,7 +123,10 @@ impl<'src> ClientOutput<'src> {
 								this.indent();
 								this.push_line("return Future.new(function()");
 								this.indent();
-								this.push_line(&format!("error(\"{} called when game is not running\")", fndecl.name));
+								this.push_line(&format!(
+									"error(\"{} called when game is not running\")",
+									fndecl.display_path()
+								));
 								this.dedent();
 								this.push_line("end)");
 								this.dedent();
@@ -134,7 +137,7 @@ impl<'src> ClientOutput<'src> {
 								this.indent();
 								this.push_line(&format!(
 									"return Promise.reject(\"{} called when game is not running\")",
-									fndecl.name
+									fndecl.display_path()
 								));
 								this.dedent();
 								this.push_line("end");
@@ -207,6 +210,10 @@ impl<'src> ClientOutput<'src> {
 	}
 
 	fn push_event_loop_body(&mut self) {
+		if self.config.include_profile_labels {
+			self.push_line("debug.profilebegin(\"Zap Send Events\")");
+		}
+
 		self.push_line("if outgoing_used ~= 0 then");
 		self.indent();
 		self.push_line("local buff = buffer.create(outgoing_used)");
@@ -220,6 +227,11 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("table.clear(outgoing_inst)");
 		self.dedent();
 		self.push_line("end");
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
+		}
+
 		self.dedent();
 	}
 
@@ -241,6 +253,11 @@ impl<'src> ClientOutput<'src> {
 	fn push_reliable_header(&mut self) {
 		self.push_line("reliable.OnClientEvent:Connect(function(buff, inst)");
 		self.indent();
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profilebegin(\"Zap Reliable OnClientEvent\")");
+		}
+
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
@@ -380,6 +397,10 @@ impl<'src> ClientOutput<'src> {
 
 		self.indent();
 
+		if self.config.include_profile_labels {
+			self.push_line(&format!("debug.profilebegin(\"{} Deserialize\")", ev.display_path()));
+		}
+
 		let values = self.get_values(ev.data.len());
 
 		self.push_line(&format!("local {values}"));
@@ -395,6 +416,10 @@ impl<'src> ClientOutput<'src> {
 			self.push_stmts(statements);
 		}
 
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
+		}
+
 		match ev.call {
 			EvCall::SingleSync | EvCall::SingleAsync => self.push_line(&format!("if reliable_events[{id}] then")),
 			EvCall::ManySync | EvCall::ManyAsync => self.push_line(&format!("if reliable_events[{id}][1] then")),
@@ -408,12 +433,20 @@ impl<'src> ClientOutput<'src> {
 			self.indent();
 		}
 
+		if self.config.include_profile_labels && ev.call != EvCall::Polling {
+			self.push_line(&format!("debug.profilebegin(\"{} Callback\")", ev.display_path()));
+		}
+
 		match ev.call {
 			EvCall::SingleSync => self.push_line(&format!("reliable_events[{id}]({values})")),
 			EvCall::SingleAsync => self.push_line(&format!("task.spawn(reliable_events[{id}], {values})")),
 			EvCall::ManySync => self.push_line(&format!("cb({values})")),
 			EvCall::ManyAsync => self.push_line(&format!("task.spawn(cb, {values})")),
 			EvCall::Polling => (),
+		}
+
+		if self.config.include_profile_labels && ev.call != EvCall::Polling {
+			self.push_line("debug.profileend()");
 		}
 
 		if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
@@ -451,7 +484,7 @@ impl<'src> ClientOutput<'src> {
 
 			self.push(&format!(
 				"reliable_event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)\n",
-				ev.name
+				ev.display_path()
 			));
 
 			self.dedent();
@@ -483,6 +516,13 @@ impl<'src> ClientOutput<'src> {
 
 		self.indent();
 
+		if self.config.include_profile_labels {
+			self.push_line(&format!(
+				"debug.profilebegin(\"{} Deserialize\")",
+				fndecl.display_path()
+			));
+		}
+
 		self.push_line("local call_id = buffer.readu8(incoming_buff, read(1))");
 
 		let values = self.get_values(fndecl.rets.as_ref().map_or(0, |x| x.len()));
@@ -498,6 +538,10 @@ impl<'src> ClientOutput<'src> {
 				self.config.typescript_enum,
 			);
 			self.push_stmts(statements);
+		}
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
 		}
 
 		self.push_line(&format!("local thread = reliable_event_queue[{client_id}][call_id]"));
@@ -547,6 +591,11 @@ impl<'src> ClientOutput<'src> {
 		self.push_line("end");
 		self.dedent();
 		self.push_line("end");
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
+		}
+
 		self.dedent();
 		self.push_line("end)");
 	}
@@ -589,6 +638,14 @@ impl<'src> ClientOutput<'src> {
 			ev.name
 		));
 		self.indent();
+
+		if self.config.include_profile_labels {
+			self.push_line(&format!(
+				"debug.profilebegin(\"Zap {} OnClientEvent\")",
+				ev.display_path()
+			));
+		}
+
 		self.push_line("incoming_buff = buff");
 		self.push_line("incoming_inst = inst");
 		self.push_line("incoming_read = 0");
@@ -642,12 +699,20 @@ impl<'src> ClientOutput<'src> {
 				self.indent();
 			}
 
+			if self.config.include_profile_labels {
+				self.push_line(&format!("debug.profilebegin(\"{} Callback\")", ev.display_path()));
+			}
+
 			match ev.call {
 				EvCall::SingleSync => self.push_line(&format!("unreliable_events[{id}]({values})")),
 				EvCall::SingleAsync => self.push_line(&format!("task.spawn(unreliable_events[{id}], {values})")),
 				EvCall::ManySync => self.push_line(&format!("cb({values})")),
 				EvCall::ManyAsync => self.push_line(&format!("task.spawn(cb, {values})")),
 				EvCall::Polling => (),
+			}
+
+			if self.config.include_profile_labels {
+				self.push_line("debug.profileend()");
 			}
 
 			if ev.call == EvCall::ManySync || ev.call == EvCall::ManyAsync {
@@ -683,7 +748,7 @@ impl<'src> ClientOutput<'src> {
 
 			self.push(&format!(
 				"unreliable_event_queue[{id}]}} events in queue for {}. Did you forget to attach a listener?`)\n",
-				ev.name
+				ev.display_path()
 			));
 
 			self.dedent();
@@ -691,6 +756,10 @@ impl<'src> ClientOutput<'src> {
 
 			self.dedent();
 			self.push_line("end");
+		}
+
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
 		}
 
 		self.dedent();
@@ -816,6 +885,10 @@ impl<'src> ClientOutput<'src> {
 		self.push(")\n");
 		self.indent();
 
+		if self.config.include_profile_labels {
+			self.push_line(&format!("debug.profilebegin(\"{} Fire\")", ev.display_path()));
+		}
+
 		if let EvType::Unreliable(ordered) = ev.evty {
 			let id = ev.id;
 			if ordered {
@@ -855,6 +928,10 @@ impl<'src> ClientOutput<'src> {
 			self.push_line("load(saved)");
 		}
 
+		if self.config.include_profile_labels {
+			self.push_line("debug.profileend()");
+		}
+
 		self.dedent();
 		self.push_line("end,");
 	}
@@ -891,16 +968,24 @@ impl<'src> ClientOutput<'src> {
 			self.push_line(&format!("for _, value in {event_queue_name}[{id}] do"));
 			self.indent();
 
+			if self.config.include_profile_labels {
+				self.push_line(&format!("debug.profilebegin(\"{} Callback\")", ev.display_path()));
+			}
+
+			self.push_indent();
+
 			if ev.call == EvCall::SingleSync {
-				self.push_indent();
 				self.push(&format!("{callback}("));
 				self.push_queued_value(&ev.data);
 				self.push_line(")\n");
 			} else {
-				self.push_indent();
 				self.push(&format!("task.spawn({callback}, "));
 				self.push_queued_value(&ev.data);
 				self.push(")\n");
+			}
+
+			if self.config.include_profile_labels {
+				self.push_line("debug.profileend()");
 			}
 
 			self.dedent();
@@ -911,10 +996,18 @@ impl<'src> ClientOutput<'src> {
 			self.push_line(&format!("for _ = 1, {event_queue_name}[{id}] do"));
 			self.indent();
 
+			if self.config.include_profile_labels {
+				self.push_line(&format!("debug.profilebegin(\"{} Callback\")", ev.display_path()));
+			}
+
 			if ev.call == EvCall::SingleSync {
-				self.push_line(&format!("{callback}()"))
+				self.push_line(&format!("{callback}()"));
 			} else {
-				self.push_line(&format!("task.spawn({callback})"))
+				self.push_line(&format!("task.spawn({callback})"));
+			}
+
+			if self.config.include_profile_labels {
+				self.push_line("debug.profileend()");
 			}
 
 			self.dedent();
@@ -960,16 +1053,24 @@ impl<'src> ClientOutput<'src> {
 			self.push_line(&format!("for _, value in {event_queue_name}[{id}] do"));
 			self.indent();
 
+			if self.config.include_profile_labels {
+				self.push_line(&format!("debug.profilebegin(\"{} Callback\")", ev.display_path()));
+			}
+
+			self.push_indent();
+
 			if ev.call == EvCall::ManySync {
-				self.push_indent();
 				self.push(&format!("{callback}("));
 				self.push_queued_value(&ev.data);
 				self.push_line(")\n");
 			} else {
-				self.push_indent();
 				self.push(&format!("task.spawn({callback}, "));
 				self.push_queued_value(&ev.data);
 				self.push(")\n");
+			}
+
+			if self.config.include_profile_labels {
+				self.push_line("debug.profileend()");
 			}
 
 			self.dedent();
@@ -980,10 +1081,18 @@ impl<'src> ClientOutput<'src> {
 			self.push_line(&format!("for _ = 1, {event_queue_name}[{id}] do"));
 			self.indent();
 
+			if self.config.include_profile_labels {
+				self.push_line(&format!("debug.profilebegin(\"{} Callback\")", ev.display_path()));
+			}
+
 			if ev.call == EvCall::ManySync {
 				self.push_line(&format!("{callback}()"))
 			} else {
 				self.push_line(&format!("task.spawn({callback})"))
+			}
+
+			if self.config.include_profile_labels {
+				self.push_line("debug.profileend()");
 			}
 
 			self.dedent();
@@ -1204,6 +1313,10 @@ impl<'src> ClientOutput<'src> {
 						this.push("\n");
 						this.indent();
 
+						if self.config.include_profile_labels {
+							this.push_line(&format!("debug.profilebegin(\"{} Call\")", fndecl.display_path()));
+						}
+
 						this.push_line("function_call_id += 1");
 
 						this.push_line("function_call_id %= 256");
@@ -1240,9 +1353,18 @@ impl<'src> ClientOutput<'src> {
 								this.push_line(&format!(
 									"reliable_event_queue[{client_id}][function_call_id] = coroutine.running()"
 								));
+
+								if self.config.include_profile_labels {
+									this.push_line("debug.profileend()");
+								}
+
 								this.push_line("return coroutine.yield()");
 							}
 							YieldType::Future => {
+								if self.config.include_profile_labels {
+									this.push_line("debug.profileend()");
+								}
+
 								this.push_line("return Future.new(function()");
 								this.indent();
 
@@ -1255,6 +1377,10 @@ impl<'src> ClientOutput<'src> {
 								this.push_line("end)");
 							}
 							YieldType::Promise => {
+								if self.config.include_profile_labels {
+									this.push_line("debug.profileend()");
+								}
+
 								this.push_line("return Promise.new(function(resolve)");
 								this.indent();
 
