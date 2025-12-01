@@ -30,7 +30,7 @@ pub fn initialise_selene() -> Selene {
 	let standard_library_path = working_dir.join("polyfill.yml");
 	let standard_library_file = fs::read_to_string(standard_library_path).expect("Unable to read the standard library");
 	let mut standard_library: StandardLibrary =
-		serde_yml::from_str(&standard_library_file).expect("Unable to parse the standard library");
+		serde_yaml::from_str(&standard_library_file).expect("Unable to parse the standard library");
 
 	if let Some(base_name) = &standard_library.base {
 		let base_libs = resolve_standard_library_bases(base_name);

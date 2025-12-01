@@ -25,6 +25,6 @@ full_moon = { version = "1.2.0", features = ["luau"] }
 insta = { version = "1.42.0", features = ["glob"] }
 lune = { git = "https://github.com/lune-org/lune.git", rev = "5d1401cdf611cc9f215f03bdf16ada0e77717edf" }
 selene-lib = "0.28.0"
-serde_yml = "0.0.12"
+serde_yaml = "0.9.16"
 tokio = { version = "1", features = ["full"] }
 toml = "0.8.19"
