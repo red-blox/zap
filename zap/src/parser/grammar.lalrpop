@@ -62,7 +62,7 @@ FnCall: FnCall = {
 EvDecl: SyntaxEvDecl<'input> = {
     <start:@L> "event" <name:Identifier> "=" "{"
         "from" ":" <from:EvSource>
-        "," "type" ":" <evty:EvTy>
+        <evty:("," "type" ":" <EvTy>)?>
         <call:("," "call" ":" <EvCall>)?>
         <data:("," "data" ":" <Parameters>)?>
         ","?
