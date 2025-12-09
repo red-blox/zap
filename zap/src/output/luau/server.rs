@@ -7,8 +7,9 @@ use crate::{
 	},
 	irgen::{des, ser},
 	output::{
-		ConfigProvider, get_named_values, get_unnamed_values,
+		get_named_values, get_unnamed_values,
 		luau::{events_table_name, polling_queues_name},
+		ConfigProvider,
 	},
 };
 
@@ -1614,6 +1615,8 @@ impl<'src> ServerOutput<'src> {
 	pub fn output(mut self) -> String {
 		self.push_file_header("Server");
 
+		self.push_check_client();
+
 		self.push_remote_scope_validation();
 
 		if self.config.namespaces.is_empty() {
@@ -1624,8 +1627,6 @@ impl<'src> ServerOutput<'src> {
 		self.push(include_str!("base.luau"));
 
 		self.push_studio();
-
-		self.push_check_client();
 
 		self.push_create_remotes();
 

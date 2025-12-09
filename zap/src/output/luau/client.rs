@@ -2,13 +2,14 @@ use std::{cmp::max, collections::HashMap, slice};
 
 use crate::{
 	config::{
-		Config, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, Parameter, TyDecl, UNRELIABLE_ORDER_NUMTY,
-		YieldType,
+		Config, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, Parameter, TyDecl, YieldType,
+		UNRELIABLE_ORDER_NUMTY,
 	},
 	irgen::{des, ser},
 	output::{
-		ConfigProvider, get_named_values, get_unnamed_values,
+		get_named_values, get_unnamed_values,
 		luau::{event_queue_table_name, events_table_name, polling_queues_name},
+		ConfigProvider,
 	},
 };
 
@@ -1467,6 +1468,8 @@ impl<'src> ClientOutput<'src> {
 	pub fn output(mut self) -> String {
 		self.push_file_header("Client");
 
+		self.push_check_server();
+
 		self.push_remote_scope_validation();
 
 		if self.config.namespaces.is_empty() {
@@ -1477,8 +1480,6 @@ impl<'src> ClientOutput<'src> {
 		self.push(include_str!("base.luau"));
 
 		self.push_studio();
-
-		self.push_check_server();
 
 		self.push_remotes();
 
