@@ -7,9 +7,8 @@ use crate::{
 	},
 	irgen::{des, ser},
 	output::{
-		get_named_values, get_unnamed_values,
+		ConfigProvider, get_named_values, get_unnamed_values,
 		luau::{events_table_name, polling_queues_name},
-		ConfigProvider,
 	},
 };
 

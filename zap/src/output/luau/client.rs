@@ -2,14 +2,13 @@ use std::{cmp::max, collections::HashMap, slice};
 
 use crate::{
 	config::{
-		Config, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, Parameter, TyDecl, YieldType,
-		UNRELIABLE_ORDER_NUMTY,
+		Config, EvCall, EvDecl, EvSource, EvType, FnDecl, NamespaceEntry, Parameter, TyDecl, UNRELIABLE_ORDER_NUMTY,
+		YieldType,
 	},
 	irgen::{des, ser},
 	output::{
-		get_named_values, get_unnamed_values,
+		ConfigProvider, get_named_values, get_unnamed_values,
 		luau::{event_queue_table_name, events_table_name, polling_queues_name},
-		ConfigProvider,
 	},
 };
 
