@@ -428,14 +428,16 @@ impl Des<'_> {
 							.into(),
 					);
 
-					if self.checks && class.is_some() {
+					if self.checks
+						&& let Some(class) = class
+					{
 						self.push_assert(
 							into_expr.clone().eq(Expr::Nil).or(Expr::Call(
 								Box::new(into.clone()),
 								Some("IsA".into()),
-								vec![Expr::Str(class.unwrap().into())],
+								vec![Expr::Str(class.into())],
 							)),
-							format!("received instance is not of the {} class!", class.unwrap()),
+							format!("received instance is not of the {} class!", class),
 						)
 					}
 				} else {
