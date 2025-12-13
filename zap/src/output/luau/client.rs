@@ -1467,6 +1467,8 @@ impl<'src> ClientOutput<'src> {
 	pub fn output(mut self) -> String {
 		self.push_file_header("Client");
 
+		self.push_check_server();
+
 		self.push_remote_scope_validation();
 
 		if self.config.namespaces.is_empty() {
@@ -1477,8 +1479,6 @@ impl<'src> ClientOutput<'src> {
 		self.push(include_str!("base.luau"));
 
 		self.push_studio();
-
-		self.push_check_server();
 
 		self.push_remotes();
 
