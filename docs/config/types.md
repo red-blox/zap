@@ -28,7 +28,7 @@ const orExample = `type Union = (
 	| enum { "hello", "world" }
 	| enum "tag" { one { b: i8 }, two { c: buffer } }
 	| unknown
-	| Instance (Player)
+	| Instance.Player
 	| Instance
 )`
 </script>
@@ -104,13 +104,18 @@ Numbers can be constrained by placing [a range](#as-a-recap) within parenthesis 
 
 ## Strings
 
-Strings are defined using the word `string`. For example:
+Strings come in two variants: `string.utf8` for UTF-8 encoded strings, and `string.binary` for arbitrary binary strings. For example:
 
-<CodeBlock code="string" />
+<CodeBlock code="string.utf8" />
+<CodeBlock code="string.binary" />
 
-The length of strings can be constrained by placing [a range](#as-a-recap) within parenthesis after the `string` keyword. For example, if you wanted to constrain a string between `3` and `20` characters (like a username) you could do:
+The length of strings can be constrained by placing [a range](#as-a-recap) within parenthesis after the string type. For example, if you wanted to constrain a UTF-8 string between `3` and `20` characters (like a username) you could do:
 
-<CodeBlock code="string(3..20)" />
+<CodeBlock code="string.utf8(3..20)" />
+
+Or for a binary string:
+
+<CodeBlock code="string.binary(3..20)" />
 
 ::: tip WARNING
 It's possible for usernames to exceed 20 characters under certain circumstances.
@@ -200,9 +205,9 @@ If you want to send an instance that may not exist, you must [make it optional](
 
 <CodeBlock code="Instance" />
 
-You can also specify what kind of instance you want to accept, for example:
+You can also specify what kind of instance you want to accept by using dot notation with the class name, for example:
 
-<CodeBlock code="type Part = Instance (BasePart)" />
+<CodeBlock code="type Part = Instance.BasePart" />
 
 Classes that inherit your specified class will be accepted, for example `Part`.
 
@@ -268,7 +273,7 @@ The following Roblox Classes are also available as types in Zap:
 ## Optional Types
 
 A type can be made optional by appending a `?` after the **whole type**, such as:
-<CodeBlock code="type Character = Instance (Player)?" />
+<CodeBlock code="type Character = Instance.Player?" />
 
 ## OR/Unions [0.6.20+]
 

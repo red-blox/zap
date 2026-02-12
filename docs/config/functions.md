@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const example = `funct Test = {
     call: Async,
-    args: (Foo: u8, Bar: string),
+    args: (Foo: u8, Bar: string.utf8),
     rets: enum { Success, Fail }
 }`
 
@@ -13,7 +13,7 @@ const argsExample = `funct OneUnnamedParameter = {
 
 funct TwoUnnamedParameters = {
     call: Async,
-    args: (u8, string),
+    args: (u8, string.utf8),
     rets: enum { Success, Fail }
 }
 `
@@ -21,7 +21,7 @@ funct TwoUnnamedParameters = {
 const multipleRets = `funct MultipleRets = {
     call: Async,
     args: boolean,
-    rets: (enum { Success, Fail }, string)
+    rets: (enum { Success, Fail }, string.utf8)
 }`
 </script>
 
