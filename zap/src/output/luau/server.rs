@@ -832,7 +832,7 @@ impl<'src> ServerOutput<'src> {
 		self.push(")\n");
 		self.indent();
 
-		self.push_line("if player_map[player] == nil then return end");
+		self.push_line(&format!("if player_map[{player}] == nil then return end"));
 
 		if self.config.include_profile_labels {
 			self.push_line(&format!("debug.profilebegin(\"{} Fire\")", ev.display_path()));
