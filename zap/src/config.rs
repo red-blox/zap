@@ -662,8 +662,10 @@ impl Range {
 	}
 
 	pub fn exact(&self) -> Option<f64> {
-		if self.min.is_some() && self.min == self.max {
-			Some(self.min.unwrap())
+		if let Some(min) = self.min
+			&& self.min == self.max
+		{
+			Some(min)
 		} else {
 			None
 		}
