@@ -518,7 +518,7 @@ impl<'src> ServerOutput<'src> {
 			self.push_line(&format!("task.spawn(function(player_2, call_id_2, {args})"));
 			self.indent();
 
-			self.push_line("if player_map[player_2] == nil then return end");
+			self.push_line("if player_map[player_2] == nil and player_2.Parent == nil then return end");
 
 			self.push_line(&format!(
 				"local {rets_string} = reliable_events[{server_id}](player_2, {args})"
@@ -832,7 +832,7 @@ impl<'src> ServerOutput<'src> {
 		self.push(")\n");
 		self.indent();
 
-		self.push_line(&format!("if player_map[{player}] == nil then return end"));
+		self.push_line(&format!("if player_map[{player}] == nil and {player}.Parent == nil then return end"));
 
 		if self.config.include_profile_labels {
 			self.push_line(&format!("debug.profilebegin(\"{} Fire\")", ev.display_path()));
@@ -1089,7 +1089,7 @@ impl<'src> ServerOutput<'src> {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
 				self.push_line(&format!("for _, player in {list} do"));
 				self.indent();
-				self.push_line("if player_map[player] == nil then continue end");
+				self.push_line("if player_map[player] == nil and player.Parent == nil then continue end");
 				self.push_line("load_player(player)");
 				self.push_line("alloc(used)");
 				self.push_line("buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)");
@@ -1107,7 +1107,7 @@ impl<'src> ServerOutput<'src> {
 				}
 				self.push_line(&format!("for _, player in {list} do"));
 				self.indent();
-				self.push_line("if player_map[player] == nil then continue end");
+				self.push_line("if player_map[player] == nil and player.Parent == nil then continue end");
 				if ordered {
 					self.push_unreliable_order_id("player", ev.id);
 				}
@@ -1170,7 +1170,7 @@ impl<'src> ServerOutput<'src> {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
 				self.push_line(&format!("for player in {set} do"));
 				self.indent();
-				self.push_line("if player_map[player] == nil then continue end");
+				self.push_line("if player_map[player] == nil and player.Parent == nil then continue end");
 				self.push_line("load_player(player)");
 				self.push_line("alloc(used)");
 				self.push_line("buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)");
@@ -1188,7 +1188,7 @@ impl<'src> ServerOutput<'src> {
 				}
 				self.push_line(&format!("for player in {set} do"));
 				self.indent();
-				self.push_line("if player_map[player] == nil then continue end");
+				self.push_line("if player_map[player] == nil and player.Parent == nil then continue end");
 				if ordered {
 					self.push_unreliable_order_id("player", ev.id);
 				}
@@ -1612,18 +1612,6 @@ impl<'src> ServerOutput<'src> {
 		self.dedent();
 		self.push_line("end");
 		self.push("\n");
-		self.push_line("for _, player in Players:GetPlayers() do");
-		self.indent();
-		self.push_line("load_player(player)");
-		self.push_line("player_map[player] = save()");
-		self.dedent();
-		self.push_line("end");
-		self.push_line("Players.PlayerAdded:Connect(function(player)");
-		self.indent();
-		self.push_line("load_player(player)");
-		self.push_line("player_map[player] = save()");
-		self.dedent();
-		self.push_line("end)");
 		self.push_line("Players.PlayerRemoving:Connect(function(player)");
 		self.indent();
 		self.push_line("player_map[player] = nil");
