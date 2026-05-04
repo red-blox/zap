@@ -518,11 +518,11 @@ impl<'src> ServerOutput<'src> {
 			self.push_line(&format!("task.spawn(function(player_2, call_id_2, {args})"));
 			self.indent();
 
-			self.push_line("if player_map[player_2] == nil and player_2.Parent == nil then return end");
-
 			self.push_line(&format!(
 				"local {rets_string} = reliable_events[{server_id}](player_2, {args})"
 			));
+
+			self.push_line("if player_map[player_2] == nil and player_2.Parent == nil then return end");
 
 			self.push_line("load_player(player_2)");
 			self.push_write_event_id(fndecl.client_id);
@@ -832,7 +832,9 @@ impl<'src> ServerOutput<'src> {
 		self.push(")\n");
 		self.indent();
 
-		self.push_line(&format!("if player_map[{player}] == nil and {player}.Parent == nil then return end"));
+		if ev.evty == EvType::Reliable {
+			self.push_line(&format!("if player_map[{player}] == nil and {player}.Parent == nil then return end"));
+		}
 
 		if self.config.include_profile_labels {
 			self.push_line(&format!("debug.profilebegin(\"{} Fire\")", ev.display_path()));
