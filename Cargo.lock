@@ -530,7 +530,7 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
 name = "cli"
-version = "0.6.28"
+version = "0.6.29"
 dependencies = [
  "anyhow",
  "clap",
@@ -4351,7 +4351,7 @@ dependencies = [
 
 [[package]]
 name = "zap"
-version = "0.6.28"
+version = "0.6.29"
 dependencies = [
  "anyhow",
  "codespan-reporting 0.12.0",
