@@ -522,6 +522,8 @@ impl<'src> ServerOutput<'src> {
 				"local {rets_string} = reliable_events[{server_id}](player_2, {args})"
 			));
 
+			self.push_line("if player_map[player_2] == nil and player_2.Parent == nil then return end");
+
 			self.push_line("load_player(player_2)");
 			self.push_write_event_id(fndecl.client_id);
 
@@ -830,6 +832,10 @@ impl<'src> ServerOutput<'src> {
 		self.push(")\n");
 		self.indent();
 
+		if ev.evty == EvType::Reliable {
+			self.push_line(&format!("if player_map[{player}] == nil and {player}.Parent == nil then return end"));
+		}
+
 		if self.config.include_profile_labels {
 			self.push_line(&format!("debug.profilebegin(\"{} Fire\")", ev.display_path()));
 		}
@@ -1085,6 +1091,7 @@ impl<'src> ServerOutput<'src> {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
 				self.push_line(&format!("for _, player in {list} do"));
 				self.indent();
+				self.push_line("if player_map[player] == nil and player.Parent == nil then continue end");
 				self.push_line("load_player(player)");
 				self.push_line("alloc(used)");
 				self.push_line("buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)");
@@ -1102,6 +1109,7 @@ impl<'src> ServerOutput<'src> {
 				}
 				self.push_line(&format!("for _, player in {list} do"));
 				self.indent();
+				self.push_line("if player_map[player] == nil and player.Parent == nil then continue end");
 				if ordered {
 					self.push_unreliable_order_id("player", ev.id);
 				}
@@ -1164,6 +1172,7 @@ impl<'src> ServerOutput<'src> {
 				self.push_line("local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst");
 				self.push_line(&format!("for player in {set} do"));
 				self.indent();
+				self.push_line("if player_map[player] == nil and player.Parent == nil then continue end");
 				self.push_line("load_player(player)");
 				self.push_line("alloc(used)");
 				self.push_line("buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)");
@@ -1181,6 +1190,7 @@ impl<'src> ServerOutput<'src> {
 				}
 				self.push_line(&format!("for player in {set} do"));
 				self.indent();
+				self.push_line("if player_map[player] == nil and player.Parent == nil then continue end");
 				if ordered {
 					self.push_unreliable_order_id("player", ev.id);
 				}
